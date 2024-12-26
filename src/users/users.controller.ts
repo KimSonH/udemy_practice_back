@@ -1,11 +1,11 @@
 import { Body, Controller, Get, Post, Req } from '@nestjs/common';
-import { UsersService } from './user.service';
+import { UsersService } from './users.service';
 import { Request } from 'express';
 import { createUserDto } from './dto/createUser.dto';
 
 @Controller('users')
-export class UserController {
-  constructor(private userService: UsersService) {}
+export class UsersController {
+  constructor(private usersService: UsersService) {}
 
   @Get('email')
   async findEmail(@Req() request: Request) {
@@ -15,7 +15,7 @@ export class UserController {
       return 'Email query parameter is required';
     }
 
-    return await this.userService.getByEmail(email as string);
+    return await this.usersService.getByEmail(email as string);
   }
 
   @Post()
@@ -23,6 +23,6 @@ export class UserController {
     @Body()
     body: createUserDto,
   ) {
-    return this.userService.create(body);
+    return this.usersService.create(body);
   }
 }
