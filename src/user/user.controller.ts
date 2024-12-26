@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Post, Req } from '@nestjs/common';
 import { UsersService } from './user.service';
 import { Request } from 'express';
+import { createUserDto } from './dto/createUser.dto';
 
 @Controller('users')
 export class UserController {
@@ -14,18 +15,13 @@ export class UserController {
       return 'Email query parameter is required';
     }
 
-    return await this.userService.getEmail(email as string);
+    return await this.userService.getByEmail(email as string);
   }
 
   @Post()
   async create(
     @Body()
-    body: {
-      email: string;
-      password: string;
-      firstName: string;
-      lastName: string;
-    },
+    body: createUserDto,
   ) {
     return this.userService.create(body);
   }
