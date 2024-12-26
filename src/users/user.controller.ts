@@ -1,4 +1,4 @@
-import { Controller, Get, Req } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req } from '@nestjs/common';
 import { UsersService } from './user.service';
 import { Request } from 'express';
 
@@ -15,5 +15,18 @@ export class UserController {
     }
 
     return await this.userService.getEmail(email as string);
+  }
+
+  @Post()
+  async create(
+    @Body()
+    body: {
+      email: string;
+      password: string;
+      firstName: string;
+      lastName: string;
+    },
+  ) {
+    return this.userService.create(body);
   }
 }

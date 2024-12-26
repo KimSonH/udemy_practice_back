@@ -12,7 +12,6 @@ export class UsersService {
 
   async getEmail(email: string): Promise<User> {
     const user = await this.usersRepository.findOneBy({ email });
-    console.log(user);
 
     if (user) {
       return user;
@@ -21,5 +20,20 @@ export class UsersService {
       'User with this email does not exist',
       HttpStatus.NOT_FOUND,
     );
+  }
+
+  async create(body: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+  }): Promise<User> {
+    const user = new User();
+    user.email = body.email;
+    user.password = body.password;
+    user.firstName = body.firstName;
+    user.lastName = body.lastName;
+
+    return await this.usersRepository.save(user);
   }
 }
