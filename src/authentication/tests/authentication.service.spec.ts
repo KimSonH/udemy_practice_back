@@ -20,8 +20,6 @@ describe('The AuthenticationService', () => {
             POSTGRES_USER: Joi.string().required(),
             POSTGRES_PASSWORD: Joi.string().required(),
             POSTGRES_DB: Joi.string().required(),
-            JWT_SECRET: Joi.string().required(),
-            JWT_EXPIRATION_TIME: Joi.string().required(),
             PORT: Joi.number(),
           }),
         }),
@@ -29,9 +27,9 @@ describe('The AuthenticationService', () => {
           imports: [ConfigModule],
           inject: [ConfigService],
           useFactory: async (configService: ConfigService) => ({
-            secret: configService.get('JWT_SECRET'),
+            secret: configService.get('JWT_ACCESS_TOKEN_SECRET'),
             signOptions: {
-              expiresIn: `${configService.get('JWT_EXPIRATION_TIME')}s`,
+              expiresIn: `${configService.get('JWT_ACCESS_TOKEN_EXPIRATION_TIME')}s`,
             },
           }),
         }),
