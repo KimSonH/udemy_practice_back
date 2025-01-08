@@ -1,13 +1,11 @@
 import {
   Body,
-  ClassSerializerInterceptor,
   Controller,
   Get,
   HttpCode,
   Post,
   Req,
   UseGuards,
-  UseInterceptors,
 } from '@nestjs/common';
 import { AuthenticationService } from './authentication.service';
 import { RegisterDto } from './dto/register.dto';
@@ -18,7 +16,6 @@ import { UsersService } from 'src/users/users.service';
 import JwtRefreshGuard from './jwt-refresh.guard';
 
 @Controller('authentication')
-@UseInterceptors(ClassSerializerInterceptor)
 export class AuthenticationController {
   constructor(
     private authenticationService: AuthenticationService,
