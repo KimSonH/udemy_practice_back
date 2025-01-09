@@ -39,5 +39,6 @@ export class User {
   public updatedAt!: Date;
 
   @DeleteDateColumn()
+  @Exclude()
   public deletedAt?: Date;
 }

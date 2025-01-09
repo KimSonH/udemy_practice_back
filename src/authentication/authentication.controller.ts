@@ -73,4 +73,10 @@ export class AuthenticationController {
     const user = request.user;
     return user;
   }
+
+  @UseGuards(JwtAuthenticationGuard)
+  @Get('users')
+  getUser() {
+    return this.usersService.getUsers();
+  }
 }
