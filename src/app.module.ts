@@ -7,6 +7,8 @@ import { LoggerMiddleware } from './logger/logger.middleware';
 import { AuthenticationModule } from './authentication/authentication.module';
 import { CatchEverythingFilter } from './exceptions/catchEverything.filter';
 import { APP_FILTER } from '@nestjs/core';
+import { ClassMarkersModule } from './classMarkers/classMarkers.module';
+import { CategoriesModule } from './categories/categories.module';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { APP_FILTER } from '@nestjs/core';
     DatabaseModule,
     UsersModule,
     AuthenticationModule,
+    ClassMarkersModule,
+    CategoriesModule,
   ],
   controllers: [],
   providers: [
