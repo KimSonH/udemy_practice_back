@@ -6,11 +6,13 @@ import { RegisterDto } from './dto/register.dto';
 import { TokenPayload } from './tokenPayload.interface';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { AdminService } from 'src/admin/admin.service';
 
 @Injectable()
 export class AuthenticationService {
   constructor(
     private readonly userService: UsersService,
+    private readonly adminService: AdminService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
@@ -40,6 +42,15 @@ export class AuthenticationService {
     return `Authentication=${token}; HttpOnly; Path=/; Max-Age=${this.configService.get('JWT_ACCESS_TOKEN_EXPIRATION_TIME')}`;
   }
 
+  public getCookieWithJwtAdminAccessToken(userId: number) {
+    const payload: TokenPayload = { userId };
+    const token = this.jwtService.sign(payload, {
+      secret: this.configService.get('JWT_ADMIN_ACCESS_TOKEN_SECRET'),
+      expiresIn: `${this.configService.get('JWT_ADMIN_ACCESS_TOKEN_EXPIRATION_TIME')}s`,
+    });
+    return `AAuthentication=${token}; HttpOnly; Path=/; Max-Age=${this.configService.get('JWT_ADMIN_ACCESS_TOKEN_EXPIRATION_TIME')}`;
+  }
+
   public getCookieWithJwtRefreshToken(userId: number) {
     const payload: TokenPayload = { userId };
     const token = this.jwtService.sign(payload, {
@@ -53,10 +64,29 @@ export class AuthenticationService {
     };
   }
 
+  public getCookieWithJwtAdminRefreshToken(userId: number) {
+    const payload: TokenPayload = { userId };
+    const token = this.jwtService.sign(payload, {
+      secret: this.configService.get('JWT_ADMIN_REFRESH_TOKEN_SECRET'),
+      expiresIn: `${this.configService.get('JWT_ADMIN_REFRESH_TOKEN_EXPIRATION_TIME')}s`,
+    });
+    return {
+      cookie: `ARefresh=${token}; HttpOnly; Path=/; Max-Age=${this.configService.get('JWT_ADMIN_REFRESH_TOKEN_EXPIRATION_TIME')}`,
+      token,
+    };
+  }
+
   public getCookiesForLogOut() {
     return [
       'Authentication=; HttpOnly; Path=/; Max-Age=0',
       'Refresh=; HttpOnly; Path=/; Max-Age=0',
+    ];
+  }
+
+  public getCookiesForLogOutAdmin() {
+    return [
+      'AAuthentication=; HttpOnly; Path=/; Max-Age=0',
+      'ARefresh=; HttpOnly; Path=/; Max-Age=0',
     ];
   }
 
@@ -97,13 +127,17 @@ export class AuthenticationService {
     }
   }
 
-  public getCookieWithJwtToken(userId: number) {
-    const payload: TokenPayload = { userId };
-    const token = this.jwtService.sign(payload);
-    return `Authentication=${token}; HttpOnly; Path=/; Max-Age=${this.configService.get('JWT_ACCESS_TOKEN_EXPIRATION_TIME')}`;
-  }
-
-  public getCookieForLogOut() {
-    return `Authentication=; HttpOnly; Path=/; Max-Age=0`;
+  public async getAuthenticatedAdmin(email: string, hashedPassword: string) {
+    try {
+      const admin = await this.adminService.getByEmail(email);
+      await this.verifyPassword(hashedPassword, admin.password);
+      admin.password = undefined;
+      return admin;
+    } catch {
+      throw new HttpException(
+        'Wrong credentials provided',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
   }
 }

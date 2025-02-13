@@ -8,10 +8,16 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtRefreshTokenStrategy } from './jwt-refresh-token.strategy';
+import { AdminModule } from 'src/admin/admin.module';
+import { LocalAdminStrategy } from './local-admin.strategy';
+import { JwtAdminStrategy } from './jwt-admin.strategy';
+import { JwtAdminRefreshTokenStrategy } from './jwt-refresh-admin-token.strategy';
+import JwtAdminAuthenticationGuard from './jwt-admin-authentication.guard';
 
 @Module({
   imports: [
     UsersModule,
+    AdminModule,
     PassportModule,
     ConfigModule,
     JwtModule.registerAsync({
@@ -28,8 +34,12 @@ import { JwtRefreshTokenStrategy } from './jwt-refresh-token.strategy';
   providers: [
     AuthenticationService,
     LocalStrategy,
+    LocalAdminStrategy,
     JwtStrategy,
     JwtRefreshTokenStrategy,
+    JwtAdminStrategy,
+    JwtAdminRefreshTokenStrategy,
+    JwtAdminAuthenticationGuard,
   ],
   controllers: [AuthenticationController],
 })

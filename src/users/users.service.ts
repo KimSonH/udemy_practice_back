@@ -70,21 +70,4 @@ export class UsersService {
       return user;
     }
   }
-
-  async getUsers() {
-    const page = 1;
-    const limit = 10;
-    const [items, total] = await this.usersRepository.findAndCount({
-      where: { deletedAt: null },
-      take: limit,
-      skip: (page - 1) * limit,
-    });
-
-    return {
-      items,
-      total,
-      page,
-      limit,
-    };
-  }
 }

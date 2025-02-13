@@ -9,6 +9,7 @@ import { CatchEverythingFilter } from './exceptions/catchEverything.filter';
 import { APP_FILTER } from '@nestjs/core';
 import { ClassMarkersModule } from './classMarkers/classMarkers.module';
 import { CategoriesModule } from './categories/categories.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { CategoriesModule } from './categories/categories.module';
     }),
     DatabaseModule,
     UsersModule,
+    AdminModule,
     AuthenticationModule,
     ClassMarkersModule,
     CategoriesModule,
