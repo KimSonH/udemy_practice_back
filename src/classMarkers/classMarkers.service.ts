@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ClassMarker } from './classMarkers.entity';
+import { ClassMarker, QuestionType } from './classMarkers.entity';
 import { Repository } from 'typeorm';
 
 @Injectable()
@@ -12,10 +12,11 @@ export class ClassMarkersService {
 
   async getClassMarkers() {
     const page = 1,
-      limit = 10;
+      limit = 30,
+      questionType = QuestionType.MULTIPLE_CHOICE;
 
     const [items, total] = await this.classMarkersRepository.findAndCount({
-      where: { deletedAt: null },
+      where: { deletedAt: null, questionType },
       take: limit,
       skip: (page - 1) * limit,
     });
@@ -26,5 +27,9 @@ export class ClassMarkersService {
       page,
       limit,
     };
+  }
+
+  async getClassMarkerById(id: number) {
+    return this.classMarkersRepository.findOneBy({ id });
   }
 }

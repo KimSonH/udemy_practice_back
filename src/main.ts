@@ -7,6 +7,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { ResponseInterceptor } from './interceptors/response.interceptor';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -27,6 +28,17 @@ async function bootstrap() {
     new ResponseInterceptor(),
   );
   app.use(cookieParser());
+
+  const config = new DocumentBuilder()
+    .setTitle('Class Management API')
+    .setDescription('API documentation for the Class Management System')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
+
   await app.listen(process.env.PORT ?? 3333);
 }
 bootstrap();
