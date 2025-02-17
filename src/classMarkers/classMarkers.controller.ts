@@ -1,6 +1,6 @@
 import { Controller, Get, Param, UseGuards } from '@nestjs/common';
 import { ClassMarkersService } from './classMarkers.service';
-import JwtAuthenticationGuard from 'src/authentication/jwt-authentication.guard';
+import JwtAuthenticationGuard from 'src/authentication/guard/jwt-authentication.guard';
 
 @Controller('class-markers')
 export class ClassMarkersController {

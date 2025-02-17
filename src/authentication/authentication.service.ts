@@ -39,7 +39,10 @@ export class AuthenticationService {
       secret: this.configService.get('JWT_ACCESS_TOKEN_SECRET'),
       expiresIn: `${this.configService.get('JWT_ACCESS_TOKEN_EXPIRATION_TIME')}s`,
     });
-    return `Authentication=${token}; HttpOnly; Path=/; Max-Age=${this.configService.get('JWT_ACCESS_TOKEN_EXPIRATION_TIME')}`;
+    return {
+      cookie: `Authentication=${token}; HttpOnly; Path=/; Max-Age=${this.configService.get('JWT_ACCESS_TOKEN_EXPIRATION_TIME')}; SameSite=strict; Secure=${this.configService.get('NODE_ENV') === 'production'}`,
+      token,
+    };
   }
 
   public getCookieWithJwtAdminAccessToken(userId: number) {
@@ -48,7 +51,11 @@ export class AuthenticationService {
       secret: this.configService.get('JWT_ADMIN_ACCESS_TOKEN_SECRET'),
       expiresIn: `${this.configService.get('JWT_ADMIN_ACCESS_TOKEN_EXPIRATION_TIME')}s`,
     });
-    return `AAuthentication=${token}; HttpOnly; Path=/; Max-Age=${this.configService.get('JWT_ADMIN_ACCESS_TOKEN_EXPIRATION_TIME')}`;
+    const cookie = `AAuthentication=${token}; HttpOnly; Path=/; Max-Age=${this.configService.get('JWT_ADMIN_ACCESS_TOKEN_EXPIRATION_TIME')}; SameSite=strict; Secure=${this.configService.get('NODE_ENV') === 'production'}`;
+    return {
+      cookie,
+      token,
+    };
   }
 
   public getCookieWithJwtRefreshToken(userId: number) {
@@ -57,7 +64,7 @@ export class AuthenticationService {
       secret: this.configService.get('JWT_REFRESH_TOKEN_SECRET'),
       expiresIn: `${this.configService.get('JWT_REFRESH_TOKEN_EXPIRATION_TIME')}s`,
     });
-    const cookie = `Refresh=${token}; HttpOnly; Path=/; Max-Age=${this.configService.get('JWT_REFRESH_TOKEN_EXPIRATION_TIME')}`;
+    const cookie = `Refresh=${token}; HttpOnly; Path=/; Max-Age=${this.configService.get('JWT_REFRESH_TOKEN_EXPIRATION_TIME')}; SameSite=strict; Secure=${this.configService.get('NODE_ENV') === 'production'}`;
     return {
       cookie,
       token,
@@ -71,7 +78,7 @@ export class AuthenticationService {
       expiresIn: `${this.configService.get('JWT_ADMIN_REFRESH_TOKEN_EXPIRATION_TIME')}s`,
     });
     return {
-      cookie: `ARefresh=${token}; HttpOnly; Path=/; Max-Age=${this.configService.get('JWT_ADMIN_REFRESH_TOKEN_EXPIRATION_TIME')}`,
+      cookie: `ARefresh=${token}; HttpOnly; Path=/; Max-Age=${this.configService.get('JWT_ADMIN_REFRESH_TOKEN_EXPIRATION_TIME')}; SameSite=strict; Secure=${this.configService.get('NODE_ENV') === 'production'}`,
       token,
     };
   }

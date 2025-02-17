@@ -8,9 +8,11 @@ import {
 } from '@nestjs/common';
 import { ResponseInterceptor } from './interceptors/response.interceptor';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
   app.useGlobalPipes(
     new ValidationPipe({
       exceptionFactory: (errors) => {
@@ -23,11 +25,17 @@ async function bootstrap() {
       stopAtFirstError: true,
     }),
   );
+
+  app.enableCors({
+    origin: ['http://localhost:3000', 'http://localhost:3001'],
+    allowedHeaders: 'Origin, X-Requested-With, Content-Type, Accept',
+    credentials: true,
+  });
+
   app.useGlobalInterceptors(
     new ClassSerializerInterceptor(app.get(Reflector)),
     new ResponseInterceptor(),
   );
-  app.use(cookieParser());
 
   const config = new DocumentBuilder()
     .setTitle('Class Management API')
@@ -38,6 +46,9 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
+
+  app.use(cookieParser());
+  app.disable('x-powered-by');
 
   await app.listen(process.env.PORT ?? 3333);
 }
