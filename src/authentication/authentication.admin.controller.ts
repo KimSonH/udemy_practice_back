@@ -14,7 +14,7 @@ import { AdminService } from 'src/admin/admin.service';
 import JwtRefreshAdminGuard from './guard/jwt-refresh.admin.guard';
 import JwtAdminAuthenticationGuard from './guard/jwt-admin-authentication.guard';
 
-@Controller('authentication/admin')
+@Controller('admin/authentication')
 export class AuthenticationAdminController {
   constructor(
     private readonly authenticationService: AuthenticationService,
