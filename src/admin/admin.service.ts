@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Admin } from './admin.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -16,10 +16,7 @@ export class AdminService {
     if (admin) {
       return admin;
     }
-    throw new HttpException(
-      'Admin with this id does not exist',
-      HttpStatus.NOT_FOUND,
-    );
+    throw new NotFoundException('Admin with this id does not exist');
   }
 
   async getByEmail(email: string): Promise<Admin> {
@@ -27,10 +24,7 @@ export class AdminService {
     if (admin) {
       return admin;
     }
-    throw new HttpException(
-      'Admin with this email does not exist',
-      HttpStatus.NOT_FOUND,
-    );
+    throw new NotFoundException('Admin with this email does not exist');
   }
 
   async setCurrentRefreshToken(refreshToken: string, adminId: number) {

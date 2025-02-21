@@ -33,6 +33,12 @@ export class ClassMarker {
   public questionType: QuestionType;
 
   @Column({ nullable: true })
+  public parentCategoryName?: string;
+
+  @Column({ nullable: true })
+  public categoryName?: string;
+
+  @Column({ nullable: true })
   public randomAnswer?: string;
 
   @Column({ nullable: true })

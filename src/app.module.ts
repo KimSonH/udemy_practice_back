@@ -10,6 +10,7 @@ import { APP_FILTER } from '@nestjs/core';
 import { ClassMarkersModule } from './classMarkers/classMarkers.module';
 import { CategoriesModule } from './categories/categories.module';
 import { AdminModule } from './admin/admin.module';
+import { CoursesModule } from './courses/courses.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { AdminModule } from './admin/admin.module';
     AuthenticationModule,
     ClassMarkersModule,
     CategoriesModule,
+    CoursesModule,
   ],
   controllers: [],
   providers: [

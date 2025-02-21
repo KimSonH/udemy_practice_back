@@ -1,4 +1,10 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
 import { PostgresErrorCode } from '../database/postgresErrorCodes.enum';
@@ -7,7 +13,7 @@ import { TokenPayload } from './tokenPayload.interface';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { AdminService } from 'src/admin/admin.service';
-
+import { WithTransaction } from 'src/common/decorators/transaction.decorator';
 @Injectable()
 export class AuthenticationService {
   constructor(
@@ -97,6 +103,7 @@ export class AuthenticationService {
     ];
   }
 
+  @WithTransaction()
   public async register(registrationData: RegisterDto) {
     const hashedPassword = await bcrypt.hash(registrationData.password, 10);
     try {
@@ -108,15 +115,9 @@ export class AuthenticationService {
       return createdUser;
     } catch (error) {
       if (error?.code === PostgresErrorCode.UniqueViolation) {
-        throw new HttpException(
-          'User with that email already exists',
-          HttpStatus.BAD_REQUEST,
-        );
+        throw new BadRequestException('User with that email already exists');
       }
-      throw new HttpException(
-        'Something went wrong',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new InternalServerErrorException('Something went wrong');
     }
   }
 
@@ -127,10 +128,7 @@ export class AuthenticationService {
       user.password = undefined;
       return user;
     } catch {
-      throw new HttpException(
-        'Wrong credentials provided',
-        HttpStatus.BAD_REQUEST,
-      );
+      throw new BadRequestException('Wrong credentials provided');
     }
   }
 
@@ -141,10 +139,7 @@ export class AuthenticationService {
       admin.password = undefined;
       return admin;
     } catch {
-      throw new HttpException(
-        'Wrong credentials provided',
-        HttpStatus.BAD_REQUEST,
-      );
+      throw new BadRequestException('Wrong credentials provided');
     }
   }
 }
