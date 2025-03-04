@@ -14,6 +14,7 @@ import JwtAdminAuthenticationGuard from './guard/jwt-admin-authentication.guard'
 import { AuthenticationAdminController } from './authentication.admin.controller';
 import { JwtRefreshTokenStrategy } from './strategy/jwt-refresh-token.strategy';
 import { LocalStrategy } from './strategy/local.strategy';
+import { AuthenticationAdminService } from './authentication.admin.service';
 @Module({
   imports: [
     UsersModule,
@@ -23,7 +24,7 @@ import { LocalStrategy } from './strategy/local.strategy';
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
+      useFactory: (configService: ConfigService) => ({
         secret: configService.get('JWT_ACCESS_TOKEN_SECRET'),
         signOptions: {
           expiresIn: `${configService.get('JWT_ACCESS_TOKEN_EXPIRATION_TIME')}s`,
@@ -33,6 +34,7 @@ import { LocalStrategy } from './strategy/local.strategy';
   ],
   providers: [
     AuthenticationService,
+    AuthenticationAdminService,
     LocalStrategy,
     LocalAdminStrategy,
     JwtStrategy,

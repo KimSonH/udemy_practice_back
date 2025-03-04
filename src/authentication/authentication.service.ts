@@ -12,13 +12,11 @@ import { RegisterDto } from './dto/register.dto';
 import { TokenPayload } from './tokenPayload.interface';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { AdminService } from 'src/admin/admin.service';
 import { WithTransaction } from 'src/common/decorators/transaction.decorator';
 @Injectable()
 export class AuthenticationService {
   constructor(
     private readonly userService: UsersService,
-    private readonly adminService: AdminService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
@@ -51,19 +49,6 @@ export class AuthenticationService {
     };
   }
 
-  public getCookieWithJwtAdminAccessToken(userId: number) {
-    const payload: TokenPayload = { userId };
-    const token = this.jwtService.sign(payload, {
-      secret: this.configService.get('JWT_ADMIN_ACCESS_TOKEN_SECRET'),
-      expiresIn: `${this.configService.get('JWT_ADMIN_ACCESS_TOKEN_EXPIRATION_TIME')}s`,
-    });
-    const cookie = `AAuthentication=${token}; HttpOnly; Path=/; Max-Age=${this.configService.get('JWT_ADMIN_ACCESS_TOKEN_EXPIRATION_TIME')}; SameSite=strict; Secure=${this.configService.get('NODE_ENV') === 'production'}`;
-    return {
-      cookie,
-      token,
-    };
-  }
-
   public getCookieWithJwtRefreshToken(userId: number) {
     const payload: TokenPayload = { userId };
     const token = this.jwtService.sign(payload, {
@@ -77,29 +62,10 @@ export class AuthenticationService {
     };
   }
 
-  public getCookieWithJwtAdminRefreshToken(userId: number) {
-    const payload: TokenPayload = { userId };
-    const token = this.jwtService.sign(payload, {
-      secret: this.configService.get('JWT_ADMIN_REFRESH_TOKEN_SECRET'),
-      expiresIn: `${this.configService.get('JWT_ADMIN_REFRESH_TOKEN_EXPIRATION_TIME')}s`,
-    });
-    return {
-      cookie: `ARefresh=${token}; HttpOnly; Path=/; Max-Age=${this.configService.get('JWT_ADMIN_REFRESH_TOKEN_EXPIRATION_TIME')}; SameSite=strict; Secure=${this.configService.get('NODE_ENV') === 'production'}`,
-      token,
-    };
-  }
-
   public getCookiesForLogOut() {
     return [
       'Authentication=; HttpOnly; Path=/; Max-Age=0',
       'Refresh=; HttpOnly; Path=/; Max-Age=0',
-    ];
-  }
-
-  public getCookiesForLogOutAdmin() {
-    return [
-      'AAuthentication=; HttpOnly; Path=/; Max-Age=0',
-      'ARefresh=; HttpOnly; Path=/; Max-Age=0',
     ];
   }
 
@@ -127,17 +93,6 @@ export class AuthenticationService {
       await this.verifyPassword(hashedPassword, user.password);
       user.password = undefined;
       return user;
-    } catch {
-      throw new BadRequestException('Wrong credentials provided');
-    }
-  }
-
-  public async getAuthenticatedAdmin(email: string, hashedPassword: string) {
-    try {
-      const admin = await this.adminService.getByEmail(email);
-      await this.verifyPassword(hashedPassword, admin.password);
-      admin.password = undefined;
-      return admin;
     } catch {
       throw new BadRequestException('Wrong credentials provided');
     }

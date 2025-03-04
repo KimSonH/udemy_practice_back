@@ -7,18 +7,15 @@ import {
   Get,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { AuthenticationService } from './authentication.service';
 import { LocalAuthenticationAdminGuard } from './guard/localAuthentication.admin.guard';
 import { RequestWithAdmin } from './requestWithUser.interface';
-import { AdminService } from 'src/admin/admin.service';
 import JwtRefreshAdminGuard from './guard/jwt-refresh.admin.guard';
 import JwtAdminAuthenticationGuard from './guard/jwt-admin-authentication.guard';
-
+import { AuthenticationAdminService } from './authentication.admin.service';
 @Controller('admin/authentication')
 export class AuthenticationAdminController {
   constructor(
-    private readonly authenticationService: AuthenticationService,
-    private readonly adminService: AdminService,
+    private readonly authenticationAdminService: AuthenticationAdminService,
   ) {}
 
   @ApiOperation({ summary: 'Admin login' })
@@ -27,18 +24,14 @@ export class AuthenticationAdminController {
   @HttpCode(200)
   @UseGuards(LocalAuthenticationAdminGuard)
   @Post('log-in')
-  async adminLogIn(@Req() request: RequestWithAdmin) {
+  adminLogIn(@Req() request: RequestWithAdmin) {
     const { user } = request;
-    const { token: accessToken } =
-      this.authenticationService.getCookieWithJwtAdminAccessToken(user.id);
-    const { token: refreshToken } =
-      this.authenticationService.getCookieWithJwtAdminRefreshToken(user.id);
-
-    await this.adminService.setCurrentRefreshToken(refreshToken, user.id);
+    const { token: accessToken, expiresIn } =
+      this.authenticationAdminService.getCookieWithJwtAdminAccessToken(user.id);
 
     return {
       accessToken,
-      refreshToken,
+      expiresIn,
     };
   }
 
@@ -52,13 +45,14 @@ export class AuthenticationAdminController {
   @UseGuards(JwtRefreshAdminGuard)
   @Get('refresh')
   adminRefresh(@Req() request: RequestWithAdmin) {
-    const { token: accessToken } =
-      this.authenticationService.getCookieWithJwtAdminAccessToken(
+    const { token: accessToken, expiresIn } =
+      this.authenticationAdminService.getCookieWithJwtAdminAccessToken(
         request.user.id,
       );
 
     return {
       accessToken,
+      expiresIn,
     };
   }
 
@@ -70,7 +64,7 @@ export class AuthenticationAdminController {
   @UseGuards(JwtAdminAuthenticationGuard)
   @Post('log-out')
   async adminLogOut(@Req() request: RequestWithAdmin) {
-    await this.adminService.removeRefreshToken(request.user.id);
+    await this.authenticationAdminService.removeRefreshToken(request.user.id);
   }
 
   @ApiOperation({ summary: 'Get authenticated admin' })

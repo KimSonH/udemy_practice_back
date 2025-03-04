@@ -10,7 +10,6 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { ApiProperty } from '@nestjs/swagger';
 
 export enum QuestionType {
   MULTIPLE_CHOICE = 'multiplechoice',
@@ -21,7 +20,6 @@ export enum QuestionType {
 
 @Entity()
 export class ClassMarker {
-  @ApiProperty({ description: 'The unique identifier of the class marker' })
   @PrimaryGeneratedColumn()
   public id?: number;
 
