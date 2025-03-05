@@ -83,6 +83,28 @@ export class QuestionsService {
     }
   }
 
+  async findQuestionsByCategoryName(categoryName: string, take: number) {
+    const [questions, total] = await this.questionsRepository.findAndCount({
+      where: { categoryName, deletedAt: null },
+      take,
+    });
+
+    if (total === 0) {
+      throw new BadRequestException('Questions not found');
+    }
+
+    if (take > total) {
+      throw new BadRequestException(
+        'Number of questions is greater than total',
+      );
+    }
+
+    return {
+      questions,
+      total,
+    };
+  }
+
   async findOne(id: number) {
     try {
       const question = await this.questionsRepository.findOne({

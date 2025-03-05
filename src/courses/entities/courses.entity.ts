@@ -7,10 +7,9 @@ import {
   UpdateDateColumn,
   CreateDateColumn,
 } from 'typeorm';
-import { ClassMarker } from 'src/classMarkers/classMarkers.entity';
 import { JoinTable, ManyToMany } from 'typeorm';
 import { CategoryCourse } from 'src/categories/entities/categories.course.entity';
-
+import { Question } from 'src/questions/entities/question.entity';
 @Entity()
 export class Course {
   @PrimaryGeneratedColumn()
@@ -41,9 +40,9 @@ export class Course {
   @Exclude()
   public deletedAt?: Date;
 
-  @ManyToMany(() => ClassMarker)
+  @ManyToMany(() => Question, (question) => question.courses)
   @JoinTable()
-  public questions: ClassMarker[];
+  public questions: Question[];
 
   @ManyToMany(() => CategoryCourse, (categoryCourse) => categoryCourse.courses)
   @JoinTable()

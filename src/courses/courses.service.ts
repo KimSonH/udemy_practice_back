@@ -1,18 +1,17 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Course } from './entities/courses.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Like, Repository, QueryRunner } from 'typeorm';
-import { ClassMarkersService } from 'src/classMarkers/classMarkers.service';
+import { Like, Repository } from 'typeorm';
 import { WithTransaction } from 'src/common/decorators/transaction.decorator';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
-
+import { QuestionsService } from 'src/questions/questions.service';
 @Injectable()
 export class CoursesService {
   constructor(
     @InjectRepository(Course)
     private readonly coursesRepository: Repository<Course>,
-    private readonly classMarkersService: ClassMarkersService,
+    private readonly questionService: QuestionsService,
   ) {}
 
   async getCourses(page: number, limit: number) {
@@ -85,47 +84,42 @@ export class CoursesService {
   }
 
   @WithTransaction()
-  async createCourse(course: CreateCourseDto, queryRunner?: QueryRunner) {
-    const { classMarkers } =
-      await this.classMarkersService.findClassMarkersByCategoryName(
+  async createCourse(course: CreateCourseDto) {
+    const { questions } =
+      await this.questionService.findQuestionsByCategoryName(
         course.questions.categoryName,
         course.questions.numberOfQuestions,
       );
 
-    return queryRunner.manager.save(Course, {
+    return this.coursesRepository.save({
       name: course.name,
       description: course.description,
       price: course.price,
       status: course.status,
-      questions: classMarkers,
+      questions: questions,
     });
   }
 
   @WithTransaction()
-  async updateCourse(
-    id: number,
-    updateCourse: UpdateCourseDto,
-    queryRunner?: QueryRunner,
-  ) {
+  async updateCourse(id: number, updateCourse: UpdateCourseDto) {
     const course = await this.getCourseById(id);
 
     if (
       course.questions[0].categoryName !== updateCourse.questions.categoryName
     ) {
-      const { classMarkers } =
-        await this.classMarkersService.findClassMarkersByCategoryName(
+      const { questions } =
+        await this.questionService.findQuestionsByCategoryName(
           updateCourse.questions.categoryName,
           updateCourse.questions.numberOfQuestions,
         );
 
-      course.questions = classMarkers;
+      course.questions = questions;
     }
 
-    return queryRunner.manager.update(Course, id, course);
+    return this.coursesRepository.update(id, course);
   }
 
-  @WithTransaction()
-  async deleteCourse(id: number, queryRunner?: QueryRunner) {
-    return queryRunner.manager.delete(Course, id);
+  async deleteCourse(id: number) {
+    return this.coursesRepository.delete(id);
   }
 }
