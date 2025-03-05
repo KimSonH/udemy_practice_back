@@ -1,11 +1,11 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { Course } from './courses.entity';
+import { Course } from './entities/courses.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Like, Repository, QueryRunner } from 'typeorm';
-import { CreateCourseDto } from './types/createCourse.type';
 import { ClassMarkersService } from 'src/classMarkers/classMarkers.service';
-import { UpdateCourseDto } from './types/updateCourse.type';
 import { WithTransaction } from 'src/common/decorators/transaction.decorator';
+import { CreateCourseDto } from './dto/create-course.dto';
+import { UpdateCourseDto } from './dto/update-course.dto';
 
 @Injectable()
 export class CoursesService {

@@ -1,12 +1,9 @@
 import { Exclude } from 'class-transformer';
-import { Category } from 'src/categories/categories.entity';
 import {
   Column,
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
-  JoinTable,
-  ManyToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -93,8 +90,4 @@ export class ClassMarker {
   @DeleteDateColumn()
   @Exclude()
   public deletedAt?: Date;
-
-  @ManyToMany(() => Category)
-  @JoinTable()
-  public categories: Category[];
 }

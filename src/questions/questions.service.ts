@@ -16,7 +16,7 @@ export class QuestionsService {
     private readonly questionsRepository: Repository<Question>,
   ) {}
   create(createQuestionDto: CreateQuestionDto) {
-    return 'This action adds a new question';
+    return this.questionsRepository.create(createQuestionDto);
   }
 
   async findAll(page: number, limit: number) {
@@ -100,11 +100,23 @@ export class QuestionsService {
     }
   }
 
-  update(id: number, updateQuestionDto: UpdateQuestionDto) {
-    return `This action updates a #${id} question`;
+  async update(id: number, updateQuestionDto: UpdateQuestionDto) {
+    try {
+      await this.findOne(id);
+      return this.questionsRepository.update(id, updateQuestionDto);
+    } catch (error) {
+      console.log('error', error);
+      throw new BadRequestException('Error updating question');
+    }
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} question`;
+  async remove(id: number) {
+    try {
+      await this.findOne(id);
+      return this.questionsRepository.softDelete(id);
+    } catch (error) {
+      console.log('error', error);
+      throw new BadRequestException('Error deleting question');
+    }
   }
 }

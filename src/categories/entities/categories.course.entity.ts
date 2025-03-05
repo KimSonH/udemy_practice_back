@@ -1,15 +1,17 @@
 import { Exclude } from 'class-transformer';
+import { Course } from 'src/courses/entities/courses.entity';
 import {
   Column,
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  ManyToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
 @Entity()
-export class Category {
+export class CategoryCourse {
   @PrimaryGeneratedColumn()
   public id?: number;
 
@@ -28,4 +30,7 @@ export class Category {
   @DeleteDateColumn()
   @Exclude()
   public deletedAt?: Date;
+
+  @ManyToMany(() => Course, (course) => course.categoryCourses)
+  public courses: Course[];
 }
