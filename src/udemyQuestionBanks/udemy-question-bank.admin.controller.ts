@@ -9,9 +9,9 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { QuestionsService } from './questions.service';
-import { CreateQuestionDto } from './dto/create-question.dto';
-import { UpdateQuestionDto } from './dto/update-question.dto';
+import { UdemyQuestionBanksService } from './udemy-question-banks.service';
+import { CreateUdemyQuestionBankDto } from './dto/create-udemy-question-bank.dto';
+import { UpdateUdemyQuestionBankDto } from './dto/update-udemy-question-bank.dto';
 import { PaginationParams } from 'src/common/pagination.type';
 import JwtAdminAuthenticationGuard from 'src/authentication/guard/jwt-admin-authentication.guard';
 import {
@@ -27,8 +27,10 @@ import {
 @ApiBearerAuth()
 @Controller('admin/questions')
 @UseGuards(JwtAdminAuthenticationGuard)
-export class QuestionsAdminController {
-  constructor(private readonly questionsService: QuestionsService) {}
+export class UdemyQuestionBankAdminController {
+  constructor(
+    private readonly udemyQuestionBanksService: UdemyQuestionBanksService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a new question' })
@@ -40,8 +42,8 @@ export class QuestionsAdminController {
     status: 400,
     description: 'Bad request.',
   })
-  create(@Body() createQuestionDto: CreateQuestionDto) {
-    return this.questionsService.create(createQuestionDto);
+  create(@Body() createUdemyQuestionBankDto: CreateUdemyQuestionBankDto) {
+    return this.udemyQuestionBanksService.create(createUdemyQuestionBankDto);
   }
 
   @Get()
@@ -70,9 +72,13 @@ export class QuestionsAdminController {
     @Query() { page, limit }: PaginationParams,
   ) {
     if (search) {
-      return this.questionsService.findAllWithSearch(search, page, limit);
+      return this.udemyQuestionBanksService.findAllWithSearch(
+        search,
+        page,
+        limit,
+      );
     }
-    return this.questionsService.findAll(page, limit);
+    return this.udemyQuestionBanksService.findAll(page, limit);
   }
 
   @Get('group-by-category-name')
@@ -82,7 +88,7 @@ export class QuestionsAdminController {
     description: 'Return questions grouped by category name.',
   })
   groupQuestionsByCategoryName() {
-    return this.questionsService.groupQuestionsByCategoryName();
+    return this.udemyQuestionBanksService.groupQuestionsByCategoryName();
   }
 
   @Get(':id')
@@ -100,7 +106,7 @@ export class QuestionsAdminController {
     description: 'The id of the question',
   })
   findOne(@Param('id') id: string) {
-    return this.questionsService.findOne(+id);
+    return this.udemyQuestionBanksService.findOne(+id);
   }
 
   @Patch(':id')
@@ -119,9 +125,12 @@ export class QuestionsAdminController {
   })
   update(
     @Param('id') id: string,
-    @Body() updateQuestionDto: UpdateQuestionDto,
+    @Body() updateUdemyQuestionBankDto: UpdateUdemyQuestionBankDto,
   ) {
-    return this.questionsService.update(+id, updateQuestionDto);
+    return this.udemyQuestionBanksService.update(
+      +id,
+      updateUdemyQuestionBankDto,
+    );
   }
 
   @Delete(':id')
@@ -139,6 +148,6 @@ export class QuestionsAdminController {
     description: 'The id of the question to delete',
   })
   remove(@Param('id') id: string) {
-    return this.questionsService.remove(+id);
+    return this.udemyQuestionBanksService.remove(+id);
   }
 }

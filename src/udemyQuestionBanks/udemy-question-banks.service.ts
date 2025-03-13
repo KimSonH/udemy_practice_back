@@ -3,35 +3,36 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateQuestionDto } from './dto/create-question.dto';
-import { UpdateQuestionDto } from './dto/update-question.dto';
+import { CreateUdemyQuestionBankDto } from './dto/create-udemy-question-bank.dto';
+import { UpdateUdemyQuestionBankDto } from './dto/update-udemy-question-bank.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Question } from './entities/question.entity';
+import { UdemyQuestionBank } from './entities/udemy-question-bank.entity';
 import { Like, Repository } from 'typeorm';
 
 @Injectable()
-export class QuestionsService {
+export class UdemyQuestionBanksService {
   constructor(
-    @InjectRepository(Question)
-    private readonly questionsRepository: Repository<Question>,
+    @InjectRepository(UdemyQuestionBank)
+    private readonly udemyQuestionBanksRepository: Repository<UdemyQuestionBank>,
   ) {}
-  create(createQuestionDto: CreateQuestionDto) {
-    return this.questionsRepository.create(createQuestionDto);
+  create(createUdemyQuestionBankDto: CreateUdemyQuestionBankDto) {
+    return this.udemyQuestionBanksRepository.create(createUdemyQuestionBankDto);
   }
 
   async findAll(page: number, limit: number) {
     try {
       const offset = (page - 1) * limit;
-      const [items, total] = await this.questionsRepository.findAndCount({
-        where: {
-          deletedAt: null,
-        },
-        order: {
-          id: 'DESC',
-        },
-        take: limit,
-        skip: offset,
-      });
+      const [items, total] =
+        await this.udemyQuestionBanksRepository.findAndCount({
+          where: {
+            deletedAt: null,
+          },
+          order: {
+            id: 'DESC',
+          },
+          take: limit,
+          skip: offset,
+        });
 
       return {
         items,
@@ -46,14 +47,15 @@ export class QuestionsService {
   async findAllWithSearch(search: string, page: number, limit: number) {
     try {
       const offset = (page - 1) * limit;
-      const [items, total] = await this.questionsRepository.findAndCount({
-        where: {
-          question: Like(`%${search}%`),
-          deletedAt: null,
-        },
-        take: limit,
-        skip: offset,
-      });
+      const [items, total] =
+        await this.udemyQuestionBanksRepository.findAndCount({
+          where: {
+            question: Like(`%${search}%`),
+            deletedAt: null,
+          },
+          take: limit,
+          skip: offset,
+        });
 
       return {
         items,
@@ -69,7 +71,7 @@ export class QuestionsService {
 
   async groupQuestionsByCategoryName() {
     try {
-      const groupedQuestions = await this.questionsRepository
+      const groupedQuestions = await this.udemyQuestionBanksRepository
         .createQueryBuilder('question')
         .select('question.categoryName', 'categoryName')
         .addSelect('COUNT(*)', 'count')
@@ -84,10 +86,11 @@ export class QuestionsService {
   }
 
   async findQuestionsByCategoryName(categoryName: string, take: number) {
-    const [questions, total] = await this.questionsRepository.findAndCount({
-      where: { categoryName, deletedAt: null },
-      take,
-    });
+    const [udemyQuestionBanks, total] =
+      await this.udemyQuestionBanksRepository.findAndCount({
+        where: { categoryName, deletedAt: null },
+        take,
+      });
 
     if (total === 0) {
       throw new BadRequestException('Questions not found');
@@ -100,14 +103,14 @@ export class QuestionsService {
     }
 
     return {
-      questions,
+      udemyQuestionBanks,
       total,
     };
   }
 
   async findOne(id: number) {
     try {
-      const question = await this.questionsRepository.findOne({
+      const question = await this.udemyQuestionBanksRepository.findOne({
         where: { id, deletedAt: null },
       });
 
@@ -122,10 +125,16 @@ export class QuestionsService {
     }
   }
 
-  async update(id: number, updateQuestionDto: UpdateQuestionDto) {
+  async update(
+    id: number,
+    updateUdemyQuestionBankDto: UpdateUdemyQuestionBankDto,
+  ) {
     try {
       await this.findOne(id);
-      return this.questionsRepository.update(id, updateQuestionDto);
+      return this.udemyQuestionBanksRepository.update(
+        id,
+        updateUdemyQuestionBankDto,
+      );
     } catch (error) {
       console.log('error', error);
       throw new BadRequestException('Error updating question');
@@ -135,7 +144,7 @@ export class QuestionsService {
   async remove(id: number) {
     try {
       await this.findOne(id);
-      return this.questionsRepository.softDelete(id);
+      return this.udemyQuestionBanksRepository.softDelete(id);
     } catch (error) {
       console.log('error', error);
       throw new BadRequestException('Error deleting question');

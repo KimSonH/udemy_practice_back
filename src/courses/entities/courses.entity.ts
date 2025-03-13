@@ -9,7 +9,7 @@ import {
 } from 'typeorm';
 import { JoinTable, ManyToMany } from 'typeorm';
 import { CategoryCourse } from 'src/categories/entities/categories.course.entity';
-import { Question } from 'src/questions/entities/question.entity';
+import { UdemyQuestionBank } from 'src/udemyQuestionBanks/entities/udemy-question-bank.entity';
 @Entity()
 export class Course {
   @PrimaryGeneratedColumn()
@@ -40,9 +40,9 @@ export class Course {
   @Exclude()
   public deletedAt?: Date;
 
-  @ManyToMany(() => Question, (question) => question.courses)
+  @ManyToMany(() => UdemyQuestionBank)
   @JoinTable()
-  public questions: Question[];
+  public udemyQuestionBanks: UdemyQuestionBank[];
 
   @ManyToMany(() => CategoryCourse, (categoryCourse) => categoryCourse.courses)
   @JoinTable()

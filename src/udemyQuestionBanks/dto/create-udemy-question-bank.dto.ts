@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, IsArray, IsNumber } from 'class-validator';
-export class CreateQuestionDto {
+
+export class CreateUdemyQuestionBankDto {
   @IsNotEmpty()
   @IsString()
   @ApiProperty({

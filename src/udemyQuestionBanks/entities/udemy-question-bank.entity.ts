@@ -2,16 +2,14 @@ import {
   Column,
   CreateDateColumn,
   DeleteDateColumn,
-  ManyToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
 import { Entity } from 'typeorm';
 import { Exclude } from 'class-transformer';
-import { Course } from 'src/courses/entities/courses.entity';
 @Entity()
-export class Question {
+export class UdemyQuestionBank {
   @PrimaryGeneratedColumn()
   public id?: number;
 
@@ -78,7 +76,4 @@ export class Question {
   @DeleteDateColumn()
   @Exclude()
   public deletedAt?: Date;
-
-  @ManyToMany(() => Course, (course) => course.questions)
-  public courses: Course[];
 }

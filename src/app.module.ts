@@ -11,7 +11,7 @@ import { ClassMarkersModule } from './classMarkers/classMarkers.module';
 import { CategoriesModule } from './categories/categories.module';
 import { AdminModule } from './admin/admin.module';
 import { CoursesModule } from './courses/courses.module';
-import { QuestionsModule } from './questions/questions.module';
+import { UdemyQuestionBanksModule } from './udemyQuestionBanks/udemy-question-banks.module';
 
 @Module({
   imports: [
@@ -36,7 +36,7 @@ import { QuestionsModule } from './questions/questions.module';
     ClassMarkersModule,
     CategoriesModule,
     CoursesModule,
-    QuestionsModule,
+    UdemyQuestionBanksModule,
   ],
   controllers: [],
   providers: [

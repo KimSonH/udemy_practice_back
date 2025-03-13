@@ -5,13 +5,13 @@ import { Like, Repository } from 'typeorm';
 import { WithTransaction } from 'src/common/decorators/transaction.decorator';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
-import { QuestionsService } from 'src/questions/questions.service';
+import { UdemyQuestionBanksService } from 'src/udemyQuestionBanks/udemy-question-banks.service';
 @Injectable()
 export class CoursesService {
   constructor(
     @InjectRepository(Course)
     private readonly coursesRepository: Repository<Course>,
-    private readonly questionService: QuestionsService,
+    private readonly udemyQuestionBanksService: UdemyQuestionBanksService,
   ) {}
 
   async getCourses(page: number, limit: number) {
@@ -85,8 +85,8 @@ export class CoursesService {
 
   @WithTransaction()
   async createCourse(course: CreateCourseDto) {
-    const { questions } =
-      await this.questionService.findQuestionsByCategoryName(
+    const { udemyQuestionBanks } =
+      await this.udemyQuestionBanksService.findQuestionsByCategoryName(
         course.questions.categoryName,
         course.questions.numberOfQuestions,
       );
@@ -96,7 +96,7 @@ export class CoursesService {
       description: course.description,
       price: course.price,
       status: course.status,
-      questions: questions,
+      udemyQuestionBanks: udemyQuestionBanks,
     });
   }
 
@@ -105,15 +105,16 @@ export class CoursesService {
     const course = await this.getCourseById(id);
 
     if (
-      course.questions[0].categoryName !== updateCourse.questions.categoryName
+      course.udemyQuestionBanks[0].categoryName !==
+      updateCourse.questions.categoryName
     ) {
-      const { questions } =
-        await this.questionService.findQuestionsByCategoryName(
+      const { udemyQuestionBanks } =
+        await this.udemyQuestionBanksService.findQuestionsByCategoryName(
           updateCourse.questions.categoryName,
           updateCourse.questions.numberOfQuestions,
         );
 
-      course.questions = questions;
+      course.udemyQuestionBanks = udemyQuestionBanks;
     }
 
     return this.coursesRepository.update(id, course);
