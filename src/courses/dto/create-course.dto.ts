@@ -8,7 +8,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
-export class QuestionDto {
+export class UdemyQuestionBankDto {
   @ApiProperty({ description: 'Category name for the class marker' })
   @IsString()
   @IsNotEmpty()
@@ -41,8 +41,8 @@ export class CreateCourseDto {
   @IsNotEmpty()
   status: boolean;
 
-  @ApiProperty({ type: QuestionDto })
+  @ApiProperty({ type: UdemyQuestionBankDto })
   @ValidateNested()
-  @Type(() => QuestionDto)
-  questions: QuestionDto;
+  @Type(() => UdemyQuestionBankDto)
+  udemyQuestionBanks: UdemyQuestionBankDto;
 }

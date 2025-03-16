@@ -19,7 +19,7 @@ export class CoursesService {
       const offset = (page - 1) * limit;
 
       const [items, total] = await this.coursesRepository.findAndCount({
-        relations: ['questions'],
+        relations: ['udemyQuestionBanks'],
         order: {
           id: 'DESC',
         },
@@ -45,7 +45,7 @@ export class CoursesService {
 
       const [items, total] = await this.coursesRepository.findAndCount({
         where: { name: Like(`%${search}%`) },
-        relations: ['questions'],
+        relations: ['udemyQuestionBanks'],
         order: {
           id: 'DESC',
         },
@@ -69,7 +69,7 @@ export class CoursesService {
     try {
       const course = await this.coursesRepository.findOne({
         where: { id },
-        relations: ['questions'],
+        relations: ['udemyQuestionBanks'],
       });
 
       if (!course) {
@@ -87,8 +87,8 @@ export class CoursesService {
   async createCourse(course: CreateCourseDto) {
     const { udemyQuestionBanks } =
       await this.udemyQuestionBanksService.findQuestionsByCategoryName(
-        course.questions.categoryName,
-        course.questions.numberOfQuestions,
+        course.udemyQuestionBanks.categoryName,
+        course.udemyQuestionBanks.numberOfQuestions,
       );
 
     return this.coursesRepository.save({
@@ -106,12 +106,12 @@ export class CoursesService {
 
     if (
       course.udemyQuestionBanks[0].categoryName !==
-      updateCourse.questions.categoryName
+      updateCourse.udemyQuestionBanks.categoryName
     ) {
       const { udemyQuestionBanks } =
         await this.udemyQuestionBanksService.findQuestionsByCategoryName(
-          updateCourse.questions.categoryName,
-          updateCourse.questions.numberOfQuestions,
+          updateCourse.udemyQuestionBanks.categoryName,
+          updateCourse.udemyQuestionBanks.numberOfQuestions,
         );
 
       course.udemyQuestionBanks = udemyQuestionBanks;
