@@ -69,6 +69,19 @@ export class UdemyQuestionBanksService {
     }
   }
 
+  async findAllByCategoryName(categoryName: string) {
+    try {
+      const [questions, total] =
+        await this.udemyQuestionBanksRepository.findAndCount({
+          where: { categoryName: Like(`%${categoryName}%`), deletedAt: null },
+        });
+      return { questions, total };
+    } catch (error) {
+      console.log('error', error);
+      throw new BadRequestException('Error getting questions');
+    }
+  }
+
   async groupQuestionsByCategoryName() {
     try {
       const groupedQuestions = await this.udemyQuestionBanksRepository

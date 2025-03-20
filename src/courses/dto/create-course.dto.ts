@@ -1,12 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsString,
-  IsNumber,
-  IsNotEmpty,
-  ValidateNested,
-  IsBoolean,
-} from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsString, IsNumber, IsNotEmpty, IsBoolean } from 'class-validator';
 
 export class UdemyQuestionBankDto {
   @ApiProperty({ description: 'Category name for the class marker' })
@@ -37,12 +30,37 @@ export class CreateCourseDto {
   price: number;
 
   @ApiProperty({ description: 'Status of the course' })
-  @IsBoolean()
+  @IsString()
   @IsNotEmpty()
-  status: boolean;
+  status: string;
 
-  @ApiProperty({ type: UdemyQuestionBankDto })
-  @ValidateNested()
-  @Type(() => UdemyQuestionBankDto)
-  udemyQuestionBanks: UdemyQuestionBankDto;
+  @ApiProperty({ description: 'Type of the course' })
+  @IsString()
+  @IsNotEmpty()
+  type: string;
+
+  @ApiProperty({ description: 'Category name of the course' })
+  @IsString()
+  @IsNotEmpty()
+  categoryName: string;
+
+  @ApiProperty({ description: 'Organization name of the course' })
+  @IsString()
+  @IsNotEmpty()
+  organizationName: string;
+
+  @ApiProperty({ description: 'Course sets of the course' })
+  @IsNumber()
+  @IsNotEmpty()
+  courseSets: number;
+
+  @ApiProperty({ description: 'Udemy question banks of the course' })
+  @IsNumber()
+  @IsNotEmpty()
+  udemyQuestionBanks: number;
+
+  @ApiProperty({ description: 'Content of the course' })
+  @IsString()
+  @IsNotEmpty()
+  content: string;
 }

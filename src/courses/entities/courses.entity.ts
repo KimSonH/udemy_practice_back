@@ -6,10 +6,9 @@ import {
   DeleteDateColumn,
   UpdateDateColumn,
   CreateDateColumn,
+  OneToMany,
 } from 'typeorm';
-import { JoinTable, ManyToMany } from 'typeorm';
-import { CategoryCourse } from 'src/categories/entities/categories.course.entity';
-import { UdemyQuestionBank } from 'src/udemyQuestionBanks/entities/udemy-question-bank.entity';
+import { CourseSet } from 'src/course-sets/entities/course-set.entity';
 @Entity()
 export class Course {
   @PrimaryGeneratedColumn()
@@ -22,13 +21,25 @@ export class Course {
   public description?: string;
 
   @Column({ nullable: true })
+  public content?: string;
+
+  @Column({ nullable: true })
   public thumbnailImageUrl?: string;
 
   @Column()
-  public status: boolean;
+  public status: string;
 
   @Column()
   public price: number;
+
+  @Column()
+  public type: string;
+
+  @Column()
+  public categoryName: string;
+
+  @Column()
+  public organizationName: string;
 
   @CreateDateColumn()
   public createdAt!: Date;
@@ -40,11 +51,6 @@ export class Course {
   @Exclude()
   public deletedAt?: Date;
 
-  @ManyToMany(() => UdemyQuestionBank)
-  @JoinTable()
-  public udemyQuestionBanks: UdemyQuestionBank[];
-
-  @ManyToMany(() => CategoryCourse, (categoryCourse) => categoryCourse.courses)
-  @JoinTable()
-  public categoryCourses: CategoryCourse[];
+  @OneToMany(() => CourseSet, (courseSet) => courseSet.course)
+  public courseSets: CourseSet[];
 }
