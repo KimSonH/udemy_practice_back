@@ -111,6 +111,103 @@ export class CoursesService {
   //   }
   // }
 
+  // Helper method để shuffle mảng (Fisher-Yates algorithm)
+  private shuffleArray(array: any[]): void {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+  }
+
+  async distributeQuestions(
+    categoryName: string,
+    totalSets: number,
+    minQuestionsPerSet: number,
+    courseSets: CourseSet[],
+    queryRunner: QueryRunner,
+    questionsPerSet: number,
+  ) {
+    // Sử dụng giá trị mặc định hoặc từ cấu hình nếu không được cung cấp
+    totalSets = totalSets || 6;
+    questionsPerSet = questionsPerSet || 120;
+
+    this.logger.log(
+      `Bắt đầu phân phối với: totalSets=${totalSets}, questionsPerSet=${questionsPerSet}`,
+    );
+
+    const { questions: allQuestions, total: totalQuestions } =
+      await this.udemyQuestionBanksService.findAllByCategoryName(categoryName);
+
+    this.logger.log(`Tổng số câu hỏi có sẵn: ${totalQuestions}`);
+
+    // Xóa toàn bộ câu hỏi hiện có trong các set
+    for (const set of courseSets) {
+      await queryRunner.manager.query(
+        `DELETE FROM course_set_udemy_question_banks_udemy_question_bank WHERE "courseSetId" = $1`,
+        [set.id],
+      );
+    }
+
+    // Kiểm tra xem có đủ câu hỏi không
+    const totalNeeded = totalSets * questionsPerSet;
+    const isEnough = totalQuestions >= totalNeeded;
+
+    if (isEnough) {
+      // Trường hợp đủ hoặc dư câu hỏi: phân phối đều
+      this.logger.log(
+        `Đủ câu hỏi (${totalQuestions}/${totalNeeded}). Phân phối đều mỗi set ${questionsPerSet} câu.`,
+      );
+
+      // Tạo mảng shuffle để phân phối ngẫu nhiên
+      const shuffledQuestions = [...allQuestions];
+      // Shuffle câu hỏi để phân phối ngẫu nhiên
+      this.shuffleArray(shuffledQuestions);
+
+      // Phân phối đều mỗi set có đúng questionsPerSet câu
+      for (let i = 0; i < totalSets; i++) {
+        const startIdx = i * questionsPerSet;
+        const endIdx = startIdx + questionsPerSet;
+        // Lấy chính xác questionsPerSet câu hỏi
+        const setQuestions = shuffledQuestions.slice(startIdx, endIdx);
+
+        // Tạo relations để insert
+        const relations = setQuestions.map((question) => ({
+          courseSetId: courseSets[i].id,
+          udemyQuestionBankId: question.id,
+        }));
+
+        // Batch insert
+        if (relations.length > 0) {
+          await queryRunner.manager
+            .createQueryBuilder()
+            .insert()
+            .into('course_set_udemy_question_banks_udemy_question_bank')
+            .values(relations)
+            .execute();
+
+          this.logger.log(
+            `Đã phân phối ${relations.length} câu hỏi vào Set ${i + 1}`,
+          );
+        }
+      }
+    } else {
+      // Trường hợp thiếu câu hỏi: thực hiện chiến lược "mượn"
+      this.logger.log(
+        `Thiếu câu hỏi (${totalQuestions}/${totalNeeded}). Áp dụng chiến lược mượn.`,
+      );
+
+      // Tính toán phân phối ban đầu
+      await this.adjustQuestionDistribution(
+        categoryName,
+        totalSets,
+        minQuestionsPerSet,
+        courseSets,
+        queryRunner,
+        questionsPerSet,
+      );
+    }
+  }
+
   async adjustQuestionDistribution(
     categoryName: string,
     totalSets: number,
@@ -121,23 +218,23 @@ export class CoursesService {
   ) {
     const { questions: allQuestions, total: totalQuestions } =
       await this.udemyQuestionBanksService.findAllByCategoryName(categoryName);
-    // Kiểm tra số lượng câu hỏi có sẵn
+    // Check the number of available questions / Kiểm tra số lượng câu hỏi có sẵn
     if (totalQuestions < totalSets * minQuestionsPerSet) {
       throw new BadRequestException(
         `Không đủ câu hỏi! Cần ít nhất ${totalSets * minQuestionsPerSet} câu hỏi để phân phối hợp lý.`,
       );
     }
 
-    // Xóa toàn bộ câu hỏi hiện có trong các set (nếu có)
+    // Delete all questions currently in the sets (if any) / Xóa toàn bộ câu hỏi hiện có trong các set (nếu có)
     for (const set of courseSets) {
-      // Sử dụng query trực tiếp để hiệu quả hơn
+      // Use direct query for better efficiency / Sử dụng query trực tiếp để hiệu quả hơn
       await queryRunner.manager.query(
         `DELETE FROM course_set_udemy_question_banks_udemy_question_bank WHERE "courseSetId" = $1`,
         [set.id],
       );
     }
 
-    // Tính toán phân phối ban đầu
+    // Calculate the initial distribution / Tính toán phân phối ban đầu
     const baseQuestionsPerSet = Math.floor(totalQuestions / totalSets);
     const remainder = totalQuestions % totalSets;
 
@@ -159,13 +256,13 @@ export class CoursesService {
         continue;
       }
 
-      // Tạo mảng các bản ghi liên kết để thêm hàng loạt
+      // Create an array of records to insert in bulk / Tạo mảng các bản ghi liên kết để thêm hàng loạt
       const relations = setQuestions.map((question) => ({
         courseSetId: courseSets[i].id,
         udemyQuestionBankId: question.id,
       }));
 
-      // Batch insert để cải thiện hiệu suất
+      // Batch insert to improve efficiency / Batch insert để cải thiện hiệu suất
       if (relations.length > 0) {
         await queryRunner.manager
           .createQueryBuilder()
@@ -180,9 +277,9 @@ export class CoursesService {
       }
     }
 
-    // Mượn câu hỏi để đảm bảo mỗi set có đủ câu hỏi
+    // Borrow questions to ensure each set has enough questions / Mượn câu hỏi để đảm bảo mỗi set có đủ câu hỏi
     for (let i = 0; i < totalSets; i++) {
-      // Đếm số câu hỏi hiện có trong set
+      // Count the number of questions currently in the set / Đếm số câu hỏi hiện có trong set
       const currentCount = await queryRunner.manager.query(
         `SELECT COUNT(*) FROM course_set_udemy_question_banks_udemy_question_bank WHERE "courseSetId" = $1`,
         [courseSets[i].id],
@@ -194,7 +291,7 @@ export class CoursesService {
 
       this.logger.log(`Set ${i + 1} cần thêm ${shortage} câu hỏi`);
 
-      // Lấy ID của các câu hỏi hiện có trong set
+      // Get the IDs of the questions currently in the set / Lấy ID của các câu hỏi hiện có trong set
       const existingQuestionResult = await queryRunner.manager.query(
         `SELECT "udemyQuestionBankId" FROM course_set_udemy_question_banks_udemy_question_bank WHERE "courseSetId" = $1`,
         [courseSets[i].id],
@@ -205,7 +302,7 @@ export class CoursesService {
       );
       const borrowedRelations = [];
 
-      // Tính toán số câu hỏi cần mượn từ mỗi set
+      // Calculate the number of questions to borrow from each set / Tính toán số câu hỏi cần mượn từ mỗi set
       const otherSets = totalSets - 1;
       const borrowPerSetBase = Math.floor(shortage / otherSets);
       const borrowRemainder = shortage % otherSets;
@@ -213,7 +310,7 @@ export class CoursesService {
       let totalBorrowed = 0;
       let borrowCounter = 0;
 
-      // Mượn câu hỏi từ các set khác
+      // Borrow questions from other sets / Mượn câu hỏi từ các set khác
       for (let j = 0; j < totalSets && totalBorrowed < shortage; j++) {
         if (j === i) continue;
 
@@ -223,7 +320,7 @@ export class CoursesService {
 
         if (toBorrow <= 0) continue;
 
-        // Lấy câu hỏi từ set nguồn mà chưa có trong set hiện tại
+        // Get questions from the source set that are not currently in the current set / Lấy câu hỏi từ set nguồn mà chưa có trong set hiện tại
         const availableQuestionsResult = await queryRunner.manager.query(
           `SELECT q.id FROM udemy_question_bank q 
        JOIN course_set_udemy_question_banks_udemy_question_bank csq ON q.id = csq."udemyQuestionBankId" 
@@ -249,7 +346,7 @@ export class CoursesService {
         }
       }
 
-      // Thêm các câu hỏi đã mượn vào set
+      // Add the borrowed questions to the set / Thêm các câu hỏi đã mượn vào set
       if (borrowedRelations.length > 0) {
         await queryRunner.manager
           .createQueryBuilder()
@@ -263,7 +360,7 @@ export class CoursesService {
         );
       }
 
-      // Kiểm tra lại sau khi mượn
+      // Check again after borrowing / Kiểm tra lại sau khi mượn
       const finalCount = await queryRunner.manager.query(
         `SELECT COUNT(*) FROM course_set_udemy_question_banks_udemy_question_bank WHERE "courseSetId" = $1`,
         [courseSets[i].id],
@@ -299,13 +396,13 @@ export class CoursesService {
     course.categoryName = categoryName;
     course.organizationName = organizationName;
     course.content = content;
-    const minQuestionsPerSet = 100; // Ngưỡng tối thiểu hợp lý khi không đủ câu hỏi
+    // Minimum reasonable threshold when there are not enough questions / Ngưỡng tối thiểu hợp lý khi không đủ câu hỏi
+    const minQuestionsPerSet = 100;
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
-      const courseSaved = this.coursesRepository.create(course);
       const courseSets: CourseSet[] = [];
       for (let i = 0; i < totalSets; i++) {
         const courseSet = new CourseSet();
@@ -313,10 +410,9 @@ export class CoursesService {
         const courseSetSaved = await this.courseSetsService.create(courseSet);
         courseSets.push(courseSetSaved);
       }
-      courseSaved.courseSets = courseSets;
-      await this.coursesRepository.save(courseSaved);
+      course.courseSets = courseSets;
 
-      await this.adjustQuestionDistribution(
+      await this.distributeQuestions(
         categoryName,
         totalSets,
         minQuestionsPerSet,
@@ -325,31 +421,20 @@ export class CoursesService {
         questionsPerSet,
       );
 
-      // Commit transaction nếu mọi thứ thành công
+      // Commit transaction if everything is successful / Commit transaction nếu mọi thứ thành công
+      await this.coursesRepository.save(course);
       await queryRunner.commitTransaction();
 
-      // Kiểm tra kết quả cuối cùng
-      const results = await Promise.all(
-        courseSets.map(async (set) => {
-          const fullSet = await this.courseSetsService.findOne(set.id);
-
-          return {
-            setId: set.id,
-            name: set.name,
-            questionCount: fullSet.udemyQuestionBanks.length,
-          };
-        }),
-      );
-
-      this.logger.log('Phân phối câu hỏi hoàn tất', results);
+      // Check the final result / Kiểm tra kết quả cuối cùng
+      this.logger.log('Phân phối câu hỏi hoàn tất');
       return course;
     } catch (error) {
-      // Rollback nếu có lỗi
+      // Rollback if there is an error / Rollback nếu có lỗi
       await queryRunner.rollbackTransaction();
-      this.logger.error(`Lỗi khi phân phối câu hỏi: ${error.message}`);
+      this.logger.error(`Failed to distribute questions: ${error.message}`);
       throw error;
     } finally {
-      // Giải phóng queryRunner
+      // Release queryRunner / Giải phóng queryRunner
       await queryRunner.release();
     }
   }
@@ -359,7 +444,7 @@ export class CoursesService {
       const offset = (page - 1) * limit;
 
       const [items, total] = await this.coursesRepository.findAndCount({
-        relations: ['udemyQuestionBanks'],
+        relations: ['courseSets', 'courseSets.udemyQuestionBanks'],
         order: {
           id: 'DESC',
         },
@@ -374,7 +459,7 @@ export class CoursesService {
         limit,
       };
     } catch (error) {
-      console.log('error', error);
+      this.logger.error(`Error getting courses: ${error.message}`);
       throw new BadRequestException('Error getting courses');
     }
   }
@@ -385,7 +470,7 @@ export class CoursesService {
 
       const [items, total] = await this.coursesRepository.findAndCount({
         where: { name: Like(`%${search}%`) },
-        relations: ['udemyQuestionBanks'],
+        relations: ['courseSets', 'courseSets.udemyQuestionBanks'],
         order: {
           id: 'DESC',
         },
@@ -400,7 +485,7 @@ export class CoursesService {
         limit,
       };
     } catch (error) {
-      console.log('error', error);
+      this.logger.error(`Error searching courses: ${error.message}`);
       throw new BadRequestException('Error searching courses');
     }
   }
@@ -418,14 +503,12 @@ export class CoursesService {
 
       return course;
     } catch (error) {
-      console.log('error', error);
+      this.logger.error(`Error getting course by id: ${error.message}`);
       throw new BadRequestException('Error getting course by id');
     }
   }
 
   async updateCourse(id: number, updateCourse: UpdateCourseDto) {
-    await this.getCourseById(id);
-
     const {
       categoryName,
       content,
@@ -447,61 +530,65 @@ export class CoursesService {
     course.categoryName = categoryName;
     course.organizationName = organizationName;
     course.content = content;
-    course.courseSets = null;
-    const minQuestionsPerSet = 100; // Ngưỡng tối thiểu hợp lý khi không đủ câu hỏi
+
+    // Minimum reasonable threshold when there are not enough questions / Ngưỡng tối thiểu hợp lý khi không đủ câu hỏi
+    const minQuestionsPerSet = 100;
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
-      await this.coursesRepository.save(course);
-      const courseSets: CourseSet[] = [];
-      for (let i = 0; i < totalSets; i++) {
-        const courseSet = new CourseSet();
-        courseSet.name = `Course Set ${i + 1}`;
-        const courseSetSaved = await this.courseSetsService.create(courseSet);
-        courseSets.push(courseSetSaved);
+      if (totalSets !== course.courseSets.length) {
+        for (const set of course.courseSets) {
+          await this.courseSetsService.remove(set.id);
+        }
+        const courseSets: CourseSet[] = [];
+        for (let i = 0; i < totalSets; i++) {
+          const courseSet = new CourseSet();
+          courseSet.name = `Course Set ${i + 1}`;
+          const courseSetSaved = await this.courseSetsService.create(courseSet);
+          courseSets.push(courseSetSaved);
+        }
+        course.courseSets = courseSets;
+        await this.distributeQuestions(
+          categoryName,
+          totalSets,
+          minQuestionsPerSet,
+          courseSets,
+          queryRunner,
+          questionsPerSet,
+        );
+        this.logger.log('Phân phối câu hỏi hoàn tất');
       }
 
-      await this.adjustQuestionDistribution(
-        categoryName,
-        totalSets,
-        minQuestionsPerSet,
-        courseSets,
-        queryRunner,
-        questionsPerSet,
-      );
-
-      // Commit transaction nếu mọi thứ thành công
+      await this.coursesRepository.save(course);
+      // Commit transaction if everything is successful / Commit transaction nếu mọi thứ thành công
       await queryRunner.commitTransaction();
 
-      // Kiểm tra kết quả cuối cùng
-      const results = await Promise.all(
-        courseSets.map(async (set) => {
-          const fullSet = await this.courseSetsService.findOne(set.id);
+      // Check the final result / Kiểm tra kết quả cuối cùng
 
-          return {
-            setId: set.id,
-            name: set.name,
-            questionCount: fullSet.udemyQuestionBanks.length,
-          };
-        }),
-      );
-
-      this.logger.log('Phân phối câu hỏi hoàn tất', results);
       return course;
     } catch (error) {
-      // Rollback nếu có lỗi
+      // Rollback if there is an error / Rollback nếu có lỗi
       await queryRunner.rollbackTransaction();
-      this.logger.error(`Lỗi khi update course: ${error.message}`);
+      this.logger.error(`Failed to update course: ${error.message}`);
       throw error;
     } finally {
-      // Giải phóng queryRunner
+      // Release queryRunner / Giải phóng queryRunner
       await queryRunner.release();
     }
   }
 
   async deleteCourse(id: number) {
-    return this.coursesRepository.delete(id);
+    try {
+      const course = await this.getCourseById(id);
+      for (const set of course.courseSets) {
+        await this.courseSetsService.remove(set.id);
+      }
+      return this.coursesRepository.softDelete(id);
+    } catch (error) {
+      this.logger.error(`Error deleting course: ${error.message}`);
+      throw new BadRequestException('Error deleting course');
+    }
   }
 }

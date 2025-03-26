@@ -4,11 +4,13 @@ import { UpdateCourseSetDto } from './dto/update-course-set.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CourseSet } from './entities/course-set.entity';
+import { UdemyQuestionBanksService } from 'src/udemyQuestionBanks/udemy-question-banks.service';
 @Injectable()
 export class CourseSetsService {
   constructor(
     @InjectRepository(CourseSet)
     private readonly courseSetsRepository: Repository<CourseSet>,
+    private readonly udemyQuestionBanksService: UdemyQuestionBanksService,
   ) {}
   create(createCourseSetDto: CreateCourseSetDto) {
     return this.courseSetsRepository.save(createCourseSetDto);
@@ -33,7 +35,9 @@ export class CourseSetsService {
     return this.courseSetsRepository.update(id, updateCourseSetDto);
   }
 
-  remove(id: number) {
-    return this.courseSetsRepository.delete(id);
+  async remove(id: number) {
+    const courseSet = await this.findOne(id);
+    courseSet.udemyQuestionBanks = [];
+    return this.courseSetsRepository.softRemove(courseSet);
   }
 }
