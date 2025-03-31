@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, Param } from '@nestjs/common';
 import { CoursesService } from './courses.service';
 import { PaginationParams } from 'src/common/pagination.type';
 
@@ -7,13 +7,17 @@ export class CoursesController {
   constructor(private readonly coursesService: CoursesService) {}
 
   @Get()
-  getCourses(
-    @Query('search') search: string,
-    @Query() { page, limit }: PaginationParams,
-  ) {
-    if (search) {
-      return this.coursesService.searchCourses(search, page, limit);
-    }
-    return this.coursesService.getCourses(page, limit);
+  findAll(@Query() query: PaginationParams) {
+    return this.coursesService.findAllByCategoryName(query);
+  }
+
+  @Get('group-by-category-name')
+  getGroupCategoryName() {
+    return this.coursesService.getGroupCategoryName();
+  }
+
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.coursesService.findOneWithStatus(+id);
   }
 }
