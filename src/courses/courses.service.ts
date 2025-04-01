@@ -166,19 +166,10 @@ export class CoursesService {
       }
     }
 
-    // Xóa toàn bộ câu hỏi hiện có trong các set
-    for (const set of courseSets) {
-      await queryRunner.manager.query(
-        `DELETE FROM course_set_udemy_question_banks_udemy_question_bank WHERE "courseSetId" = $1`,
-        [set.id],
-      );
-    }
-
     // Kiểm tra xem có đủ câu hỏi không
     const totalNeeded = totalSets * questionsPerSet;
     const isEnough = totalQuestions >= totalNeeded;
 
-    console.log(isEnough);
     if (isEnough) {
       // Trường hợp đủ hoặc dư câu hỏi: phân phối đều
       this.logger.log(
@@ -253,13 +244,13 @@ export class CoursesService {
     }
 
     // Delete all questions currently in the sets (if any) / Xóa toàn bộ câu hỏi hiện có trong các set (nếu có)
-    // for (const set of courseSets) {
-    //   // Use direct query for better efficiency / Sử dụng query trực tiếp để hiệu quả hơn
-    //   await queryRunner.manager.query(
-    //     `DELETE FROM course_set_udemy_question_banks_udemy_question_bank WHERE "courseSetId" = $1`,
-    //     [set.id],
-    //   );
-    // }
+    for (const set of courseSets) {
+      // Use direct query for better efficiency / Sử dụng query trực tiếp để hiệu quả hơn
+      await queryRunner.manager.query(
+        `DELETE FROM course_set_udemy_question_banks_udemy_question_bank WHERE "courseSetId" = $1`,
+        [set.id],
+      );
+    }
 
     // Calculate the initial distribution / Tính toán phân phối ban đầu
     const baseQuestionsPerSet = Math.floor(totalQuestions / totalSets);
@@ -434,16 +425,14 @@ export class CoursesService {
       for (let i = 0; i < totalSets; i++) {
         const courseSet = new CourseSet();
         courseSet.name = `Course Set ${i + 1}`;
-        const courseSetSaved = await this.courseSetsService.create(courseSet);
-        // const courseSetSaved = await queryRunner.manager
-        //   .createQueryBuilder()
-        //   .insert()
-        //   .into(CourseSet)
-        //   .values(courseSet)
-        //   .execute();
-        courseSets.push(courseSetSaved);
+        const courseSetSaved = await queryRunner.manager
+          .createQueryBuilder()
+          .insert()
+          .into(CourseSet)
+          .values(courseSet)
+          .execute();
+        courseSets.push(courseSetSaved.raw[0]);
       }
-
       course.courseSets = courseSets;
 
       await this.distributeQuestions(
@@ -456,7 +445,7 @@ export class CoursesService {
       );
 
       // Commit transaction if everything is successful / Commit transaction nếu mọi thứ thành công
-      await this.coursesRepository.save(course);
+      await queryRunner.manager.save(course);
       await queryRunner.commitTransaction();
 
       // Check the final result / Kiểm tra kết quả cuối cùng
@@ -664,17 +653,22 @@ export class CoursesService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
-      const softDeleteCourseSets = await queryRunner.manager
-        .getRepository(CourseSet)
-        .createQueryBuilder()
-        .delete()
-        .where('courseId = :courseId', { courseId: course.id })
-        .execute();
-      console.log(softDeleteCourseSets);
+      for (const set of course.courseSets) {
+        await queryRunner.manager
+          .getRepository(CourseSet)
+          .createQueryBuilder()
+          .softDelete()
+          .where('id = :id', { id: set.id })
+          .execute();
+        await queryRunner.manager.query(
+          `DELETE FROM course_set_udemy_question_banks_udemy_question_bank WHERE "courseSetId" = $1`,
+          [set.id],
+        );
+      }
       const courseSets: CourseSet[] = [];
       for (let i = 0; i < totalSets; i++) {
         const courseSet = new CourseSet();
-        courseSet.name = `Course Set ${i + 1}`;
+        courseSet.name = `${course.name} Set ${i + 1}`;
         courseSet.course = course;
         courseSets.push(courseSet);
       }
@@ -685,7 +679,6 @@ export class CoursesService {
         .values(courseSets)
         .execute();
       course.courseSets = courseSetSaved.raw;
-      console.log(course);
 
       await this.distributeQuestions(
         categoryName,
@@ -697,23 +690,12 @@ export class CoursesService {
       );
       this.logger.log('Phân phối câu hỏi hoàn tất');
 
-      console.log('course: ', course);
-
-      const saveCourse = await queryRunner.manager
-        .getRepository(Course)
-        .createQueryBuilder()
-        .update(Course)
-        .set(course)
-        .where('id = :id', { id: course.id })
-        .execute();
+      await queryRunner.manager.save(course);
       // Commit transaction if everything is successful / Commit transaction nếu mọi thứ thành công
       await queryRunner.commitTransaction();
 
       // Check the final result / Kiểm tra kết quả cuối cùng
-
-      console.log(saveCourse);
-
-      return saveCourse;
+      return course;
     } catch (error) {
       // Rollback if there is an error / Rollback nếu có lỗi
       await queryRunner.rollbackTransaction();
