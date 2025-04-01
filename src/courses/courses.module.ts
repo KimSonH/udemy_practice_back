@@ -6,11 +6,13 @@ import { Course } from './entities/courses.entity';
 import { CourseSetsModule } from 'src/course-sets/course-sets.module';
 import { CoursesController } from './courses.controller';
 import { UdemyQuestionBanksModule } from 'src/udemyQuestionBanks/udemy-question-banks.module';
+import { ConfigModule } from '@nestjs/config';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Course]),
     CourseSetsModule,
     UdemyQuestionBanksModule,
+    ConfigModule,
   ],
   controllers: [CoursesAdminController, CoursesController],
   providers: [CoursesService],
