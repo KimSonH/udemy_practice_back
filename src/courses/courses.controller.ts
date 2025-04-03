@@ -16,6 +16,11 @@ export class CoursesController {
     return this.coursesService.getGroupCategoryName();
   }
 
+  @Get('group-by-organization-name')
+  getGroupOrganizationName() {
+    return this.coursesService.getGroupOrganizationName();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.coursesService.findOneWithStatus(+id);

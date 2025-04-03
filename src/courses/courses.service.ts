@@ -617,6 +617,31 @@ export class CoursesService {
     };
   }
 
+  async findAllByOrganizationName(query: PaginationParams) {
+    const { page, limit } = query;
+    const offset = (page - 1) * limit;
+    const groupOrganizationName: { organizationName: string; count: number }[] =
+      await this.getGroupOrganizationName();
+    let total = 0;
+    let items: Course[] = [];
+    for (const course of groupOrganizationName) {
+      const [courses, totalCourse] = await this.coursesRepository.findAndCount({
+        where: { organizationName: course.organizationName, status: 'active' },
+        order: {
+          createdAt: 'DESC',
+        },
+        take: limit,
+        skip: offset,
+      });
+      items = [...items, ...courses];
+      total += totalCourse;
+    }
+
+    return {
+      items,
+    };
+  }
+
   async findAll(query: PaginationParams) {
     const { page, limit, search } = query;
     const offset = (page - 1) * limit;
@@ -747,6 +772,26 @@ export class CoursesService {
     } catch (error) {
       this.logger.error(`Error getting group category name: ${error.message}`);
       throw new BadRequestException('Error getting group category name');
+    }
+  }
+
+  async getGroupOrganizationName(): Promise<
+    { organizationName: string; count: number }[]
+  > {
+    try {
+      const groupOrganizationName = await this.coursesRepository
+        .createQueryBuilder('course')
+        .select('course.organizationName', 'organizationName')
+        .addSelect('COUNT(*)', 'count')
+        .groupBy('course.organizationName')
+        .getRawMany();
+
+      return groupOrganizationName;
+    } catch (error) {
+      this.logger.error(
+        `Error getting group organization name: ${error.message}`,
+      );
+      throw new BadRequestException('Error getting group organization name');
     }
   }
 
