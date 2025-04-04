@@ -39,26 +39,33 @@ export class AuthenticationService {
 
   public getCookieWithJwtAccessToken(userId: number) {
     const payload: TokenPayload = { userId };
+    const expiresIn: string = this.configService.get(
+      'JWT_ACCESS_TOKEN_EXPIRATION_TIME',
+    );
     const token = this.jwtService.sign(payload, {
       secret: this.configService.get('JWT_ACCESS_TOKEN_SECRET'),
-      expiresIn: `${this.configService.get('JWT_ACCESS_TOKEN_EXPIRATION_TIME')}s`,
+      expiresIn: `${expiresIn}s`,
     });
     return {
-      cookie: `Authentication=${token}; HttpOnly; Path=/; Max-Age=${this.configService.get('JWT_ACCESS_TOKEN_EXPIRATION_TIME')}; SameSite=strict; Secure=${this.configService.get('NODE_ENV') === 'production'}`,
+      cookie: `Authentication=${token}; HttpOnly; Path=/; Max-Age=${expiresIn}; SameSite=strict; Secure=${this.configService.get('NODE_ENV') === 'production'}`,
       token,
+      expiresIn,
     };
   }
 
   public getCookieWithJwtRefreshToken(userId: number) {
     const payload: TokenPayload = { userId };
+    const expiresIn: string = this.configService.get(
+      'JWT_REFRESH_TOKEN_EXPIRATION_TIME',
+    );
     const token = this.jwtService.sign(payload, {
       secret: this.configService.get('JWT_REFRESH_TOKEN_SECRET'),
-      expiresIn: `${this.configService.get('JWT_REFRESH_TOKEN_EXPIRATION_TIME')}s`,
+      expiresIn: `${expiresIn}s`,
     });
-    const cookie = `Refresh=${token}; HttpOnly; Path=/; Max-Age=${this.configService.get('JWT_REFRESH_TOKEN_EXPIRATION_TIME')}; SameSite=strict; Secure=${this.configService.get('NODE_ENV') === 'production'}`;
     return {
-      cookie,
+      cookie: `Refresh=${token}; HttpOnly; Path=/; Max-Age=${expiresIn}; SameSite=strict; Secure=${this.configService.get('NODE_ENV') === 'production'}`,
       token,
+      expiresIn,
     };
   }
 
@@ -69,7 +76,6 @@ export class AuthenticationService {
     ];
   }
 
-  @WithTransaction()
   public async register(registrationData: RegisterDto) {
     const hashedPassword = await bcrypt.hash(registrationData.password, 10);
     try {

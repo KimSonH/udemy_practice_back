@@ -45,16 +45,12 @@ export class AuthenticationController {
   @Post('log-in')
   async logIn(@Req() request: RequestWithUser) {
     const { user } = request;
-    const { token: accessToken } =
+    const { token: accessToken, expiresIn } =
       this.authenticationService.getCookieWithJwtAccessToken(user.id);
-    const { token: refreshToken } =
-      this.authenticationService.getCookieWithJwtRefreshToken(user.id);
-
-    await this.usersService.setCurrentRefreshToken(refreshToken, user.id);
 
     return {
       accessToken,
-      refreshToken,
+      expiresIn,
     };
   }
 
