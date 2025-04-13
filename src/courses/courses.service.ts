@@ -596,50 +596,59 @@ export class CoursesService {
       await this.getGroupCategoryName();
     let total = 0;
     let items: Course[] = [];
-    for (const course of groupCategoryName) {
-      const [courses, totalCourse] = await this.coursesRepository.findAndCount({
-        where: { categoryName: course.categoryName, status: 'active' },
-        order: {
-          createdAt: 'DESC',
-        },
-        take: limit,
-        skip: offset,
-      });
-      items = [...items, ...courses];
-      total += totalCourse;
+    try {
+      for (const course of groupCategoryName) {
+        const [courses, totalCourse] =
+          await this.coursesRepository.findAndCount({
+            where: { categoryName: course.categoryName, status: 'active' },
+            order: {
+              createdAt: 'DESC',
+            },
+            take: limit,
+            skip: offset,
+          });
+        items = [...items, ...courses];
+        total += totalCourse;
+      }
+      return {
+        items,
+        total,
+        page,
+        limit,
+      };
+    } catch (error) {
+      this.logger.error(`Error getting courses: ${error.message}`);
+      throw new BadRequestException('Error getting courses');
     }
-
-    return {
-      items,
-      total,
-      page,
-      limit,
-    };
   }
 
-  async findAllByOrganizationName(query: PaginationParams) {
-    const { page, limit } = query;
+  async findAllByOrganization(query: PaginationParams) {
+    const { page, limit, organizationName } = query;
     const offset = (page - 1) * limit;
-    const groupOrganizationName: { organizationName: string; count: number }[] =
-      await this.getGroupOrganizationName();
-    let total = 0;
-    let items: Course[] = [];
-    for (const course of groupOrganizationName) {
-      const [courses, totalCourse] = await this.coursesRepository.findAndCount({
-        where: { organizationName: course.organizationName, status: 'active' },
+    try {
+      const [items, total] = await this.coursesRepository.findAndCount({
+        relations: ['courseSets', 'courseSets.udemyQuestionBanks'],
+        where: {
+          organizationName: Like(`%${organizationName}%`),
+          status: 'active',
+        },
         order: {
           createdAt: 'DESC',
         },
         take: limit,
         skip: offset,
       });
-      items = [...items, ...courses];
-      total += totalCourse;
-    }
 
-    return {
-      items,
-    };
+      return {
+        items,
+        total,
+        page,
+        limit,
+      };
+    } catch (error) {
+      this.logger.error(`Error getting courses: ${error.message}`);
+      throw new BadRequestException('Error getting courses');
+    }
   }
 
   async findAll(query: PaginationParams) {
@@ -653,7 +662,7 @@ export class CoursesService {
           name: search ? Like(`%${search}%`) : undefined,
         },
         order: {
-          id: 'DESC',
+          createdAt: 'DESC',
         },
         take: limit,
         skip: offset,
@@ -677,7 +686,7 @@ export class CoursesService {
       const [items, total] = await this.coursesRepository.findAndCount({
         relations: ['courseSets', 'courseSets.udemyQuestionBanks'],
         order: {
-          id: 'DESC',
+          createdAt: 'DESC',
         },
         take: limit,
         skip: offset,
@@ -692,32 +701,6 @@ export class CoursesService {
     } catch (error) {
       this.logger.error(`Error getting courses: ${error.message}`);
       throw new BadRequestException('Error getting courses');
-    }
-  }
-
-  async searchCourses(search: string, page: number, limit: number) {
-    try {
-      const offset = (page - 1) * limit;
-
-      const [items, total] = await this.coursesRepository.findAndCount({
-        where: { name: Like(`%${search}%`) },
-        relations: ['courseSets', 'courseSets.udemyQuestionBanks'],
-        order: {
-          id: 'DESC',
-        },
-        take: limit,
-        skip: offset,
-      });
-
-      return {
-        items,
-        total,
-        page,
-        limit,
-      };
-    } catch (error) {
-      this.logger.error(`Error searching courses: ${error.message}`);
-      throw new BadRequestException('Error searching courses');
     }
   }
 

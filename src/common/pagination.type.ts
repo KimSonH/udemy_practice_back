@@ -23,4 +23,8 @@ export class PaginationParams {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @IsOptional()
+  @IsString()
+  organizationName?: string;
 }

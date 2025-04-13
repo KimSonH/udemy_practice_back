@@ -11,6 +11,11 @@ export class CoursesController {
     return this.coursesService.findAllByCategoryName(query);
   }
 
+  @Get('organization')
+  findAllByOrganization(@Query() query: PaginationParams) {
+    return this.coursesService.findAllByOrganization(query);
+  }
+
   @Get('group-by-category-name')
   getGroupCategoryName() {
     return this.coursesService.getGroupCategoryName();

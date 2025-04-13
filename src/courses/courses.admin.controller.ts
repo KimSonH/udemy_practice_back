@@ -66,14 +66,8 @@ export class CoursesAdminController {
   }
 
   @Get()
-  getCourses(
-    @Query('search') search: string,
-    @Query() { page, limit }: PaginationParams,
-  ) {
-    if (search) {
-      return this.coursesService.searchCourses(search, page, limit);
-    }
-    return this.coursesService.getCourses(page, limit);
+  getCourses(@Query() query: PaginationParams) {
+    return this.coursesService.findAll(query);
   }
 
   @Get(':id')
