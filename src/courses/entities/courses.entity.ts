@@ -7,8 +7,10 @@ import {
   UpdateDateColumn,
   CreateDateColumn,
   OneToMany,
+  ManyToOne,
 } from 'typeorm';
 import { CourseSet } from 'src/course-sets/entities/course-set.entity';
+import { Organization } from 'src/organizations/entities/organization.entity';
 @Entity()
 export class Course {
   @PrimaryGeneratedColumn()
@@ -38,8 +40,8 @@ export class Course {
   @Column()
   public categoryName: string;
 
-  @Column()
-  public organizationName: string;
+  @Column({ unique: true })
+  public slug: string;
 
   @CreateDateColumn()
   public createdAt!: Date;
@@ -53,4 +55,7 @@ export class Course {
 
   @OneToMany(() => CourseSet, (courseSet) => courseSet.course)
   public courseSets: CourseSet[];
+
+  @ManyToOne(() => Organization, (organization) => organization.courses)
+  public organization: Organization;
 }

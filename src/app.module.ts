@@ -13,6 +13,7 @@ import { AdminModule } from './admin/admin.module';
 import { CoursesModule } from './courses/courses.module';
 import { UdemyQuestionBanksModule } from './udemyQuestionBanks/udemy-question-banks.module';
 import { CourseSetsModule } from './course-sets/course-sets.module';
+import { OrganizationsModule } from './organizations/organizations.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { CourseSetsModule } from './course-sets/course-sets.module';
     CoursesModule,
     UdemyQuestionBanksModule,
     CourseSetsModule,
+    OrganizationsModule,
   ],
   controllers: [],
   providers: [
