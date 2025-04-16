@@ -18,7 +18,7 @@ import { normalize, join } from 'path';
 import * as fs from 'fs';
 import { Organization } from 'src/organizations/entities/organization.entity';
 import { generateUniqueSlug } from 'src/utils/slug';
-
+import { OrganizationsService } from 'src/organizations/organizations.service';
 @Injectable()
 export class CoursesService {
   private logger = new Logger(CoursesService.name);
@@ -34,6 +34,7 @@ export class CoursesService {
     private readonly coursesRepository: Repository<Course>,
     private readonly courseSetsService: CourseSetsService,
     private readonly udemyQuestionBanksService: UdemyQuestionBanksService,
+    private readonly organizationsService: OrganizationsService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -615,15 +616,22 @@ export class CoursesService {
   async findAllByCategoryName(query: PaginationParams) {
     const { page, limit } = query;
     const offset = (page - 1) * limit;
-    const groupCategoryName: { categoryName: string; count: number }[] =
-      await this.getGroupCategoryName();
+    const organizations = await this.organizationsService.findAll({
+      page: 9999,
+      limit: 9999,
+      search: '',
+    });
     let total = 0;
     let items: Course[] = [];
     try {
-      for (const course of groupCategoryName) {
+      for (const organization of organizations.items) {
         const [courses, totalCourse] =
           await this.coursesRepository.findAndCount({
-            where: { categoryName: course.categoryName, status: 'active' },
+            relations: this.relations,
+            where: {
+              organization: { id: organization.id },
+              status: 'active',
+            },
             order: {
               createdAt: 'DESC',
             },
@@ -653,7 +661,7 @@ export class CoursesService {
         relations: this.relations,
         where: {
           organization: {
-            id: organizationId,
+            id: +organizationId,
           },
           status: 'active',
         },

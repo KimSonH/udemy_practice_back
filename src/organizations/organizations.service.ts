@@ -130,6 +130,21 @@ export class OrganizationsService {
     }
   }
 
+  async findOneBySlug(slug: string) {
+    try {
+      const organization = await this.organizationRepository.findOne({
+        where: { slug },
+      });
+      if (!organization) {
+        throw new NotFoundException('Organization not found');
+      }
+      return organization;
+    } catch (error) {
+      this.logger.error(error);
+      throw new BadRequestException('Error finding organization by slug');
+    }
+  }
+
   async update(id: number, updateOrganizationDto: UpdateOrganizationDto) {
     const organization = await this.findOne(id);
     const { name, description } = updateOrganizationDto;

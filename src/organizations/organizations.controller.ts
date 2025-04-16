@@ -15,4 +15,9 @@ export class OrganizationsController {
   findOne(@Param('id') id: string) {
     return this.organizationsService.findOne(+id);
   }
+
+  @Get('slug/:slug')
+  findOneBySlug(@Param('slug') slug: string) {
+    return this.organizationsService.findOneBySlug(slug);
+  }
 }

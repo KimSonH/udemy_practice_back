@@ -9,5 +9,6 @@ import { OrganizationsAdminController } from './organizations.admin.controller';
   imports: [TypeOrmModule.forFeature([Organization]), ConfigModule],
   controllers: [OrganizationsController, OrganizationsAdminController],
   providers: [OrganizationsService],
+  exports: [OrganizationsService],
 })
 export class OrganizationsModule {}
