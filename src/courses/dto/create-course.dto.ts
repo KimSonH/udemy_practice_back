@@ -44,10 +44,10 @@ export class CreateCourseDto {
   @IsNotEmpty()
   categoryName: string;
 
-  @ApiProperty({ description: 'Organization name of the course' })
-  @IsString()
+  @ApiProperty({ description: 'Organization id of the course' })
+  @IsNumber()
   @IsNotEmpty()
-  organizationName: string;
+  organizationId: number;
 
   @ApiProperty({ description: 'Course sets of the course' })
   @IsNumber()

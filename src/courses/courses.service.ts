@@ -16,6 +16,8 @@ import { PaginationParams } from 'src/common/pagination.type';
 import { QuestionDistributionOptions } from './interface';
 import { normalize, join } from 'path';
 import * as fs from 'fs';
+import { Organization } from 'src/organizations/entities/organization.entity';
+import { generateUniqueSlug } from 'src/utils/slug';
 
 @Injectable()
 export class CoursesService {
@@ -478,6 +480,16 @@ export class CoursesService {
     }
   }
 
+  private async generateSlug(title: string) {
+    const slug = await generateUniqueSlug(title, async (slug) => {
+      const course = await this.coursesRepository.findOne({
+        where: { slug },
+      });
+      return !!course;
+    });
+    return slug;
+  }
+
   async createCourse(createCourse: CreateCourseDto) {
     const {
       categoryName,
@@ -485,7 +497,7 @@ export class CoursesService {
       courseSets: totalSets,
       description,
       name,
-      organizationName,
+      organizationId,
       price,
       status,
       type,
@@ -498,8 +510,8 @@ export class CoursesService {
     course.status = status;
     course.type = type;
     course.categoryName = categoryName;
-    course.organizationName = organizationName;
     course.content = content;
+    course.slug = await this.generateSlug(name);
     // Minimum reasonable threshold when there are not enough questions / Ngưỡng tối thiểu hợp lý khi không đủ câu hỏi
     const minQuestionsPerSet = 100;
 
@@ -507,6 +519,13 @@ export class CoursesService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
+      course.organization = await queryRunner.manager
+        .createQueryBuilder()
+        .select('*')
+        .from(Organization, 'organization')
+        .where('id = :id', { id: organizationId })
+        .getOne();
+
       const courseSets: CourseSet[] = [];
       for (let i = 0; i < totalSets; i++) {
         const courseSet = new CourseSet();
@@ -623,13 +642,15 @@ export class CoursesService {
   }
 
   async findAllByOrganization(query: PaginationParams) {
-    const { page, limit, organizationName } = query;
+    const { page, limit, organizationId } = query;
     const offset = (page - 1) * limit;
     try {
       const [items, total] = await this.coursesRepository.findAndCount({
         relations: ['courseSets', 'courseSets.udemyQuestionBanks'],
         where: {
-          organizationName: Like(`%${organizationName}%`),
+          organization: {
+            id: organizationId,
+          },
           status: 'active',
         },
         order: {
@@ -785,7 +806,7 @@ export class CoursesService {
       courseSets: totalSets,
       description,
       name,
-      organizationName,
+      organizationId,
       price,
       status,
       type,
@@ -798,9 +819,8 @@ export class CoursesService {
     course.status = status;
     course.type = type;
     course.categoryName = categoryName;
-    course.organizationName = organizationName;
     course.content = content;
-
+    course.slug = await this.generateSlug(name);
     // Minimum reasonable threshold when there are not enough questions / Ngưỡng tối thiểu hợp lý khi không đủ câu hỏi
     const minQuestionsPerSet = 100;
 
@@ -808,6 +828,12 @@ export class CoursesService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
+      course.organization = await queryRunner.manager
+        .createQueryBuilder()
+        .select('*')
+        .from(Organization, 'organization')
+        .where('id = :id', { id: organizationId })
+        .getOne();
       for (const set of course.courseSets) {
         await queryRunner.manager.query(
           `DELETE FROM course_set_udemy_question_banks_udemy_question_bank WHERE "courseSetId" = $1`,
