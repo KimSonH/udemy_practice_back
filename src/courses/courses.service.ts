@@ -23,6 +23,11 @@ import { generateUniqueSlug } from 'src/utils/slug';
 export class CoursesService {
   private logger = new Logger(CoursesService.name);
   private readonly BATCH_SIZE = 1000;
+  private relations = [
+    'courseSets',
+    'courseSets.udemyQuestionBanks',
+    'organization',
+  ];
 
   constructor(
     @InjectRepository(Course)
@@ -520,11 +525,10 @@ export class CoursesService {
     await queryRunner.startTransaction();
     try {
       course.organization = await queryRunner.manager
-        .createQueryBuilder()
-        .select('*')
-        .from(Organization, 'organization')
-        .where('id = :id', { id: organizationId })
-        .getOne();
+        .getRepository(Organization)
+        .findOne({
+          where: { id: Number(organizationId) },
+        });
 
       const courseSets: CourseSet[] = [];
       for (let i = 0; i < totalSets; i++) {
@@ -646,7 +650,7 @@ export class CoursesService {
     const offset = (page - 1) * limit;
     try {
       const [items, total] = await this.coursesRepository.findAndCount({
-        relations: ['courseSets', 'courseSets.udemyQuestionBanks'],
+        relations: this.relations,
         where: {
           organization: {
             id: organizationId,
@@ -677,16 +681,17 @@ export class CoursesService {
     const offset = (page - 1) * limit;
     try {
       const [items, total] = await this.coursesRepository.findAndCount({
-        relations: ['courseSets', 'courseSets.udemyQuestionBanks'],
+        relations: this.relations,
         where: {
           status: 'active',
           name: search ? Like(`%${search}%`) : undefined,
+          deletedAt: null,
         },
         order: {
           createdAt: 'DESC',
         },
-        take: limit,
-        skip: offset,
+        skip: page === 9999 ? undefined : offset,
+        take: page === 9999 ? undefined : limit,
       });
       return {
         items,
@@ -705,7 +710,7 @@ export class CoursesService {
       const offset = (page - 1) * limit;
 
       const [items, total] = await this.coursesRepository.findAndCount({
-        relations: ['courseSets', 'courseSets.udemyQuestionBanks'],
+        relations: this.relations,
         order: {
           createdAt: 'DESC',
         },
@@ -729,7 +734,7 @@ export class CoursesService {
     try {
       const course = await this.coursesRepository.findOne({
         where: { id },
-        relations: ['courseSets', 'courseSets.udemyQuestionBanks'],
+        relations: this.relations,
       });
 
       if (!course) {
@@ -747,7 +752,7 @@ export class CoursesService {
     try {
       const course = await this.coursesRepository.findOne({
         where: { id, status: 'active' },
-        relations: ['courseSets', 'courseSets.udemyQuestionBanks'],
+        relations: this.relations,
       });
 
       if (!course) {
@@ -829,11 +834,10 @@ export class CoursesService {
     await queryRunner.startTransaction();
     try {
       course.organization = await queryRunner.manager
-        .createQueryBuilder()
-        .select('*')
-        .from(Organization, 'organization')
-        .where('id = :id', { id: organizationId })
-        .getOne();
+        .getRepository(Organization)
+        .findOne({
+          where: { id: Number(organizationId) },
+        });
       for (const set of course.courseSets) {
         await queryRunner.manager.query(
           `DELETE FROM course_set_udemy_question_banks_udemy_question_bank WHERE "courseSetId" = $1`,

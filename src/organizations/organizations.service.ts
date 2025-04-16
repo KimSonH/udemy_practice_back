@@ -9,7 +9,7 @@ import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { Organization } from './entities/organization.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm';
 import { PaginationParams } from 'src/common/pagination.type';
 import { normalize, join } from 'path';
 import * as fs from 'fs';
@@ -89,12 +89,19 @@ export class OrganizationsService {
   }
 
   async findAll(query: PaginationParams) {
-    const { page, limit } = query;
+    const { page, limit, search } = query;
     const offset = (page - 1) * limit;
     try {
       const [items, total] = await this.organizationRepository.findAndCount({
-        skip: offset,
-        take: limit,
+        where: {
+          deletedAt: null,
+          name: search ? Like(`%${search}%`) : undefined,
+        },
+        order: {
+          createdAt: 'DESC',
+        },
+        skip: page === 9999 ? undefined : offset,
+        take: page === 9999 ? undefined : limit,
       });
       return {
         items,
