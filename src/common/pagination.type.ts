@@ -27,4 +27,8 @@ export class PaginationParams {
   @IsOptional()
   @IsString()
   organizationId?: string;
+
+  @IsOptional()
+  @IsString()
+  organizationSlug?: string;
 }

@@ -654,14 +654,15 @@ export class CoursesService {
   }
 
   async findAllByOrganization(query: PaginationParams) {
-    const { page, limit, organizationId } = query;
+    const { page, limit, organizationId, organizationSlug } = query;
     const offset = (page - 1) * limit;
     try {
       const [items, total] = await this.coursesRepository.findAndCount({
         relations: this.relations,
         where: {
           organization: {
-            id: +organizationId,
+            id: organizationId ? +organizationId : undefined,
+            slug: organizationSlug ? organizationSlug : undefined,
           },
           status: 'active',
         },

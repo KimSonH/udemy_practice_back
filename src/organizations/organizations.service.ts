@@ -89,7 +89,7 @@ export class OrganizationsService {
   }
 
   async findAll(query: PaginationParams) {
-    const { page, limit, search } = query;
+    const { page, limit, search, organizationId, organizationSlug } = query;
     const offset = (page - 1) * limit;
     try {
       const [items, total] = await this.organizationRepository.findAndCount({
@@ -112,6 +112,24 @@ export class OrganizationsService {
     } catch (error) {
       this.logger.error(error);
       throw new BadRequestException('Error finding organizations');
+    }
+  }
+
+  async groupOrganizationsByName() {
+    try {
+      const groupOrganizationName = await this.organizationRepository
+        .createQueryBuilder('organization')
+        .where('organization.deletedAt IS NULL')
+        .select('organization.name', 'name')
+        .addSelect('organization.slug', 'slug')
+        .addSelect('COUNT(course.id)', 'count')
+        .leftJoin('organization.courses', 'course')
+        .groupBy('organization.name, organization.slug')
+        .getRawMany();
+      return groupOrganizationName;
+    } catch (error) {
+      this.logger.error(error);
+      throw new BadRequestException('Error grouping organizations by name');
     }
   }
 

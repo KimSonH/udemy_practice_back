@@ -11,6 +11,11 @@ export class OrganizationsController {
     return this.organizationsService.findAll(query);
   }
 
+  @Get('group-by-name')
+  groupOrganizationsByName() {
+    return this.organizationsService.groupOrganizationsByName();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.organizationsService.findOne(+id);
