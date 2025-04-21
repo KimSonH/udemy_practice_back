@@ -14,6 +14,7 @@ import { CoursesModule } from './courses/courses.module';
 import { UdemyQuestionBanksModule } from './udemyQuestionBanks/udemy-question-banks.module';
 import { CourseSetsModule } from './course-sets/course-sets.module';
 import { OrganizationsModule } from './organizations/organizations.module';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { OrganizationsModule } from './organizations/organizations.module';
     UdemyQuestionBanksModule,
     CourseSetsModule,
     OrganizationsModule,
+    PaymentsModule,
   ],
   controllers: [],
   providers: [
