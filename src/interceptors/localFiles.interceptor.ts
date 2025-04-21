@@ -34,7 +34,7 @@ function LocalFilesInterceptor(
               const extension = file.mimetype.split('/')[1];
               let finalExtension = '';
 
-              switch (extension) {
+              switch (extension.toLowerCase()) {
                 case 'jpeg':
                 case 'jpg':
                   finalExtension = 'jpeg';
@@ -47,6 +47,23 @@ function LocalFilesInterceptor(
                   break;
                 case 'webp':
                   finalExtension = 'webp';
+                  break;
+                case 'svg+xml':
+                  finalExtension = 'svg';
+                  break;
+                case 'bmp':
+                  finalExtension = 'bmp';
+                  break;
+                case 'tiff':
+                  finalExtension = 'tiff';
+                  break;
+                case 'x-icon':
+                case 'vnd.microsoft.icon':
+                  finalExtension = 'ico';
+                  break;
+                case 'heic':
+                case 'heif':
+                  finalExtension = 'heic';
                   break;
                 default:
                   finalExtension = 'jpeg'; // fallback to jpeg
