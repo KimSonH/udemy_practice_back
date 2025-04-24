@@ -31,4 +31,8 @@ export class PaginationParams {
   @IsOptional()
   @IsString()
   organizationSlug?: string;
+
+  @IsOptional()
+  @IsString()
+  orderBy?: string;
 }

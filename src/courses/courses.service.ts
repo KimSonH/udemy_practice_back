@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Course } from './entities/courses.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Like, Repository, DataSource, QueryRunner } from 'typeorm';
+import { Repository, DataSource, QueryRunner, ILike } from 'typeorm';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { UdemyQuestionBanksService } from 'src/udemyQuestionBanks/udemy-question-banks.service';
@@ -686,18 +686,23 @@ export class CoursesService {
   }
 
   async findAll(query: PaginationParams) {
-    const { page, limit, search } = query;
+    const { page, limit, search, orderBy } = query;
     const offset = (page - 1) * limit;
+    const order = {
+      DESC: 'DESC',
+      ASC: 'ASC',
+    };
+    const orderByOrder = order[orderBy];
     try {
       const [items, total] = await this.coursesRepository.findAndCount({
         relations: this.relations,
         where: {
           status: 'active',
-          name: search ? Like(`%${search}%`) : undefined,
+          name: search ? ILike(`%${search}%`) : undefined,
           deletedAt: null,
         },
         order: {
-          createdAt: 'DESC',
+          createdAt: orderByOrder || 'DESC',
         },
         skip: page === 9999 ? undefined : offset,
         take: page === 9999 ? undefined : limit,
