@@ -8,7 +8,7 @@ export class CoursesController {
 
   @Get()
   findAll(@Query() query: PaginationParams) {
-    return this.coursesService.findAllByCategoryName(query);
+    return this.coursesService.findAll(query);
   }
 
   @Get('organization')

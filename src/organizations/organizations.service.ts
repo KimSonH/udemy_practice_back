@@ -122,9 +122,12 @@ export class OrganizationsService {
         .where('organization.deletedAt IS NULL')
         .select('organization.name', 'name')
         .addSelect('organization.slug', 'slug')
+        .addSelect('organization.thumbnailImageUrl', 'thumbnailImageUrl')
         .addSelect('COUNT(course.id)', 'count')
         .leftJoin('organization.courses', 'course')
-        .groupBy('organization.name, organization.slug')
+        .groupBy(
+          'organization.name, organization.slug, organization.thumbnailImageUrl',
+        )
         .getRawMany();
       return groupOrganizationName;
     } catch (error) {

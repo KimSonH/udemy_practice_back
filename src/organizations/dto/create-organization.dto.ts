@@ -11,9 +11,4 @@ export class CreateOrganizationDto {
   @IsString()
   @IsOptional()
   description?: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsOptional()
-  thumbnailImageUrl?: string;
 }

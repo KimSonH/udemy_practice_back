@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Course } from './entities/courses.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Like, Repository, DataSource, QueryRunner } from 'typeorm';
+import { Repository, DataSource, QueryRunner, ILike } from 'typeorm';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { UdemyQuestionBanksService } from 'src/udemyQuestionBanks/udemy-question-banks.service';
@@ -686,18 +686,23 @@ export class CoursesService {
   }
 
   async findAll(query: PaginationParams) {
-    const { page, limit, search } = query;
+    const { page, limit, search, orderBy } = query;
     const offset = (page - 1) * limit;
+    const order = {
+      DESC: 'DESC',
+      ASC: 'ASC',
+    };
+    const orderByOrder = order[orderBy];
     try {
       const [items, total] = await this.coursesRepository.findAndCount({
         relations: this.relations,
         where: {
           status: 'active',
-          name: search ? Like(`%${search}%`) : undefined,
+          name: search ? ILike(`%${search}%`) : undefined,
           deletedAt: null,
         },
         order: {
-          createdAt: 'DESC',
+          createdAt: orderByOrder || 'DESC',
         },
         skip: page === 9999 ? undefined : offset,
         take: page === 9999 ? undefined : limit,
@@ -832,7 +837,6 @@ export class CoursesService {
     course.price = price;
     course.status = status;
     course.type = type;
-    course.categoryName = categoryName;
     course.content = content;
     course.slug = await this.generateSlug(name);
     // Minimum reasonable threshold when there are not enough questions / Ngưỡng tối thiểu hợp lý khi không đủ câu hỏi
@@ -847,42 +851,49 @@ export class CoursesService {
         .findOne({
           where: { id: Number(organizationId) },
         });
-      for (const set of course.courseSets) {
-        await queryRunner.manager.query(
-          `DELETE FROM course_set_udemy_question_banks_udemy_question_bank WHERE "courseSetId" = $1`,
-          [set.id],
-        );
-        await queryRunner.manager
-          .getRepository(CourseSet)
+      if (
+        course.categoryName !== categoryName ||
+        course.courseSets.length !== totalSets ||
+        course.courseSets[0].udemyQuestionBanks.length !== questionsPerSet
+      ) {
+        for (const set of course.courseSets) {
+          await queryRunner.manager.query(
+            `DELETE FROM course_set_udemy_question_banks_udemy_question_bank WHERE "courseSetId" = $1`,
+            [set.id],
+          );
+          await queryRunner.manager
+            .getRepository(CourseSet)
+            .createQueryBuilder()
+            .softDelete()
+            .where('id = :id', { id: set.id })
+            .execute();
+        }
+        const courseSets: CourseSet[] = [];
+        for (let i = 0; i < totalSets; i++) {
+          const courseSet = new CourseSet();
+          courseSet.name = `${course.name} Set ${i + 1}`;
+          courseSet.course = course;
+          courseSets.push(courseSet);
+        }
+        const courseSetSaved = await queryRunner.manager
           .createQueryBuilder()
-          .softDelete()
-          .where('id = :id', { id: set.id })
+          .insert()
+          .into(CourseSet)
+          .values(courseSets)
           .execute();
-      }
-      const courseSets: CourseSet[] = [];
-      for (let i = 0; i < totalSets; i++) {
-        const courseSet = new CourseSet();
-        courseSet.name = `${course.name} Set ${i + 1}`;
-        courseSet.course = course;
-        courseSets.push(courseSet);
-      }
-      const courseSetSaved = await queryRunner.manager
-        .createQueryBuilder()
-        .insert()
-        .into(CourseSet)
-        .values(courseSets)
-        .execute();
-      course.courseSets = courseSetSaved.raw;
+        course.courseSets = courseSetSaved.raw;
 
-      await this.distributeQuestions(
-        categoryName,
-        totalSets,
-        minQuestionsPerSet,
-        courseSets,
-        queryRunner,
-        questionsPerSet,
-      );
-      this.logger.log('Phân phối câu hỏi hoàn tất');
+        await this.distributeQuestions(
+          categoryName,
+          totalSets,
+          minQuestionsPerSet,
+          courseSets,
+          queryRunner,
+          questionsPerSet,
+        );
+        this.logger.log('Phân phối câu hỏi hoàn tất');
+      }
+      course.categoryName = categoryName;
 
       await queryRunner.manager.save(course);
       // Commit transaction if everything is successful / Commit transaction nếu mọi thứ thành công
