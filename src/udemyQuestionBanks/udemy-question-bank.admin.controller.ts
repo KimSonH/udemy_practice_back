@@ -21,7 +21,10 @@ import {
   ApiBearerAuth,
   ApiQuery,
   ApiParam,
+  ApiBody,
+  getSchemaPath,
 } from '@nestjs/swagger';
+import { UdemyQuestionBank } from './entities/udemy-question-bank.entity';
 
 @ApiTags('Admin Questions')
 @ApiBearerAuth()
@@ -32,41 +35,42 @@ export class UdemyQuestionBankAdminController {
     private readonly udemyQuestionBanksService: UdemyQuestionBanksService,
   ) {}
 
-  @Post()
   @ApiOperation({ summary: 'Create a new question' })
   @ApiResponse({
     status: 201,
     description: 'The question has been successfully created.',
+    type: UdemyQuestionBank,
   })
-  @ApiResponse({
-    status: 400,
-    description: 'Bad request.',
-  })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiBody({ type: CreateUdemyQuestionBankDto })
+  @Post()
   create(@Body() createUdemyQuestionBankDto: CreateUdemyQuestionBankDto) {
     return this.udemyQuestionBanksService.create(createUdemyQuestionBankDto);
   }
 
-  @Get()
   @ApiOperation({ summary: 'Get all questions with pagination and search' })
   @ApiResponse({
     status: 200,
-    description: 'Return all questions.',
+    description: 'Returns paginated questions',
+    schema: {
+      type: 'object',
+      properties: {
+        items: {
+          type: 'array',
+          items: { $ref: getSchemaPath(UdemyQuestionBank) },
+        },
+        total: { type: 'number' },
+        page: { type: 'number' },
+        limit: { type: 'number' },
+      },
+    },
   })
-  @ApiQuery({
-    name: 'search',
-    required: false,
-    description: 'Search term for filtering questions',
-  })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    description: 'Page number for pagination',
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    description: 'Number of items per page',
-  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiQuery({ name: 'search', required: false, type: 'string' })
+  @ApiQuery({ name: 'page', required: false, type: 'number' })
+  @ApiQuery({ name: 'limit', required: false, type: 'number' })
+  @Get()
   findAll(
     @Query('search') search: string,
     @Query() { page, limit }: PaginationParams,
@@ -81,48 +85,52 @@ export class UdemyQuestionBankAdminController {
     return this.udemyQuestionBanksService.findAll(page, limit);
   }
 
-  @Get('group-by-category-name')
   @ApiOperation({ summary: 'Get questions grouped by category name' })
   @ApiResponse({
     status: 200,
-    description: 'Return questions grouped by category name.',
+    description: 'Returns questions grouped by category name',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          categoryName: { type: 'string' },
+          count: { type: 'number' },
+        },
+      },
+    },
   })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @Get('group-by-category-name')
   groupQuestionsByCategoryName() {
     return this.udemyQuestionBanksService.groupQuestionsByCategoryName();
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get a question by id' })
+  @ApiOperation({ summary: 'Get question by ID' })
   @ApiResponse({
     status: 200,
-    description: 'Return the question.',
+    description: 'Returns the question',
+    type: UdemyQuestionBank,
   })
-  @ApiResponse({
-    status: 404,
-    description: 'Question not found.',
-  })
-  @ApiParam({
-    name: 'id',
-    description: 'The id of the question',
-  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Question not found' })
+  @ApiParam({ name: 'id', type: 'number' })
+  @Get(':id')
   findOne(@Param('id') id: string) {
     return this.udemyQuestionBanksService.findOne(+id);
   }
 
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update a question' })
+  @ApiOperation({ summary: 'Update question' })
   @ApiResponse({
     status: 200,
-    description: 'The question has been successfully updated.',
+    description: 'Question successfully updated',
+    type: UdemyQuestionBank,
   })
-  @ApiResponse({
-    status: 404,
-    description: 'Question not found.',
-  })
-  @ApiParam({
-    name: 'id',
-    description: 'The id of the question to update',
-  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Question not found' })
+  @ApiParam({ name: 'id', type: 'number' })
+  @ApiBody({ type: UpdateUdemyQuestionBankDto })
+  @Patch(':id')
   update(
     @Param('id') id: string,
     @Body() updateUdemyQuestionBankDto: UpdateUdemyQuestionBankDto,
@@ -133,20 +141,12 @@ export class UdemyQuestionBankAdminController {
     );
   }
 
+  @ApiOperation({ summary: 'Delete question' })
+  @ApiResponse({ status: 200, description: 'Question successfully deleted' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Question not found' })
+  @ApiParam({ name: 'id', type: 'number' })
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete a question' })
-  @ApiResponse({
-    status: 200,
-    description: 'The question has been successfully deleted.',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Question not found.',
-  })
-  @ApiParam({
-    name: 'id',
-    description: 'The id of the question to delete',
-  })
   remove(@Param('id') id: string) {
     return this.udemyQuestionBanksService.remove(+id);
   }

@@ -48,8 +48,8 @@ async function bootstrap() {
   });
 
   const config = new DocumentBuilder()
-    .setTitle('Class Management API')
-    .setDescription('API documentation for the Class Management System')
+    .setTitle('Udemy Practice API')
+    .setDescription('API documentation for the Udemy Practice')
     .setVersion('1.0')
     .addBearerAuth()
     .build();
