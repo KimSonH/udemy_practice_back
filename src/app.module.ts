@@ -1,5 +1,5 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import * as Joi from '@hapi/joi';
 import { DatabaseModule } from './database/database.module';
 import { UsersModule } from './users/users.module';
@@ -13,6 +13,9 @@ import { AdminModule } from './admin/admin.module';
 import { CoursesModule } from './courses/courses.module';
 import { UdemyQuestionBanksModule } from './udemyQuestionBanks/udemy-question-banks.module';
 import { CourseSetsModule } from './course-sets/course-sets.module';
+import { OrganizationsModule } from './organizations/organizations.module';
+import typeorm from './config/typeorm';
+import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
   imports: [
@@ -29,8 +32,14 @@ import { CourseSetsModule } from './course-sets/course-sets.module';
         JWT_REFRESH_TOKEN_SECRET: Joi.string().required(),
         JWT_REFRESH_TOKEN_EXPIRATION_TIME: Joi.string().required(),
       }),
+      isGlobal: true,
+      load: [typeorm],
     }),
-    DatabaseModule,
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) =>
+        configService.get('typeorm'),
+    }),
     UsersModule,
     AdminModule,
     AuthenticationModule,
@@ -39,6 +48,7 @@ import { CourseSetsModule } from './course-sets/course-sets.module';
     CoursesModule,
     UdemyQuestionBanksModule,
     CourseSetsModule,
+    OrganizationsModule,
   ],
   controllers: [],
   providers: [
