@@ -35,6 +35,7 @@
     "@nestjs/swagger": "^11.0.3",
     "@nestjs/typeorm": "^11.0.0",
     "@payos/node": "^1.0.10",
+    "@paypal/paypal-server-sdk": "^1.0.0",
     "@types/bcrypt": "^5.0.2",
     "@types/cookie-parser": "^1.4.8",
     "@types/hapi__joi": "^17.1.15",

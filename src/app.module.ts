@@ -16,6 +16,7 @@ import { CourseSetsModule } from './course-sets/course-sets.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import typeorm from './config/typeorm';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [

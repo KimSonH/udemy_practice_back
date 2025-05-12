@@ -20,7 +20,7 @@ export class PaymentsController {
     return this.paymentsService.create(createPaymentDto);
   }
 
-  @Post('create-embedded-payment-link')
+  @Post('/order')
   createEmbeddedPaymentLink(@Body() createPaymentDto: CreatePaymentDto) {
     return this.paymentsService.createEmbeddedPaymentLink();
   }
