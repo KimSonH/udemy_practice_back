@@ -6,10 +6,15 @@ import {
   Patch,
   Param,
   Delete,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
+import { CreateOrderDto } from './dto/create-order.dto';
+import JwtAuthenticationGuard from 'src/authentication/guard/jwt-authentication.guard';
+import { RequestWithUser } from 'src/authentication/requestWithUser.interface';
 
 @Controller('payments')
 export class PaymentsController {
@@ -20,9 +25,34 @@ export class PaymentsController {
     return this.paymentsService.create(createPaymentDto);
   }
 
-  @Post('/order')
-  createEmbeddedPaymentLink(@Body() createPaymentDto: CreatePaymentDto) {
-    return this.paymentsService.createEmbeddedPaymentLink();
+  @UseGuards(JwtAuthenticationGuard)
+  @Post('/orders')
+  async orders(@Body() createOrderDto: CreateOrderDto) {
+    const { jsonResponse, httpStatusCode } =
+      await this.paymentsService.createOrder(createOrderDto);
+    return {
+      jsonResponse,
+      httpStatusCode,
+    };
+  }
+
+  @UseGuards(JwtAuthenticationGuard)
+  @Post('/orders/:orderID/capture')
+  async captureOrder(
+    @Param('orderID') orderID: string,
+    @Body() { courseId }: { courseId: number },
+    @Req() request: RequestWithUser,
+  ) {
+    const { jsonResponse, httpStatusCode } =
+      await this.paymentsService.captureOrder(
+        orderID,
+        courseId,
+        request.user.id,
+      );
+    return {
+      jsonResponse,
+      httpStatusCode,
+    };
   }
 
   @Get()

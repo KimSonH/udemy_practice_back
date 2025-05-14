@@ -17,6 +17,7 @@ import { OrganizationsModule } from './organizations/organizations.module';
 import typeorm from './config/typeorm';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PaymentsModule } from './payments/payments.module';
+import { UserCoursesModule } from './user-courses/user-courses.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { PaymentsModule } from './payments/payments.module';
     CourseSetsModule,
     OrganizationsModule,
     PaymentsModule,
+    UserCoursesModule,
   ],
   controllers: [],
   providers: [

@@ -4,10 +4,12 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
+import { UserCourse } from 'src/user-courses/entities/user-course.entity';
 
 @Entity()
 export class User {
@@ -45,4 +47,7 @@ export class User {
   @DeleteDateColumn()
   @Exclude()
   public deletedAt?: Date;
+
+  @OneToMany(() => UserCourse, (userCourse) => userCourse.user)
+  public userCourses: UserCourse[];
 }

@@ -1,10 +1,143 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
-
+import {
+  Client,
+  Environment,
+  LogLevel,
+  OrdersController,
+  PaymentsController,
+  ApiError,
+  CheckoutPaymentIntent,
+  OrderApplicationContextLandingPage,
+  OrderApplicationContextUserAction,
+} from '@paypal/paypal-server-sdk';
+import { CreateOrderDto } from './dto/create-order.dto';
+import { UserCoursesService } from 'src/user-courses/user-courses.service';
+import { CoursesService } from 'src/courses/courses.service';
 @Injectable()
 export class PaymentsService {
-  constructor() {}
+  private readonly logger = new Logger(PaymentsService.name);
+  private readonly client: Client;
+
+  constructor(
+    private readonly userCoursesService: UserCoursesService,
+    private readonly coursesService: CoursesService,
+  ) {
+    this.client = new Client({
+      clientCredentialsAuthCredentials: {
+        oAuthClientId:
+          'AaPZCkmd7Ccmr_j-1Ajj2SEy-4c8FSzF4bLARQvvlEgOsZvA2E9DBb8ZZLDS6ltH40nPDx8CqKwHnvOp',
+        oAuthClientSecret:
+          'EKPVc_59b55MGWdexs6znTxp8vYu0TPshwnEoRMNRte1wKjCPQfzmldxFrh4ZNUsAbnz8PE-QuwutJKV',
+      },
+      timeout: 0,
+      environment: Environment.Sandbox,
+      logging: {
+        logLevel: LogLevel.Info,
+        logRequest: { logBody: true },
+        logResponse: { logHeaders: true },
+      },
+    });
+  }
+
+  ordersController() {
+    return new OrdersController(this.client);
+  }
+
+  paymentsController() {
+    return new PaymentsController(this.client);
+  }
+
+  async createOrder(createOrderDto: CreateOrderDto) {
+    const { courseId, price } = createOrderDto;
+    const collect = {
+      body: {
+        intent: CheckoutPaymentIntent.Capture,
+        purchaseUnits: [
+          {
+            amount: {
+              currencyCode: 'USD',
+              value: price.toString(),
+              breakdown: {
+                itemTotal: {
+                  currencyCode: 'USD',
+                  value: price.toString(),
+                },
+              },
+            },
+            // lookup item details in `cart` from database
+            // items: [
+            //   {
+            //     name: 'T-Shirt',
+            //     unitAmount: {
+            //       currencyCode: 'USD',
+            //       value: '1',
+            //     },
+            //     quantity: '1',
+            //     description: 'Super Fresh Shirt',
+            //     sku: 'sku01',
+            //   },
+            // ],
+          },
+        ],
+      },
+      prefer: 'return=minimal',
+    };
+
+    try {
+      const { body, ...httpResponse } =
+        await this.ordersController().createOrder(collect);
+
+      const response = JSON.parse(body.toString());
+      this.logger.log(`Order created successfully: ${response.id}`);
+
+      return {
+        jsonResponse: response,
+        httpStatusCode: httpResponse.statusCode,
+      };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        this.logger.error(`Error creating order: ${error.message}`);
+        throw new Error(error.message);
+      }
+      throw error;
+    }
+  }
+
+  async captureOrder(orderID: string, courseId: number, userId: number) {
+    const collect = {
+      id: orderID,
+      prefer: 'return=minimal',
+    };
+    try {
+      const { body, ...httpResponse } =
+        await this.ordersController().captureOrder(collect);
+      // Get more response info...
+      // const { statusCode, headers } = httpResponse;
+
+      if (httpResponse.statusCode === 201) {
+        const response = JSON.parse(body.toString());
+        const { status } = response;
+        if (status === 'COMPLETED') {
+          await this.userCoursesService.create({
+            userId,
+            courseId,
+            orderId: orderID,
+          });
+        }
+      }
+      return {
+        jsonResponse: JSON.parse(body.toString()),
+        httpStatusCode: httpResponse.statusCode,
+      };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        // const { statusCode, headers } = error;
+        throw new Error(error.message);
+      }
+    }
+  }
 
   create(createPaymentDto: CreatePaymentDto) {
     return 'This action adds a new payment';
