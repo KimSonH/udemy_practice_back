@@ -13,4 +13,8 @@ export class CreateUserCourseDto {
   @ApiProperty({ description: 'The unique identifier of the order' })
   @IsString()
   orderId: string;
+
+  @ApiProperty({ description: 'The data of the order' })
+  @IsString()
+  orderData: string;
 }

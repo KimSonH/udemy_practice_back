@@ -1,5 +1,6 @@
 import { Exclude } from 'class-transformer';
 import { User } from 'src/users/entities/user.entity';
+import { Course } from 'src/courses/entities/courses.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -10,7 +11,6 @@ import {
   JoinColumn,
   ManyToOne,
 } from 'typeorm';
-
 @Entity()
 export class UserCourse {
   @PrimaryGeneratedColumn()
@@ -25,6 +25,9 @@ export class UserCourse {
   @Column()
   public orderId: string;
 
+  @Column()
+  public orderData: string;
+
   @CreateDateColumn()
   public createdAt!: Date;
 
@@ -38,4 +41,8 @@ export class UserCourse {
   @ManyToOne(() => User, (user) => user.userCourses)
   @JoinColumn({ name: 'userId' })
   public user: User;
+
+  @ManyToOne(() => Course, (course) => course.userCourses)
+  @JoinColumn({ name: 'courseId' })
+  public course: Course;
 }

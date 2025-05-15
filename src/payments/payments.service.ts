@@ -124,6 +124,7 @@ export class PaymentsService {
             userId,
             courseId,
             orderId: orderID,
+            orderData: JSON.stringify(response),
           });
         }
       }
