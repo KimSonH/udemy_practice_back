@@ -15,21 +15,21 @@ import {
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UserCoursesService } from 'src/user-courses/user-courses.service';
 import { CoursesService } from 'src/courses/courses.service';
+import { ConfigService } from '@nestjs/config';
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
   private readonly client: Client;
 
   constructor(
+    private readonly configService: ConfigService,
     private readonly userCoursesService: UserCoursesService,
     private readonly coursesService: CoursesService,
   ) {
     this.client = new Client({
       clientCredentialsAuthCredentials: {
-        oAuthClientId:
-          'AaPZCkmd7Ccmr_j-1Ajj2SEy-4c8FSzF4bLARQvvlEgOsZvA2E9DBb8ZZLDS6ltH40nPDx8CqKwHnvOp',
-        oAuthClientSecret:
-          'EKPVc_59b55MGWdexs6znTxp8vYu0TPshwnEoRMNRte1wKjCPQfzmldxFrh4ZNUsAbnz8PE-QuwutJKV',
+        oAuthClientId: this.configService.get('PAYPAL_CLIENT_ID'),
+        oAuthClientSecret: this.configService.get('PAYPAL_CLIENT_SECRET'),
       },
       timeout: 0,
       environment: Environment.Sandbox,
@@ -51,6 +51,7 @@ export class PaymentsService {
 
   async createOrder(createOrderDto: CreateOrderDto) {
     const { courseId, price } = createOrderDto;
+    await this.coursesService.getCourseById(courseId);
     const collect = {
       body: {
         intent: CheckoutPaymentIntent.Capture,
@@ -110,6 +111,7 @@ export class PaymentsService {
       id: orderID,
       prefer: 'return=minimal',
     };
+    await this.coursesService.getCourseById(courseId);
     try {
       const { body, ...httpResponse } =
         await this.ordersController().captureOrder(collect);
@@ -143,8 +145,6 @@ export class PaymentsService {
   create(createPaymentDto: CreatePaymentDto) {
     return 'This action adds a new payment';
   }
-
-  createEmbeddedPaymentLink() {}
 
   findAll() {
     return `This action returns all payments`;
