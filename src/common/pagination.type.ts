@@ -59,4 +59,12 @@ export class PaginationParams {
     example: 'createdAt',
   })
   orderBy?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty({
+    description: 'The type of course to filter results',
+    example: 'free',
+  })
+  type?: string;
 }
