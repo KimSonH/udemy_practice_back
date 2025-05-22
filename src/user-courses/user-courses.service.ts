@@ -10,15 +10,24 @@ import { UserCourse } from './entities/user-course.entity';
 import { ILike, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PaginationParams } from 'src/common/pagination.type';
+import { CoursesService } from 'src/courses/courses.service';
 
 @Injectable()
 export class UserCoursesService {
   private logger = new Logger(UserCoursesService.name);
   private relations = ['course', 'user'];
+  private relationsDetail = [
+    'user',
+    'course',
+    'course.courseSets',
+    'course.courseSets.udemyQuestionBanks',
+    'course.organization',
+  ];
 
   constructor(
     @InjectRepository(UserCourse)
     private readonly userCourseRepository: Repository<UserCourse>,
+    private readonly coursesService: CoursesService,
   ) {}
 
   async create(createUserCourseDto: CreateUserCourseDto) {
@@ -112,6 +121,27 @@ export class UserCoursesService {
       this.logger.error(`Error getting user course: ${error.message}`);
       throw new BadRequestException('Error getting user course');
     }
+  }
+
+  async findOneWithUserId(userId: number, id: number) {
+    const userCourse = await this.userCourseRepository.findOne({
+      where: { user: { id: userId }, id },
+      relations: this.relationsDetail,
+    });
+    if (userCourse.user.id !== userId) {
+      throw new BadRequestException('User course not found');
+    }
+    return userCourse;
+  }
+
+  async getUserCoursesByUserCourseId(userId: number, userCourseId: number) {
+    const userCourse = await this.findOneWithUserId(userId, userCourseId);
+
+    const course = await this.coursesService.findOneWithStatus(
+      userCourse.course.id,
+    );
+
+    return course;
   }
 
   async update(id: number, updateUserCourseDto: UpdateUserCourseDto) {

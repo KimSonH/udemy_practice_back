@@ -73,6 +73,17 @@ export class UserCoursesController {
     return this.userCoursesService.getUserCoursesByUserId(req.user.id, query);
   }
 
+  @Get('by-user-course-id/:userCourseId')
+  getUserCoursesByCourseId(
+    @Req() req: RequestWithUser,
+    @Param('userCourseId') userCourseId: string,
+  ) {
+    return this.userCoursesService.getUserCoursesByUserCourseId(
+      req.user.id,
+      +userCourseId,
+    );
+  }
+
   @ApiOperation({ summary: 'Get all user courses' })
   @ApiResponse({
     status: 200,
