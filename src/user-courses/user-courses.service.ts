@@ -31,6 +31,37 @@ export class UserCoursesService {
     }
   }
 
+  async getUserCoursesByUserId(userId: number, query: PaginationParams) {
+    const { page, limit, search, orderBy } = query;
+    const offset = (page - 1) * limit;
+    const order = {
+      DESC: 'DESC',
+      ASC: 'ASC',
+    };
+    try {
+      const [userCourses, total] = await this.userCourseRepository.findAndCount(
+        {
+          where: { user: { id: userId } },
+          relations: this.relations,
+          order: {
+            createdAt: order[orderBy] || 'DESC',
+          },
+          skip: page === 9999 ? undefined : offset,
+          take: page === 9999 ? undefined : limit,
+        },
+      );
+      return {
+        items: userCourses,
+        total,
+        page,
+        limit,
+      };
+    } catch (error) {
+      this.logger.error(`Error getting user courses: ${error.message}`);
+      throw new BadRequestException('Error getting user courses');
+    }
+  }
+
   async findAll(query: PaginationParams) {
     const { page, limit, search, orderBy } = query;
     const offset = (page - 1) * limit;

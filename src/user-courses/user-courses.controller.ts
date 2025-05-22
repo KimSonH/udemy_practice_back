@@ -8,6 +8,7 @@ import {
   Delete,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
 import { UserCoursesService } from './user-courses.service';
 import { CreateUserCourseDto } from './dto/create-user-course.dto';
@@ -24,6 +25,7 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { UserCourse } from './entities/user-course.entity';
+import { RequestWithUser } from 'src/authentication/requestWithUser.interface';
 
 @ApiTags('User Courses')
 @Controller('user-courses')
@@ -43,6 +45,32 @@ export class UserCoursesController {
   @Post()
   create(@Body() createUserCourseDto: CreateUserCourseDto) {
     return this.userCoursesService.create(createUserCourseDto);
+  }
+
+  @ApiOperation({ summary: 'Get user courses by user ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns all user courses',
+    schema: {
+      type: 'object',
+      properties: {
+        items: { type: 'array', items: { $ref: getSchemaPath(UserCourse) } },
+        total: { type: 'number' },
+        page: { type: 'number' },
+        limit: { type: 'number' },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User course not found' })
+  @ApiQuery({ name: 'page', required: false, type: 'number' })
+  @ApiQuery({ name: 'limit', required: false, type: 'number' })
+  @Get('by-user-id')
+  getUserCoursesByUserId(
+    @Req() req: RequestWithUser,
+    @Query() query: PaginationParams,
+  ) {
+    return this.userCoursesService.getUserCoursesByUserId(req.user.id, query);
   }
 
   @ApiOperation({ summary: 'Get all user courses' })
