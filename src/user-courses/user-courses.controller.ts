@@ -26,6 +26,7 @@ import {
 } from '@nestjs/swagger';
 import { UserCourse } from './entities/user-course.entity';
 import { RequestWithUser } from 'src/authentication/requestWithUser.interface';
+import { Course } from 'src/courses/entities/courses.entity';
 
 @ApiTags('User Courses')
 @Controller('user-courses')
@@ -73,6 +74,15 @@ export class UserCoursesController {
     return this.userCoursesService.getUserCoursesByUserId(req.user.id, query);
   }
 
+  @ApiOperation({ summary: 'Get user course by ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns the user course',
+    type: Course,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User course not found' })
+  @ApiParam({ name: 'userCourseId', type: 'number' })
   @Get('by-user-course-id/:userCourseId')
   getUserCoursesByCourseId(
     @Req() req: RequestWithUser,
