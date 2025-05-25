@@ -15,8 +15,7 @@ import { CoursesService } from 'src/courses/courses.service';
 @Injectable()
 export class UserCoursesService {
   private logger = new Logger(UserCoursesService.name);
-  private relations = ['course', 'user'];
-  private relationsDetail = [
+  private relations = [
     'user',
     'course',
     'course.courseSets',
@@ -72,7 +71,8 @@ export class UserCoursesService {
   }
 
   async findAll(query: PaginationParams) {
-    const { page, limit, search, orderBy } = query;
+    const { page, limit, search, orderBy, organizationId, organizationSlug } =
+      query;
     const offset = (page - 1) * limit;
     const order = {
       DESC: 'DESC',
@@ -85,6 +85,11 @@ export class UserCoursesService {
         where: {
           course: {
             name: search ? ILike(`%${search}%`) : undefined,
+            organization: {
+              id: organizationId ? +organizationId : undefined,
+              slug: organizationSlug ? organizationSlug : undefined,
+            },
+            status: 'active',
           },
         },
         order: {
@@ -126,7 +131,7 @@ export class UserCoursesService {
   async findOneWithUserId(userId: number, id: number) {
     const userCourse = await this.userCourseRepository.findOne({
       where: { user: { id: userId }, id },
-      relations: this.relationsDetail,
+      relations: this.relations,
     });
     if (userCourse.user.id !== userId) {
       throw new BadRequestException('User course not found');
