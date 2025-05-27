@@ -22,11 +22,14 @@ export class UserCourse {
   @Column()
   public courseId: number;
 
-  @Column()
-  public orderId: string;
+  @Column({ nullable: true })
+  public orderId?: string;
 
-  @Column()
-  public orderData: string;
+  @Column({ nullable: true })
+  public orderData?: string;
+
+  @Column({ nullable: true })
+  public orderBy?: string;
 
   @CreateDateColumn()
   public createdAt!: Date;

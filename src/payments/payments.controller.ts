@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Req,
+  Query,
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto } from './dto/create-payment.dto';
@@ -53,6 +54,20 @@ export class PaymentsController {
       jsonResponse,
       httpStatusCode,
     };
+  }
+
+  @Get('generate-session')
+  async generateSession(@Query() query: { userId: number; courseId: number }) {
+    return this.paymentsService.generateLinkSession(
+      query.userId,
+      query.courseId,
+    );
+  }
+
+  @Post('verify-session')
+  async verifySession(@Body() body: { sessionId: string }) {
+    const verify = await this.paymentsService.verifySession(body.sessionId);
+    await this.paymentsService.createPayment(verify);
   }
 
   @Get()

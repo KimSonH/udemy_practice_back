@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import {
@@ -16,6 +16,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UserCoursesService } from 'src/user-courses/user-courses.service';
 import { CoursesService } from 'src/courses/courses.service';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
@@ -25,6 +26,7 @@ export class PaymentsService {
     private readonly configService: ConfigService,
     private readonly userCoursesService: UserCoursesService,
     private readonly coursesService: CoursesService,
+    private readonly jwtService: JwtService,
   ) {
     this.client = new Client({
       clientCredentialsAuthCredentials: {
@@ -127,6 +129,7 @@ export class PaymentsService {
             courseId,
             orderId: orderID,
             orderData: JSON.stringify(response),
+            orderBy: 'paypal',
           });
         }
       }
@@ -139,6 +142,56 @@ export class PaymentsService {
         // const { statusCode, headers } = error;
         throw new Error(error.message);
       }
+    }
+  }
+
+  async generateLinkSession(userId: number, courseId: number) {
+    const payload: {
+      userId: number;
+      courseId: number;
+    } = { userId, courseId };
+    const token = this.jwtService.sign(payload, {
+      secret: this.configService.get('JWT_VERIFICATION_TOKEN_SECRET'),
+      expiresIn: `${this.configService.get('JWT_VERIFICATION_TOKEN_EXPIRATION_TIME')}s`,
+    });
+    return token;
+  }
+
+  async verifySession(session: string) {
+    try {
+      const payload = this.jwtService.verify(session, {
+        secret: this.configService.get('JWT_VERIFICATION_TOKEN_SECRET'),
+      });
+      if (
+        typeof payload === 'object' &&
+        'userId' in payload &&
+        'courseId' in payload
+      ) {
+        return payload;
+      }
+      throw new BadRequestException('Invalid session');
+    } catch (error) {
+      throw new BadRequestException('Invalid session');
+    }
+  }
+
+  async createPayment(body: { userId: number; courseId: number }) {
+    const { userId, courseId } = body;
+    const course = await this.coursesService.getCourseById(courseId);
+    if (!course) {
+      throw new BadRequestException('User course not found');
+    }
+    try {
+      const userCourse = await this.userCoursesService.create({
+        courseId,
+        userId,
+        orderData: null,
+        orderId: null,
+        orderBy: 'vietqr',
+      });
+      return userCourse;
+    } catch (error) {
+      throw new Error(error.message);
     }
   }
 

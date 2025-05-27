@@ -17,4 +17,8 @@ export class CreateUserCourseDto {
   @ApiProperty({ description: 'The data of the order' })
   @IsString()
   orderData: string;
+
+  @ApiProperty({ description: 'The from method of the order' })
+  @IsString()
+  orderBy: string;
 }
