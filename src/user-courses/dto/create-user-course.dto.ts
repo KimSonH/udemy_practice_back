@@ -21,4 +21,8 @@ export class CreateUserCourseDto {
   @ApiProperty({ description: 'The from method of the order' })
   @IsString()
   orderBy: string;
+
+  @ApiProperty({ description: 'The status of the order' })
+  @IsString()
+  status: 'pending' | 'completed' | 'failed';
 }

@@ -28,32 +28,26 @@ export class PaymentsController {
 
   @UseGuards(JwtAuthenticationGuard)
   @Post('/orders')
-  async orders(@Body() createOrderDto: CreateOrderDto) {
-    const { jsonResponse, httpStatusCode } =
-      await this.paymentsService.createOrder(createOrderDto);
-    return {
-      jsonResponse,
-      httpStatusCode,
-    };
+  async orders(
+    @Req() req: RequestWithUser,
+    @Body() createOrderDto: CreateOrderDto,
+  ) {
+    const res = await this.paymentsService.createOrder(
+      req.user,
+      createOrderDto,
+    );
+    return res;
   }
 
   @UseGuards(JwtAuthenticationGuard)
   @Post('/orders/:orderID/capture')
   async captureOrder(
     @Param('orderID') orderID: string,
-    @Body() { courseId }: { courseId: number },
+    @Body() { userCourseId }: { userCourseId: number },
     @Req() request: RequestWithUser,
   ) {
-    const { jsonResponse, httpStatusCode } =
-      await this.paymentsService.captureOrder(
-        orderID,
-        courseId,
-        request.user.id,
-      );
-    return {
-      jsonResponse,
-      httpStatusCode,
-    };
+    const res = await this.paymentsService.captureOrder(orderID, userCourseId);
+    return res;
   }
 
   @Get('generate-session')
@@ -67,7 +61,7 @@ export class PaymentsController {
   @Post('verify-session')
   async verifySession(@Body() body: { sessionId: string }) {
     const verify = await this.paymentsService.verifySession(body.sessionId);
-    await this.paymentsService.createPayment(verify);
+    await this.paymentsService.updateUserCourseWithStatus(verify, 'completed');
   }
 
   @Get()

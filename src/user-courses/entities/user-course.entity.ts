@@ -31,6 +31,9 @@ export class UserCourse {
   @Column({ nullable: true })
   public orderBy?: string;
 
+  @Column({ nullable: true })
+  public status?: 'pending' | 'completed' | 'failed';
+
   @CreateDateColumn()
   public createdAt!: Date;
 

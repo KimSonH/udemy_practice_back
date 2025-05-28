@@ -17,6 +17,7 @@ import { UserCoursesService } from 'src/user-courses/user-courses.service';
 import { CoursesService } from 'src/courses/courses.service';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { User } from 'src/users/entities/user.entity';
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
@@ -51,7 +52,7 @@ export class PaymentsService {
     return new PaymentsController(this.client);
   }
 
-  async createOrder(createOrderDto: CreateOrderDto) {
+  async createOrder(user: User, createOrderDto: CreateOrderDto) {
     const { courseId, price } = createOrderDto;
     await this.coursesService.getCourseById(courseId);
     const collect = {
@@ -95,9 +96,26 @@ export class PaymentsService {
       const response = JSON.parse(body.toString());
       this.logger.log(`Order created successfully: ${response.id}`);
 
+      if (response.id) {
+        const userCourse = await this.userCoursesService.create({
+          userId: user.id,
+          courseId,
+          orderId: response.id,
+          orderData: JSON.stringify(response),
+          orderBy: 'paypal',
+          status: 'pending',
+        });
+        return {
+          jsonResponse: response,
+          httpStatusCode: httpResponse.statusCode,
+          userCourseId: userCourse.id,
+        };
+      }
+
       return {
         jsonResponse: response,
         httpStatusCode: httpResponse.statusCode,
+        userCourseId: null,
       };
     } catch (error) {
       if (error instanceof ApiError) {
@@ -108,12 +126,12 @@ export class PaymentsService {
     }
   }
 
-  async captureOrder(orderID: string, courseId: number, userId: number) {
+  async captureOrder(orderID: string, userCourseId: number) {
     const collect = {
       id: orderID,
       prefer: 'return=minimal',
     };
-    await this.coursesService.getCourseById(courseId);
+    const userCourse = await this.userCoursesService.findOne(userCourseId);
     try {
       const { body, ...httpResponse } =
         await this.ordersController().captureOrder(collect);
@@ -124,18 +142,19 @@ export class PaymentsService {
         const response = JSON.parse(body.toString());
         const { status } = response;
         if (status === 'COMPLETED') {
-          await this.userCoursesService.create({
-            userId,
-            courseId,
-            orderId: orderID,
-            orderData: JSON.stringify(response),
-            orderBy: 'paypal',
+          await this.userCoursesService.update(userCourse.id, {
+            status: 'completed',
+          });
+        } else {
+          await this.userCoursesService.update(userCourse.id, {
+            status: 'failed',
           });
         }
       }
       return {
         jsonResponse: JSON.parse(body.toString()),
         httpStatusCode: httpResponse.statusCode,
+        userCourseId: userCourse.id,
       };
     } catch (error) {
       if (error instanceof ApiError) {
@@ -146,10 +165,16 @@ export class PaymentsService {
   }
 
   async generateLinkSession(userId: number, courseId: number) {
+    const userCourse = await this.createUserCourseWithStatus({
+      userId,
+      courseId,
+      status: 'pending',
+    });
     const payload: {
       userId: number;
       courseId: number;
-    } = { userId, courseId };
+      userCourseId: number;
+    } = { userId, courseId, userCourseId: userCourse.id };
     const token = this.jwtService.sign(payload, {
       secret: this.configService.get('JWT_VERIFICATION_TOKEN_SECRET'),
       expiresIn: `${this.configService.get('JWT_VERIFICATION_TOKEN_EXPIRATION_TIME')}s`,
@@ -165,7 +190,8 @@ export class PaymentsService {
       if (
         typeof payload === 'object' &&
         'userId' in payload &&
-        'courseId' in payload
+        'courseId' in payload &&
+        'userCourseId' in payload
       ) {
         return payload;
       }
@@ -175,8 +201,12 @@ export class PaymentsService {
     }
   }
 
-  async createPayment(body: { userId: number; courseId: number }) {
-    const { userId, courseId } = body;
+  async createUserCourseWithStatus(body: {
+    userId: number;
+    courseId: number;
+    status: 'pending' | 'completed' | 'failed';
+  }) {
+    const { userId, courseId, status } = body;
     const course = await this.coursesService.getCourseById(courseId);
     if (!course) {
       throw new BadRequestException('User course not found');
@@ -188,11 +218,27 @@ export class PaymentsService {
         orderData: null,
         orderId: null,
         orderBy: 'vietqr',
+        status,
       });
       return userCourse;
     } catch (error) {
       throw new Error(error.message);
     }
+  }
+
+  async updateUserCourseWithStatus(
+    body: {
+      userCourseId: number;
+      userId: number;
+      courseId: number;
+    },
+    status: 'pending' | 'completed' | 'failed',
+  ) {
+    const { userCourseId } = body;
+    const userCourse = await this.userCoursesService.findOne(userCourseId);
+    await this.userCoursesService.update(userCourse.id, {
+      status,
+    });
   }
 
   create(createPaymentDto: CreatePaymentDto) {
