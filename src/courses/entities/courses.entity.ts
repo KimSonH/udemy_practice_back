@@ -11,6 +11,7 @@ import {
 } from 'typeorm';
 import { CourseSet } from 'src/course-sets/entities/course-set.entity';
 import { Organization } from 'src/organizations/entities/organization.entity';
+import { UserCourse } from 'src/user-courses/entities/user-course.entity';
 @Entity()
 export class Course {
   @PrimaryGeneratedColumn()
@@ -58,4 +59,7 @@ export class Course {
 
   @ManyToOne(() => Organization, (organization) => organization.courses)
   public organization: Organization;
+
+  @OneToMany(() => UserCourse, (userCourse) => userCourse.course)
+  public userCourses: UserCourse[];
 }

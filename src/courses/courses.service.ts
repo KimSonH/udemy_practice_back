@@ -686,11 +686,23 @@ export class CoursesService {
   }
 
   async findAll(query: PaginationParams) {
-    const { page, limit, search, orderBy } = query;
+    const {
+      page,
+      limit,
+      search,
+      orderBy,
+      type,
+      organizationId,
+      organizationSlug,
+    } = query;
     const offset = (page - 1) * limit;
     const order = {
       DESC: 'DESC',
       ASC: 'ASC',
+    };
+    const typeWhere = {
+      free: 'free',
+      paid: 'paid',
     };
     const orderByOrder = order[orderBy];
     try {
@@ -699,6 +711,11 @@ export class CoursesService {
         where: {
           status: 'active',
           name: search ? ILike(`%${search}%`) : undefined,
+          type: type ? typeWhere[type] : undefined,
+          organization: {
+            id: organizationId ? +organizationId : undefined,
+            slug: organizationSlug ? organizationSlug : undefined,
+          },
           deletedAt: null,
         },
         order: {

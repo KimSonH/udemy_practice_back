@@ -16,6 +16,8 @@ import { CourseSetsModule } from './course-sets/course-sets.module';
 import { OrganizationsModule } from './organizations/organizations.module';
 import typeorm from './config/typeorm';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { PaymentsModule } from './payments/payments.module';
+import { UserCoursesModule } from './user-courses/user-courses.module';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
         JWT_ACCESS_TOKEN_EXPIRATION_TIME: Joi.string().required(),
         JWT_REFRESH_TOKEN_SECRET: Joi.string().required(),
         JWT_REFRESH_TOKEN_EXPIRATION_TIME: Joi.string().required(),
+        JWT_VERIFICATION_TOKEN_SECRET: Joi.string().required(),
+        JWT_VERIFICATION_TOKEN_EXPIRATION_TIME: Joi.string().required(),
       }),
       isGlobal: true,
       load: [typeorm],
@@ -49,6 +53,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
     UdemyQuestionBanksModule,
     CourseSetsModule,
     OrganizationsModule,
+    PaymentsModule,
+    UserCoursesModule,
   ],
   controllers: [],
   providers: [
