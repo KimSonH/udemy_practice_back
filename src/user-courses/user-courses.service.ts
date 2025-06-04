@@ -39,7 +39,11 @@ export class UserCoursesService {
     }
   }
 
-  async getUserCoursesByUserId(userId: number, query: PaginationParams) {
+  async getUserCoursesByUserId(
+    userId: number,
+    query: PaginationParams,
+    status?: 'completed' | 'failed' | 'pending',
+  ) {
     const { page, limit, search, orderBy } = query;
     const offset = (page - 1) * limit;
     const order = {
@@ -49,7 +53,7 @@ export class UserCoursesService {
     try {
       const [userCourses, total] = await this.userCourseRepository.findAndCount(
         {
-          where: { user: { id: userId } },
+          where: { user: { id: userId }, status: status ? status : undefined },
           relations: this.relations,
           order: {
             createdAt: order[orderBy] || 'DESC',
@@ -70,7 +74,10 @@ export class UserCoursesService {
     }
   }
 
-  async findAll(query: PaginationParams) {
+  async findAll(
+    query: PaginationParams,
+    status?: 'completed' | 'failed' | 'pending',
+  ) {
     const { page, limit, search, orderBy, organizationId, organizationSlug } =
       query;
     const offset = (page - 1) * limit;
@@ -91,6 +98,7 @@ export class UserCoursesService {
             },
             status: 'active',
           },
+          status: status ? status : undefined,
         },
         order: {
           createdAt: orderByOrder || 'DESC',
@@ -110,10 +118,10 @@ export class UserCoursesService {
     }
   }
 
-  async findOne(id: number) {
+  async findOne(id: number, status?: 'completed' | 'failed' | 'pending') {
     try {
       const userCourse = await this.userCourseRepository.findOne({
-        where: { id },
+        where: { id, status: status ? status : undefined },
         relations: this.relations,
       });
 
@@ -128,9 +136,13 @@ export class UserCoursesService {
     }
   }
 
-  async findOneWithUserId(userId: number, id: number) {
+  async findOneWithUserId(
+    userId: number,
+    id: number,
+    status?: 'completed' | 'failed' | 'pending',
+  ) {
     const userCourse = await this.userCourseRepository.findOne({
-      where: { user: { id: userId }, id },
+      where: { user: { id: userId }, id, status: status ? status : undefined },
       relations: this.relations,
     });
     if (userCourse.user.id !== userId) {
@@ -139,8 +151,16 @@ export class UserCoursesService {
     return userCourse;
   }
 
-  async getUserCoursesByUserCourseId(userId: number, userCourseId: number) {
-    const userCourse = await this.findOneWithUserId(userId, userCourseId);
+  async getUserCoursesByUserCourseId(
+    userId: number,
+    userCourseId: number,
+    status?: 'completed' | 'failed' | 'pending',
+  ) {
+    const userCourse = await this.findOneWithUserId(
+      userId,
+      userCourseId,
+      status,
+    );
 
     const course = await this.coursesService.findOneWithStatus(
       userCourse.course.id,

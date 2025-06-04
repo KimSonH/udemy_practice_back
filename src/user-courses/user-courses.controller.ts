@@ -71,7 +71,11 @@ export class UserCoursesController {
     @Req() req: RequestWithUser,
     @Query() query: PaginationParams,
   ) {
-    return this.userCoursesService.getUserCoursesByUserId(req.user.id, query);
+    return this.userCoursesService.getUserCoursesByUserId(
+      req.user.id,
+      query,
+      'completed',
+    );
   }
 
   @ApiOperation({ summary: 'Get user course by ID' })
@@ -91,6 +95,7 @@ export class UserCoursesController {
     return this.userCoursesService.getUserCoursesByUserCourseId(
       req.user.id,
       +userCourseId,
+      'completed',
     );
   }
 
@@ -113,7 +118,7 @@ export class UserCoursesController {
   @ApiQuery({ name: 'limit', required: false, type: 'number' })
   @Get()
   findAll(@Query() query: PaginationParams) {
-    return this.userCoursesService.findAll(query);
+    return this.userCoursesService.findAll(query, 'completed');
   }
 
   @ApiOperation({ summary: 'Get user course by ID' })
@@ -127,7 +132,7 @@ export class UserCoursesController {
   @ApiParam({ name: 'id', type: 'number' })
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.userCoursesService.findOne(+id);
+    return this.userCoursesService.findOne(+id, 'completed');
   }
 
   @ApiOperation({ summary: 'Update user course' })
