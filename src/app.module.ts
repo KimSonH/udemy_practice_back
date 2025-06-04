@@ -18,7 +18,7 @@ import typeorm from './config/typeorm';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PaymentsModule } from './payments/payments.module';
 import { UserCoursesModule } from './user-courses/user-courses.module';
-import { ExternalCourseModule } from './mass-course/mass-courses.module';
+import { ExternalCourseModule } from './mass-courses/mass-courses.module';
 
 @Module({
   imports: [
@@ -56,7 +56,7 @@ import { ExternalCourseModule } from './mass-course/mass-courses.module';
     OrganizationsModule,
     PaymentsModule,
     UserCoursesModule,
-     ExternalCourseModule,
+    ExternalCourseModule,
   ],
   controllers: [],
   providers: [

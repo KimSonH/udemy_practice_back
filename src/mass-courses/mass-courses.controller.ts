@@ -4,7 +4,7 @@ import { ExternalCourseService } from './mass-courses.service';
 import { GetCoursesDto } from './dto/createMassCourse';
 
 @ApiTags('Mass Courses')
-@Controller('mass-courses') 
+@Controller('mass-courses')
 export class ExternalCourseController {
   constructor(private readonly externalCourseService: ExternalCourseService) {}
 
@@ -17,4 +17,3 @@ export class ExternalCourseController {
     return await this.externalCourseService.getMassCourses(query);
   }
 }
-
