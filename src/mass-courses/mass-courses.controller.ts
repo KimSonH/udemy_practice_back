@@ -1,12 +1,12 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
-import { ExternalCourseService } from './mass-courses.service';
+import { MassCoursesService } from './mass-courses.service';
 import { GetCoursesDto } from './dto/createMassCourse';
 
 @ApiTags('Mass Courses')
 @Controller('mass-courses')
-export class ExternalCourseController {
-  constructor(private readonly externalCourseService: ExternalCourseService) {}
+export class MassCoursesController {
+  constructor(private readonly massCourseService: MassCoursesService) {}
 
   @Get()
   @ApiOperation({ summary: 'Get Mass Courses' })
@@ -14,6 +14,6 @@ export class ExternalCourseController {
   @ApiQuery({ name: 'limit', required: false, example: '10' })
   @ApiQuery({ name: 'search', required: false, example: 'CISSP' })
   async getMassCourses(@Query() query: GetCoursesDto) {
-    return await this.externalCourseService.getMassCourses(query);
+    return await this.massCourseService.getMassCourses(query);
   }
 }
