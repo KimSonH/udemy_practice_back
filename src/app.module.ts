@@ -20,6 +20,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { UserCoursesModule } from './user-courses/user-courses.module';
 import { MassCoursesModule } from './mass-courses/mass-courses.module';
 import { MassAccountsModule } from './mass-account/mass-account.module';
+import { UserPremiumModule } from './user-premium/user-premium.module';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { MassAccountsModule } from './mass-account/mass-account.module';
     UserCoursesModule,
     MassCoursesModule,
     MassAccountsModule,
+    UserPremiumModule,
   ],
   controllers: [],
   providers: [
