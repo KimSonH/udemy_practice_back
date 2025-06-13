@@ -15,7 +15,6 @@ import { PaginationParams } from 'src/common/pagination.type';
 export class UserPremiumsService {
   private logger = new Logger(UserPremiumsService.name);
 
-  // Nếu có quan hệ user thì khai báo ở đây, ví dụ
   private relations = ['user'];
 
   constructor(
@@ -28,6 +27,7 @@ export class UserPremiumsService {
       const userPremium =
         this.userPremiumRepository.create(createUserPremiumDto);
       await this.userPremiumRepository.save(userPremium);
+
       return userPremium;
     } catch (error) {
       this.logger.error(`User premium creation failed: ${error.message}`);
@@ -80,7 +80,6 @@ export class UserPremiumsService {
       ASC: 'ASC',
     };
     try {
-      // Nếu bạn có thêm các filter liên quan đến accountEmail hoặc user thì thêm vào đây
       const [items, total] = await this.userPremiumRepository.findAndCount({
         relations: this.relations,
         where: {
