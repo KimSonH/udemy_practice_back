@@ -21,6 +21,7 @@ import { UserCoursesModule } from './user-courses/user-courses.module';
 import { MassCoursesModule } from './mass-courses/mass-courses.module';
 import { MassAccountsModule } from './mass-account/mass-account.module';
 import { UserPremiumModule } from './user-premium/user-premium.module';
+import { PaymentsPremiumModule } from './payments-premium/payments-premium.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { UserPremiumModule } from './user-premium/user-premium.module';
     MassCoursesModule,
     MassAccountsModule,
     UserPremiumModule,
+    PaymentsPremiumModule,
   ],
   controllers: [],
   providers: [

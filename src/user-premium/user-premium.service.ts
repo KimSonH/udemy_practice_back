@@ -153,6 +153,33 @@ export class UserPremiumsService {
     }
   }
 
+  async updateStatus(
+    userId: number,
+    accountEmail: string,
+    status: 'pending' | 'completed' | 'failed',
+  ) {
+    try {
+      const userPremium = await this.userPremiumRepository.findOne({
+        where: {
+          user: { id: userId },
+          accountEmail,
+        },
+        relations: this.relations,
+      });
+
+      if (!userPremium) {
+        throw new BadRequestException('User premium not found for update');
+      }
+
+      userPremium.status = status;
+      await this.userPremiumRepository.save(userPremium);
+      return userPremium;
+    } catch (error) {
+      this.logger.error(`Error updating status: ${error.message}`);
+      throw new BadRequestException('Error updating user premium status');
+    }
+  }
+
   async remove(id: number) {
     await this.findOne(id);
     try {
