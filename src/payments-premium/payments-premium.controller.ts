@@ -32,22 +32,29 @@ export class PaymentsPremiumController {
   captureOrder(
     @Param('orderID') orderID: string,
     @Req() req: RequestWithUser,
-    @Body() body: { accountEmail: string },
+    @Body() body: { accountEmail: string; accountId: number },
   ) {
     return this.paymentsPremiumService.captureOrder(
       orderID,
       req.user,
       body.accountEmail,
+      body.accountId,
     );
   }
 
   @Get('generate-session')
   async generateSession(
-    @Query() query: { userId: number; accountEmail: string },
+    @Query()
+    query: {
+      userId: number;
+      accountEmail: string;
+      accountId: number;
+    },
   ) {
     return this.paymentsPremiumService.generateLinkSessionPremium(
       query.userId,
       query.accountEmail,
+      query.accountId,
     );
   }
 

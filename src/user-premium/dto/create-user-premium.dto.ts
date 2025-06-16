@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsString, IsEmail, IsOptional } from 'class-validator';
+import {
+  IsNumber,
+  IsString,
+  IsEmail,
+  IsOptional,
+  IsNotEmpty,
+} from 'class-validator';
 
 export class CreateUserPremiumDto {
   @ApiProperty({ description: 'User ID' })
@@ -9,6 +15,11 @@ export class CreateUserPremiumDto {
   @ApiProperty({ description: 'User account email' })
   @IsEmail()
   accountEmail: string;
+
+  @ApiProperty({ description: 'User account id' })
+  @IsNotEmpty()
+  @IsNumber()
+  accountId: number;
 
   @ApiProperty({ description: 'Order ID', required: false })
   @IsOptional()
@@ -33,4 +44,10 @@ export class CreateUserPremiumDto {
   @IsOptional()
   @IsString()
   status?: 'pending' | 'completed' | 'failed';
+}
+
+export class GetSoldAccountDto {
+  @ApiProperty({ example: '610' })
+  @IsNumber()
+  accountId: number;
 }

@@ -12,6 +12,7 @@ import { JwtService } from '@nestjs/jwt';
 import { CreateOrderPremiumDto } from './dto/create-order-premium.dto';
 import { User } from 'src/users/entities/user.entity';
 import { UserPremiumsService } from 'src/user-premium/user-premium.service';
+import { HttpService } from '@nestjs/axios';
 
 @Injectable()
 export class PaymentsPremiumService {
@@ -22,6 +23,7 @@ export class PaymentsPremiumService {
     private readonly configService: ConfigService,
     private readonly userPremiumService: UserPremiumsService,
     private readonly jwtService: JwtService,
+    private readonly httpService: HttpService,
   ) {
     this.client = new Client({
       clientCredentialsAuthCredentials: {
@@ -42,7 +44,7 @@ export class PaymentsPremiumService {
   }
 
   async createOrder(user: User, dto: CreateOrderPremiumDto) {
-    const { accountEmail, price } = dto;
+    const { accountEmail, price, accountId } = dto;
 
     const collect = {
       body: {
@@ -72,6 +74,7 @@ export class PaymentsPremiumService {
       await this.userPremiumService.create({
         userId: user.id,
         accountEmail,
+        accountId,
         orderId: response.id,
         status: 'pending',
         orderData: null,
@@ -81,6 +84,58 @@ export class PaymentsPremiumService {
       return {
         orderId: response.id,
         status: 'pending',
+      };
+    } catch (error) {
+      if (error instanceof ApiError) {
+        throw new Error(error.message);
+      }
+      throw error;
+    }
+  }
+
+  async captureOrder(
+    orderID: string,
+    user: User,
+    accountEmail: string,
+    accountId: number,
+  ) {
+    try {
+      const { body } = await this.ordersController().captureOrder({
+        id: orderID,
+        prefer: 'return=minimal',
+      });
+      const response = JSON.parse(body.toString());
+
+      const status = response.status === 'COMPLETED' ? 'completed' : 'failed';
+
+      await this.userPremiumService.updateStatusByAccountId(
+        user.id,
+        accountId,
+        accountEmail,
+        status,
+      );
+
+      if (status === 'completed') {
+        try {
+          const privateKey = this.configService.get('MASS_PRIVATE_KEY');
+          this.httpService.post(
+            'http://localhost:3304/api/account-service/sold-account',
+            { accountId },
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                'x-Private-key': privateKey,
+              },
+            },
+          );
+        } catch (err) {
+          this.logger.error('Gọi API sold-account thất bại', err);
+        }
+      }
+
+      return {
+        orderId: orderID,
+        status: response.status,
       };
     } catch (error) {
       if (error instanceof ApiError) {
@@ -109,34 +164,16 @@ export class PaymentsPremiumService {
     }
   }
 
-  async captureOrder(orderID: string, user: User, accountEmail: string) {
-    try {
-      const { body } = await this.ordersController().captureOrder({
-        id: orderID,
-        prefer: 'return=minimal',
-      });
-      const response = JSON.parse(body.toString());
-
-      const status = response.status === 'COMPLETED' ? 'completed' : 'failed';
-      await this.userPremiumService.updateStatus(user.id, accountEmail, status);
-
-      return {
-        orderId: orderID,
-        status: response.status,
-      };
-    } catch (error) {
-      if (error instanceof ApiError) {
-        throw new Error(error.message);
-      }
-      throw error;
-    }
-  }
-
-  async generateLinkSessionPremium(userId: number, accountEmail: string) {
+  async generateLinkSessionPremium(
+    userId: number,
+    accountEmail: string,
+    accountId: number,
+  ) {
     const userPremium = await this.createUserPremiumWithStatus({
       userId,
       accountEmail,
       status: 'pending',
+      accountId,
     });
 
     const payload = {
@@ -147,7 +184,9 @@ export class PaymentsPremiumService {
 
     const token = this.jwtService.sign(payload, {
       secret: this.configService.get('JWT_VERIFICATION_TOKEN_SECRET'),
-      expiresIn: `${this.configService.get('JWT_VERIFICATION_TOKEN_EXPIRATION_TIME')}s`,
+      expiresIn: `${this.configService.get(
+        'JWT_VERIFICATION_TOKEN_EXPIRATION_TIME',
+      )}s`,
     });
 
     return token;
@@ -157,8 +196,9 @@ export class PaymentsPremiumService {
     userId: number;
     accountEmail: string;
     status: 'pending' | 'completed' | 'failed';
+    accountId: number;
   }) {
-    const { userId, accountEmail, status } = body;
+    const { userId, accountEmail, status, accountId } = body;
 
     if (!accountEmail) {
       throw new BadRequestException('Account email is required');
@@ -169,6 +209,7 @@ export class PaymentsPremiumService {
         userId,
         accountEmail,
         orderData: null,
+        accountId,
         orderId: null,
         orderBy: 'vietqr',
         status,

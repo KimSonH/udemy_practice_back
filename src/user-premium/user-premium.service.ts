@@ -10,6 +10,9 @@ import { UserPremium } from './entities/user-premium.entity';
 import { ILike, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PaginationParams } from 'src/common/pagination.type';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class UserPremiumsService {
@@ -20,12 +23,15 @@ export class UserPremiumsService {
   constructor(
     @InjectRepository(UserPremium)
     private readonly userPremiumRepository: Repository<UserPremium>,
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
   ) {}
 
   async create(createUserPremiumDto: CreateUserPremiumDto) {
     try {
       const userPremium =
         this.userPremiumRepository.create(createUserPremiumDto);
+
       await this.userPremiumRepository.save(userPremium);
 
       return userPremium;
@@ -122,6 +128,41 @@ export class UserPremiumsService {
     }
   }
 
+  async updateStatusByAccountId(
+    userId: number,
+    accountId: number,
+    accountEmail: string,
+    status: 'pending' | 'completed' | 'failed',
+  ) {
+    try {
+      const userPremium = await this.userPremiumRepository.findOne({
+        where: {
+          user: { id: userId },
+          accountId,
+          accountEmail,
+        },
+        relations: this.relations,
+      });
+
+      if (!userPremium) {
+        throw new BadRequestException(
+          'User premium not found for update by account_id',
+        );
+      }
+
+      userPremium.status = status;
+      await this.userPremiumRepository.save(userPremium);
+      return userPremium;
+    } catch (error) {
+      this.logger.error(
+        `Error updating status by account_id: ${error.message}`,
+      );
+      throw new BadRequestException(
+        'Error updating user premium status by account_id',
+      );
+    }
+  }
+
   async findOneWithUserId(
     userId: number,
     id: number,
@@ -187,6 +228,30 @@ export class UserPremiumsService {
     } catch (error) {
       this.logger.error(`Error deleting user premium: ${error.message}`);
       throw new BadRequestException('Error deleting user premium');
+    }
+  }
+
+  async getSoldAccountInfo(accountId: number) {
+    try {
+      const privateKey = this.configService.get('MASS_PRIVATE_KEY');
+
+      const response = await firstValueFrom(
+        this.httpService.get(
+          `http://localhost:3304/api/account-service/sold-account/${accountId}`,
+          {
+            headers: {
+              'x-Private-key': privateKey,
+            },
+          },
+        ),
+      );
+
+      return response.data;
+    } catch (error) {
+      throw new Error(
+        error?.response?.data?.message ||
+          'Failed to fetch sold account information',
+      );
     }
   }
 }

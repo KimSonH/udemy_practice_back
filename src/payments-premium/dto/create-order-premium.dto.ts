@@ -1,4 +1,4 @@
-import { IsEmail, IsNotEmpty, IsNumber } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsNumber, IsString } from 'class-validator';
 
 export class CreateOrderPremiumDto {
   @IsEmail()
@@ -7,4 +7,8 @@ export class CreateOrderPremiumDto {
   @IsNotEmpty()
   @IsNumber()
   price: number;
+
+  @IsNotEmpty()
+  @IsNumber()
+  accountId: number;
 }

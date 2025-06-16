@@ -10,7 +10,10 @@ import {
   UseGuards,
   Req,
 } from '@nestjs/common';
-import { CreateUserPremiumDto } from './dto/create-user-premium.dto';
+import {
+  CreateUserPremiumDto,
+  GetSoldAccountDto,
+} from './dto/create-user-premium.dto';
 import { UpdateUserPremiumDto } from './dto/update-user-premium.dto';
 import { PaginationParams } from 'src/common/pagination.type';
 import JwtAuthenticationGuard from 'src/authentication/guard/jwt-authentication.guard';
@@ -122,5 +125,16 @@ export class UserPremiumsController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.userPremiumsService.remove(+id);
+  }
+
+  @Get('sold-account/:account_id')
+  async getSoldAccount(@Param() params: GetSoldAccountDto) {
+    const result = await this.userPremiumsService.getSoldAccountInfo(
+      params.accountId,
+    );
+    return {
+      status: true,
+      data: result,
+    };
   }
 }

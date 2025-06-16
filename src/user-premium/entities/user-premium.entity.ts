@@ -23,6 +23,9 @@ export class UserPremium {
   accountEmail: string;
 
   @Column({ nullable: true })
+  accountId: number;
+
+  @Column({ nullable: true })
   orderId?: string;
 
   @Column({ nullable: true })
