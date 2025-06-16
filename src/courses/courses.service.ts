@@ -508,6 +508,7 @@ export class CoursesService {
       status,
       type,
       udemyQuestionBanks: questionsPerSet,
+      thumbnailImageUrl,
     } = createCourse;
     const course = new Course();
     course.name = name;
@@ -518,6 +519,7 @@ export class CoursesService {
     course.categoryName = categoryName;
     course.content = content;
     course.slug = await this.generateSlug(name);
+    course.thumbnailImageUrl = thumbnailImageUrl;
     // Minimum reasonable threshold when there are not enough questions / Ngưỡng tối thiểu hợp lý khi không đủ câu hỏi
     const minQuestionsPerSet = 100;
 
@@ -847,6 +849,7 @@ export class CoursesService {
       status,
       type,
       udemyQuestionBanks: questionsPerSet,
+      thumbnailImageUrl,
     } = updateCourse;
     const course = await this.getCourseById(id);
     course.name = name;
@@ -856,6 +859,7 @@ export class CoursesService {
     course.type = type;
     course.content = content;
     course.slug = await this.generateSlug(name);
+    course.thumbnailImageUrl = thumbnailImageUrl;
     // Minimum reasonable threshold when there are not enough questions / Ngưỡng tối thiểu hợp lý khi không đủ câu hỏi
     const minQuestionsPerSet = 100;
 
