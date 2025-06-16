@@ -57,13 +57,14 @@ export class OrganizationsService {
   }
 
   async create(createOrganizationDto: CreateOrganizationDto) {
-    const { name, description } = createOrganizationDto;
+    const { name, description, thumbnailImageUrl } = createOrganizationDto;
     const slug = await this.generateSlug(name);
     try {
       const organization = this.organizationRepository.create({
         name,
         description,
         slug,
+        thumbnailImageUrl,
       });
       await this.organizationRepository.save(organization);
       return organization;
@@ -168,7 +169,7 @@ export class OrganizationsService {
 
   async update(id: number, updateOrganizationDto: UpdateOrganizationDto) {
     const organization = await this.findOne(id);
-    const { name, description } = updateOrganizationDto;
+    const { name, description, thumbnailImageUrl } = updateOrganizationDto;
     let slug = organization.slug;
     if (name !== organization.name) {
       slug = await this.generateSlug(name);
@@ -178,6 +179,7 @@ export class OrganizationsService {
         name,
         description,
         slug,
+        thumbnailImageUrl,
       });
       return organization;
     } catch (error) {
