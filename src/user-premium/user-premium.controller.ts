@@ -128,10 +128,9 @@ export class UserPremiumsController {
   }
 
   @Get('sold-account/:account_id')
-  async getSoldAccount(@Param() params: GetSoldAccountDto) {
-    const result = await this.userPremiumsService.getSoldAccountInfo(
-      params.accountId,
-    );
+  async getSoldAccount(@Param('account_id') accountId: string) {
+    const id = parseInt(accountId, 10);
+    const result = await this.userPremiumsService.getSoldAccountInfo(id);
     return {
       status: true,
       data: result,

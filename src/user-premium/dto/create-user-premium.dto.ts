@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+
 import {
   IsNumber,
   IsString,
@@ -47,7 +48,7 @@ export class CreateUserPremiumDto {
 }
 
 export class GetSoldAccountDto {
-  @ApiProperty({ example: '610' })
+  @ApiProperty({ example: 610 })
   @IsNumber()
   accountId: number;
 }

@@ -13,6 +13,7 @@ import { CreateOrderPremiumDto } from './dto/create-order-premium.dto';
 import { User } from 'src/users/entities/user.entity';
 import { UserPremiumsService } from 'src/user-premium/user-premium.service';
 import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class PaymentsPremiumService {
@@ -118,18 +119,26 @@ export class PaymentsPremiumService {
       if (status === 'completed') {
         try {
           const privateKey = this.configService.get('MASS_PRIVATE_KEY');
-          this.httpService.post(
-            'http://localhost:3304/api/account-service/sold-account',
-            { accountId },
-            {
-              headers: {
-                'Content-Type': 'application/json',
-                'x-Private-key': privateKey,
+
+          const response = await firstValueFrom(
+            this.httpService.post(
+              'http://localhost:3304/api/account-service/sold-account',
+              { account_id: Number(accountId) },
+              {
+                headers: {
+                  'Content-Type': 'application/json',
+                  'x-Private-key': privateKey,
+                },
               },
-            },
+            ),
           );
+
+          return response.data;
         } catch (err) {
-          this.logger.error('Gọi API sold-account thất bại', err);
+          this.logger.error(
+            'Call API sold-account failed',
+            err?.message || err,
+          );
         }
       }
 

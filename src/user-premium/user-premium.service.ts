@@ -240,6 +240,7 @@ export class UserPremiumsService {
           `http://localhost:3304/api/account-service/sold-account/${accountId}`,
           {
             headers: {
+              'Content-Type': 'application/json',
               'x-Private-key': privateKey,
             },
           },
