@@ -63,4 +63,9 @@ export class CreateCourseDto {
   @IsString()
   @IsNotEmpty()
   content: string;
+
+  @ApiProperty({ description: 'Thumbnail image url of the course' })
+  @IsString()
+  @IsNotEmpty()
+  thumbnailImageUrl: string;
 }
