@@ -22,6 +22,8 @@ import { User } from 'src/users/entities/user.entity';
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
   private readonly client: Client;
+  private readonly ordersController: OrdersController;
+  private readonly paymentsController: PaymentsController;
 
   constructor(
     private readonly configService: ConfigService,
@@ -35,21 +37,18 @@ export class PaymentsService {
         oAuthClientSecret: this.configService.get('PAYPAL_CLIENT_SECRET'),
       },
       timeout: 0,
-      environment: Environment.Sandbox,
+      environment:
+        this.configService.get('NODE_ENV') === 'production'
+          ? Environment.Production
+          : Environment.Sandbox,
       logging: {
         logLevel: LogLevel.Info,
         logRequest: { logBody: true },
         logResponse: { logHeaders: true },
       },
     });
-  }
-
-  ordersController() {
-    return new OrdersController(this.client);
-  }
-
-  paymentsController() {
-    return new PaymentsController(this.client);
+    this.ordersController = new OrdersController(this.client);
+    this.paymentsController = new PaymentsController(this.client);
   }
 
   async createOrder(user: User, createOrderDto: CreateOrderDto) {
@@ -91,7 +90,7 @@ export class PaymentsService {
 
     try {
       const { body, ...httpResponse } =
-        await this.ordersController().createOrder(collect);
+        await this.ordersController.createOrder(collect);
 
       const response = JSON.parse(body.toString());
       this.logger.log(`Order created successfully: ${response.id}`);
@@ -134,7 +133,7 @@ export class PaymentsService {
     const userCourse = await this.userCoursesService.findOne(userCourseId);
     try {
       const { body, ...httpResponse } =
-        await this.ordersController().captureOrder(collect);
+        await this.ordersController.captureOrder(collect);
       // Get more response info...
       // const { statusCode, headers } = httpResponse;
 
