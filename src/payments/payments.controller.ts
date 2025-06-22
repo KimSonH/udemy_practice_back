@@ -16,6 +16,7 @@ import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import JwtAuthenticationGuard from 'src/authentication/guard/jwt-authentication.guard';
 import { RequestWithUser } from 'src/authentication/requestWithUser.interface';
+import { GenerateSessionDto } from './dto/generate-session.dto';
 
 @Controller('payments')
 export class PaymentsController {
@@ -51,11 +52,8 @@ export class PaymentsController {
   }
 
   @Get('generate-session')
-  async generateSession(@Query() query: { userId: number; courseId: number }) {
-    return this.paymentsService.generateLinkSession(
-      query.userId,
-      query.courseId,
-    );
+  async generateSession(@Query() query: GenerateSessionDto) {
+    return this.paymentsService.generateLinkSession(query);
   }
 
   @Post('verify-session')
