@@ -671,8 +671,8 @@ export class CoursesService {
         order: {
           createdAt: 'DESC',
         },
-        take: limit,
-        skip: offset,
+        take: page === 9999 ? undefined : limit,
+        skip: page === 9999 ? undefined : offset,
       });
 
       return {
