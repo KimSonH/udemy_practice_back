@@ -40,6 +40,20 @@ export class CoursesController {
     return this.coursesService.findAll(query);
   }
 
+  @ApiOperation({ summary: 'Get random courses' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns random courses',
+    schema: {
+      type: 'array',
+      items: { $ref: getSchemaPath(Course) },
+    },
+  })
+  @Get('random-courses')
+  getRandomCourses() {
+    return this.coursesService.getRandomCourses();
+  }
+
   @ApiOperation({ summary: 'Get courses by organization' })
   @ApiResponse({
     status: 200,
