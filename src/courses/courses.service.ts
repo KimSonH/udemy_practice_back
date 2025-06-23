@@ -738,6 +738,28 @@ export class CoursesService {
     }
   }
 
+  async getRandomCourses() {
+    try {
+      const query = this.coursesRepository
+        .createQueryBuilder('course')
+        .leftJoinAndSelect('course.organization', 'organization')
+        .leftJoinAndSelect('course.courseSets', 'courseSets')
+        .leftJoinAndSelect(
+          'courseSets.udemyQuestionBanks',
+          'udemyQuestionBanks',
+        )
+        .where('course.status = :status', { status: 'active' })
+        .andWhere('course.deletedAt IS NULL')
+        .orderBy('RANDOM()')
+        .limit(6);
+      const courses = await query.getMany();
+      return courses;
+    } catch (error) {
+      this.logger.error(`Error getting random courses: ${error.message}`);
+      throw new BadRequestException('Error getting random courses');
+    }
+  }
+
   async getCourses(page: number, limit: number) {
     try {
       const offset = (page - 1) * limit;
