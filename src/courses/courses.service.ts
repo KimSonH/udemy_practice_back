@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Course } from './entities/courses.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, QueryRunner, ILike } from 'typeorm';
+import { Repository, DataSource, QueryRunner, ILike, In } from 'typeorm';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { UdemyQuestionBanksService } from 'src/udemyQuestionBanks/udemy-question-banks.service';
@@ -671,8 +671,8 @@ export class CoursesService {
         order: {
           createdAt: 'DESC',
         },
-        take: limit,
-        skip: offset,
+        take: page === 9999 ? undefined : limit,
+        skip: page === 9999 ? undefined : offset,
       });
 
       return {
@@ -735,6 +735,34 @@ export class CoursesService {
     } catch (error) {
       this.logger.error(`Error getting courses: ${error.message}`);
       throw new BadRequestException('Error getting courses');
+    }
+  }
+
+  async getRandomCourses(): Promise<Course[]> {
+    try {
+      const randomCourseIds = await this.coursesRepository
+        .createQueryBuilder('course')
+        .select('course.id')
+        .where('course.status = :status', { status: 'active' })
+        .andWhere('course.deletedAt IS NULL')
+        .orderBy('RANDOM()')
+        .limit(6)
+        .getRawMany();
+
+      const ids = randomCourseIds.map((row) => row.course_id);
+
+      if (ids.length === 0) return [];
+
+      const courses = await this.coursesRepository.find({
+        where: { id: In(ids) },
+        relations: this.relations,
+        order: { createdAt: 'DESC' },
+      });
+
+      return courses;
+    } catch (error) {
+      this.logger.error(`Error getting random courses: ${error.message}`);
+      throw new BadRequestException('Error getting random courses');
     }
   }
 

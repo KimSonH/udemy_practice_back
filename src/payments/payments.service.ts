@@ -18,6 +18,7 @@ import { CoursesService } from 'src/courses/courses.service';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { User } from 'src/users/entities/user.entity';
+import { GenerateSessionDto } from './dto/generate-session.dto';
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
@@ -163,11 +164,13 @@ export class PaymentsService {
     }
   }
 
-  async generateLinkSession(userId: number, courseId: number) {
+  async generateLinkSession(body: GenerateSessionDto) {
+    const { userId, courseId, orderBy } = body;
     const userCourse = await this.createUserCourseWithStatus({
       userId,
       courseId,
       status: 'pending',
+      orderBy,
     });
     const payload: {
       userId: number;
@@ -204,8 +207,9 @@ export class PaymentsService {
     userId: number;
     courseId: number;
     status: 'pending' | 'completed' | 'failed';
+    orderBy: string;
   }) {
-    const { userId, courseId, status } = body;
+    const { userId, courseId, status, orderBy } = body;
     const course = await this.coursesService.getCourseById(courseId);
     if (!course) {
       throw new BadRequestException('User course not found');
@@ -216,7 +220,7 @@ export class PaymentsService {
         userId,
         orderData: null,
         orderId: null,
-        orderBy: 'vietqr',
+        orderBy,
         status,
       });
       return userCourse;
