@@ -46,199 +46,63 @@ export class CoursesService {
     }
   }
 
+  // Refactored: Phân phối và mượn câu hỏi trong 1 hàm duy nhất, loại bỏ các hàm phụ không cần thiết
   async distributeQuestions(
     categoryName: string,
     totalSets: number,
-    minQuestionsPerSet: number,
     courseSets: CourseSet[],
     queryRunner: QueryRunner,
     questionsPerSet: number,
-    options: QuestionDistributionOptions = {},
   ) {
-    // Sử dụng giá trị mặc định hoặc từ cấu hình nếu không được cung cấp
     totalSets = totalSets || 6;
     questionsPerSet = questionsPerSet || 120;
-
     this.logger.log(
       `Bắt đầu phân phối với: totalSets=${totalSets}, questionsPerSet=${questionsPerSet}`,
     );
-
     const { questions: allQuestions, total: totalQuestions } =
       await this.udemyQuestionBanksService.findAllByCategoryName(categoryName);
-
     this.logger.log(`Tổng số câu hỏi có sẵn: ${totalQuestions}`);
-
-    const { allowAutoAdjust = false, maxQuestionPercentage = 0.8 } = options;
-
-    const maxAllowedQuestions = Math.floor(
-      totalQuestions * maxQuestionPercentage,
-    );
-    if (questionsPerSet > totalQuestions) {
-      if (allowAutoAdjust) {
-        const adjustedQuestionsPerSet = Math.min(
-          maxAllowedQuestions,
-          totalQuestions,
-        );
-        this.logger.log(
-          `Điều chỉnh số câu hỏi mỗi set từ ${questionsPerSet} xuống ${adjustedQuestionsPerSet}`,
-        );
-        questionsPerSet = adjustedQuestionsPerSet;
-      } else {
-        throw new BadRequestException(
-          `Required questions (${questionsPerSet}) exceeds available questions (${totalQuestions}). ` +
-            `Maximum allowed questions is ${maxAllowedQuestions} (${maxQuestionPercentage * 100}% of total questions).`,
-        );
-      }
-    }
-
-    // Kiểm tra xem có đủ câu hỏi không
     const totalNeeded = totalSets * questionsPerSet;
-    const isEnough = totalQuestions >= totalNeeded;
-
-    if (isEnough) {
-      this.logger.log(
-        `Đủ câu hỏi (${totalQuestions}/${totalNeeded}). Phân phối đều mỗi set ${questionsPerSet} câu.`,
+    const minNeeded = Math.floor(totalNeeded * 0.8);
+    if (totalQuestions < minNeeded) {
+      throw new BadRequestException(
+        `Bạn đang yêu cầu ${totalNeeded} câu hỏi, cần ít nhất 80% của ${totalQuestions} câu hỏi.`,
       );
-
-      // Tạo mảng shuffle để phân phối ngẫu nhiên
+    }
+    // Xóa câu hỏi cũ nếu có (dành cho update)
+    const courseSetIds = courseSets.map((set) => set.id).join(',');
+    await queryRunner.manager.query(
+      `DELETE FROM course_set_udemy_question_banks_udemy_question_bank WHERE "courseSetId" IN (${courseSetIds})`,
+    );
+    // Phân phối đều nếu đủ
+    if (totalQuestions >= totalNeeded) {
       const shuffledQuestions = [...allQuestions];
       this.shuffleArray(shuffledQuestions);
-
-      // Tạo một Set để theo dõi câu hỏi đã sử dụng
-      const usedQuestions = new Set<number>();
-
+      let usedIdx = 0;
       for (let i = 0; i < totalSets; i++) {
-        const setQuestions = [];
-        let questionsNeeded = questionsPerSet;
-
-        // Lấy câu hỏi chưa được sử dụng cho set hiện tại
-        for (const question of shuffledQuestions) {
-          if (setQuestions.length >= questionsPerSet) break;
-          if (!usedQuestions.has(question.id)) {
-            setQuestions.push(question);
-            usedQuestions.add(question.id);
-            questionsNeeded--;
-          }
+        const setQuestions = shuffledQuestions.slice(
+          usedIdx,
+          usedIdx + questionsPerSet,
+        );
+        if (setQuestions.length < questionsPerSet) {
+          throw new BadRequestException(
+            `Không đủ câu hỏi không trùng lặp cho set ${i + 1}`,
+          );
         }
-
+        usedIdx += questionsPerSet;
         const relations = setQuestions.map((question) => ({
           courseSetId: courseSets[i].id,
           udemyQuestionBankId: question.id,
         }));
-
-        if (relations.length > 0) {
-          await this.batchInsertQuestions(relations, queryRunner);
-          this.logger.log(
-            `Đã phân phối ${relations.length} câu hỏi vào Set ${i + 1}`,
-          );
-        }
+        await this.batchInsertQuestions(relations, queryRunner);
       }
-    } else {
-      // Trường hợp thiếu câu hỏi: thực hiện chiến lược "mượn"
-      this.logger.log(
-        `Thiếu câu hỏi (${totalQuestions}/${totalNeeded}). Áp dụng chiến lược mượn.`,
-      );
-
-      // Tính toán phân phối ban đầu
-      await this.adjustQuestionDistribution(
-        categoryName,
-        totalSets,
-        minQuestionsPerSet,
-        courseSets,
-        queryRunner,
-        questionsPerSet,
-      );
+      return;
     }
-  }
-
-  async adjustQuestionDistribution(
-    categoryName: string,
-    totalSets: number,
-    minQuestionsPerSet: number,
-    courseSets: CourseSet[],
-    queryRunner: QueryRunner,
-    questionsPerSet: number,
-  ) {
-    // 1. Lấy và validate câu hỏi
-    const { questions: allQuestions, total: totalQuestions } =
-      await this.validateAndGetQuestions(
-        categoryName,
-        totalSets,
-        minQuestionsPerSet,
-      );
-
-    // 2. Xóa câu hỏi cũ
-    await this.clearExistingQuestions(courseSets, queryRunner);
-
-    // 3. Phân phối câu hỏi ban đầu
-    await this.distributeInitialQuestions(
-      allQuestions,
-      totalQuestions,
-      totalSets,
-      courseSets,
-      queryRunner,
-    );
-
-    // 4. Mượn và điều chỉnh câu hỏi
-    await this.borrowAndAdjustQuestions(
-      courseSets,
-      totalSets,
-      questionsPerSet,
-      categoryName,
-      queryRunner,
-    );
-  }
-
-  // Hàm validate và lấy câu hỏi
-  private async validateAndGetQuestions(
-    categoryName: string,
-    totalSets: number,
-    minQuestionsPerSet: number,
-  ) {
-    const result =
-      await this.udemyQuestionBanksService.findAllByCategoryName(categoryName);
-
-    if (result.total < totalSets * minQuestionsPerSet) {
-      throw new BadRequestException(
-        `Không đủ câu hỏi! Hiện có ${result.total} câu, cần ít nhất ${
-          totalSets * minQuestionsPerSet
-        } câu để phân phối cho ${totalSets} bộ.`,
-      );
-    }
-
-    return result;
-  }
-
-  // Hàm xóa câu hỏi cũ
-  private async clearExistingQuestions(
-    courseSets: CourseSet[],
-    queryRunner: QueryRunner,
-  ): Promise<void> {
-    const courseSetIds = courseSets.map((set) => set.id).join(',');
-    await queryRunner.manager.query(
-      `DELETE FROM course_set_udemy_question_banks_udemy_question_bank 
-         WHERE "courseSetId" IN (${courseSetIds})`,
-    );
-  }
-
-  // Hàm phân phối câu hỏi ban đầu
-  private async distributeInitialQuestions(
-    allQuestions: any[],
-    totalQuestions: number,
-    totalSets: number,
-    courseSets: CourseSet[],
-    queryRunner: QueryRunner,
-  ): Promise<void> {
+    // Nếu thiếu, phân phối đều nhất có thể, sau đó mượn
     const baseQuestionsPerSet = Math.floor(totalQuestions / totalSets);
     const remainder = totalQuestions % totalSets;
-
-    this.logger.log(
-      `Phân phối ban đầu: ${baseQuestionsPerSet} câu hỏi/set, với ${remainder} câu dư`,
-    );
-
     let allRelations = [];
     let questionIndex = 0;
-
     for (let i = 0; i < totalSets; i++) {
       const setQuestionCount = baseQuestionsPerSet + (i < remainder ? 1 : 0);
       const setQuestions = allQuestions.slice(
@@ -246,242 +110,70 @@ export class CoursesService {
         questionIndex + setQuestionCount,
       );
       questionIndex += setQuestionCount;
-
       if (setQuestions.length === 0) {
-        this.logger.warn(`Không có câu hỏi để phân phối cho Set ${i + 1}`);
-        continue;
+        throw new BadRequestException(
+          `Không có câu hỏi để phân phối cho Set ${i + 1}`,
+        );
       }
-
       const relations = setQuestions.map((question) => ({
         courseSetId: courseSets[i].id,
         udemyQuestionBankId: question.id,
       }));
-
       allRelations.push(...relations);
-
-      // Batch insert khi đạt đến kích thước batch
-      if (allRelations.length >= this.BATCH_SIZE) {
-        await this.batchInsertQuestions(allRelations, queryRunner);
-        allRelations = [];
-      }
     }
-
-    // Insert phần còn lại
     if (allRelations.length > 0) {
       await this.batchInsertQuestions(allRelations, queryRunner);
     }
-  }
-
-  // Hàm mượn và điều chỉnh câu hỏi
-  private async borrowAndAdjustQuestions(
-    courseSets: CourseSet[],
-    totalSets: number,
-    questionsPerSet: number,
-    categoryName: string,
-    queryRunner: QueryRunner,
-  ): Promise<void> {
-    // Thực hiện mượn câu hỏi cho từng set
+    // Mượn cho từng set nếu thiếu
     for (let i = 0; i < totalSets; i++) {
-      const shortage = await this.calculateShortage(
-        courseSets[i].id,
-        questionsPerSet,
-        queryRunner,
+      const currentCountRes = await queryRunner.manager.query(
+        `SELECT COUNT(*) FROM course_set_udemy_question_banks_udemy_question_bank WHERE "courseSetId" = $1`,
+        [courseSets[i].id],
       );
+      let shortage = questionsPerSet - parseInt(currentCountRes[0].count);
       if (shortage <= 0) continue;
-
-      this.logger.log(`Set ${i + 1} cần thêm ${shortage} câu hỏi`);
-
-      const borrowedQuestions = await this.borrowQuestionsFromOtherSets(
-        courseSets[i].id,
-        categoryName,
-        shortage,
-        queryRunner,
+      // Mượn câu hỏi chưa có trong set này, ưu tiên câu hỏi ít xuất hiện nhất
+      const availableQuestions = await queryRunner.manager.query(
+        `WITH CurrentSetQuestions AS (
+            SELECT "udemyQuestionBankId" FROM course_set_udemy_question_banks_udemy_question_bank WHERE "courseSetId" = $1
+        ),
+        QuestionUsage AS (
+            SELECT q.id, COUNT(DISTINCT csq."courseSetId") as usage_count
+            FROM udemy_question_bank q
+            LEFT JOIN course_set_udemy_question_banks_udemy_question_bank csq ON q.id = csq."udemyQuestionBankId"
+            WHERE q."categoryName" = $2
+            GROUP BY q.id
+        )
+        SELECT q.id FROM udemy_question_bank q
+        LEFT JOIN QuestionUsage qu ON q.id = qu.id
+        WHERE q."categoryName" = $2
+        AND q.id NOT IN (SELECT "udemyQuestionBankId" FROM CurrentSetQuestions)
+        ORDER BY COALESCE(qu.usage_count, 0) ASC, RANDOM()
+        LIMIT $3`,
+        [courseSets[i].id, categoryName, shortage],
       );
-
-      if (borrowedQuestions.length > 0) {
-        await this.batchInsertQuestions(borrowedQuestions, queryRunner);
-        this.logger.log(
-          `Đã mượn tổng cộng ${borrowedQuestions.length} câu hỏi vào Set ${i + 1}`,
+      if (availableQuestions.length < shortage) {
+        throw new BadRequestException(
+          `Không thể mượn đủ câu hỏi cho set ${i + 1}. Còn thiếu ${shortage - availableQuestions.length} câu hỏi.`,
         );
       }
-
-      await this.validateFinalCount(
-        courseSets[i].id,
-        questionsPerSet,
-        i + 1,
-        queryRunner,
-      );
+      const borrowRelations = availableQuestions.map((q) => ({
+        courseSetId: courseSets[i].id,
+        udemyQuestionBankId: q.id,
+      }));
+      await this.batchInsertQuestions(borrowRelations, queryRunner);
     }
-
-    // Kiểm tra phân phối cuối cùng
-    await this.validateDistribution(courseSets, queryRunner);
-
-    // Thêm kiểm tra trùng lặp sau khi hoàn tất phân phối
-    await this.validateDuplicateQuestions(courseSets, queryRunner);
-  }
-
-  // Hàm tính toán số câu hỏi còn thiếu
-  private async calculateShortage(
-    courseSetId: number,
-    questionsPerSet: number,
-    queryRunner: QueryRunner,
-  ): Promise<number> {
-    const currentCount = await queryRunner.manager.query(
-      `SELECT COUNT(*) FROM course_set_udemy_question_banks_udemy_question_bank 
-         WHERE "courseSetId" = $1`,
-      [courseSetId],
-    );
-    return questionsPerSet - parseInt(currentCount[0].count);
-  }
-
-  // Hàm mượn câu hỏi từ các set khác
-  private async borrowQuestionsFromOtherSets(
-    courseSetId: number,
-    categoryName: string,
-    shortage: number,
-    queryRunner: QueryRunner,
-  ): Promise<Array<{ courseSetId: number; udemyQuestionBankId: number }>> {
-    const availableQuestions = await queryRunner.manager.query(
-      `
-      WITH CurrentSetQuestions AS (
-          -- Lấy tất cả câu hỏi đã được sử dụng trong set hiện tại
-          SELECT "udemyQuestionBankId"
-          FROM course_set_udemy_question_banks_udemy_question_bank
-          WHERE "courseSetId" = $1
-      ),
-      QuestionUsage AS (
-          -- Đếm số lần sử dụng của mỗi câu hỏi trong tất cả các set
-          SELECT 
-              q.id,
-              COUNT(DISTINCT csq."courseSetId") as usage_count
-          FROM udemy_question_bank q
-          LEFT JOIN course_set_udemy_question_banks_udemy_question_bank csq 
-              ON q.id = csq."udemyQuestionBankId"
-          WHERE q."categoryName" = $2
-          GROUP BY q.id
-      )
-      SELECT 
-          q.id
-      FROM udemy_question_bank q
-      LEFT JOIN QuestionUsage qu ON q.id = qu.id
-      WHERE q."categoryName" = $2
-      AND q.id NOT IN (SELECT "udemyQuestionBankId" FROM CurrentSetQuestions)  -- Loại bỏ câu hỏi đã có trong set hiện tại
-      AND (qu.usage_count IS NULL OR qu.usage_count < (
-          -- Chỉ lấy câu hỏi chưa được sử dụng hoặc được sử dụng ít nhất
-          SELECT MIN(usage_count) + 1 
-          FROM QuestionUsage 
-          WHERE usage_count > 0
-      ))
-      ORDER BY 
-          COALESCE(qu.usage_count, 0) ASC,  -- Ưu tiên câu hỏi chưa được sử dụng
-          RANDOM()  -- Random trong cùng mức độ sử dụng
-      LIMIT $3
-      `,
-      [courseSetId, categoryName, shortage],
-    );
-
-    // Kiểm tra và log kết quả
-    this.logger.log(
-      `Tìm thấy ${availableQuestions.length} câu hỏi có thể mượn cho set ${courseSetId}`,
-    );
-
-    return availableQuestions.map((q) => ({
-      courseSetId: courseSetId,
-      udemyQuestionBankId: q.id,
-    }));
-  }
-
-  // Thêm hàm kiểm tra trùng lặp
-  private async validateDuplicateQuestions(
-    courseSets: CourseSet[],
-    queryRunner: QueryRunner,
-  ): Promise<void> {
+    // Kiểm tra trùng lặp trong từng set
     const duplicates = await queryRunner.manager.query(`
       WITH DuplicateCheck AS (
-          SELECT 
-              csq."courseSetId",
-              csq."udemyQuestionBankId",
-              COUNT(*) OVER (PARTITION BY csq."courseSetId", csq."udemyQuestionBankId") as duplicate_count
+          SELECT csq."courseSetId", csq."udemyQuestionBankId", COUNT(*) OVER (PARTITION BY csq."courseSetId", csq."udemyQuestionBankId") as duplicate_count
           FROM course_set_udemy_question_banks_udemy_question_bank csq
       )
-      SELECT *
-      FROM DuplicateCheck
-      WHERE duplicate_count > 1
+      SELECT * FROM DuplicateCheck WHERE duplicate_count > 1
     `);
-
     if (duplicates.length > 0) {
-      this.logger.error('Phát hiện câu hỏi trùng lặp trong các set:');
-      duplicates.forEach((dup) => {
-        this.logger.error(
-          `Set ${dup.courseSetId}: Câu hỏi ${dup.udemyQuestionBankId} xuất hiện ${dup.duplicate_count} lần`,
-        );
-      });
-      throw new Error('Phát hiện câu hỏi trùng lặp trong các set');
-    }
-
-    this.logger.log('Kiểm tra trùng lặp: OK - Không có câu hỏi trùng lặp');
-  }
-
-  // Thêm hàm để kiểm tra phân phối
-  private async validateDistribution(
-    courseSets: CourseSet[],
-    queryRunner: QueryRunner,
-  ): Promise<void> {
-    const distribution = await queryRunner.manager.query(`
-      WITH QuestionDistribution AS (
-          SELECT 
-              q.id as question_id,
-              COUNT(DISTINCT csq."courseSetId") as set_count
-          FROM udemy_question_bank q
-          JOIN course_set_udemy_question_banks_udemy_question_bank csq 
-              ON q.id = csq."udemyQuestionBankId"
-          GROUP BY q.id
-      )
-      SELECT 
-          set_count,
-          COUNT(*) as question_count
-      FROM QuestionDistribution
-      GROUP BY set_count
-      ORDER BY set_count
-    `);
-
-    this.logger.log('Phân phối câu hỏi theo số set:');
-    distribution.forEach((d) => {
-      this.logger.log(
-        `${d.question_count} câu hỏi xuất hiện trong ${d.set_count} set`,
-      );
-    });
-  }
-
-  // Hàm insert theo batch
-  private async batchInsertQuestions(
-    relations: Array<{ courseSetId: number; udemyQuestionBankId: number }>,
-    queryRunner: QueryRunner,
-  ): Promise<void> {
-    await queryRunner.manager
-      .createQueryBuilder()
-      .insert()
-      .into('course_set_udemy_question_banks_udemy_question_bank')
-      .values(relations)
-      .execute();
-  }
-
-  // Hàm kiểm tra số lượng câu hỏi cuối cùng
-  private async validateFinalCount(
-    courseSetId: number,
-    questionsPerSet: number,
-    setNumber: number,
-    queryRunner: QueryRunner,
-  ): Promise<void> {
-    const finalCount = await queryRunner.manager.query(
-      `SELECT COUNT(*) FROM course_set_udemy_question_banks_udemy_question_bank 
-         WHERE "courseSetId" = $1`,
-      [courseSetId],
-    );
-
-    if (parseInt(finalCount[0].count) < questionsPerSet) {
-      this.logger.warn(
-        `Set ${setNumber} vẫn thiếu câu hỏi. Hiện có: ${finalCount[0].count}/${questionsPerSet}`,
+      throw new BadRequestException(
+        'Phát hiện câu hỏi trùng lặp trong các set!',
       );
     }
   }
@@ -520,8 +212,6 @@ export class CoursesService {
     course.content = content;
     course.slug = await this.generateSlug(name);
     course.thumbnailImageUrl = thumbnailImageUrl;
-    // Minimum reasonable threshold when there are not enough questions / Ngưỡng tối thiểu hợp lý khi không đủ câu hỏi
-    const minQuestionsPerSet = 100;
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -550,7 +240,6 @@ export class CoursesService {
       await this.distributeQuestions(
         categoryName,
         totalSets,
-        minQuestionsPerSet,
         courseSets,
         queryRunner,
         questionsPerSet,
@@ -935,7 +624,7 @@ export class CoursesService {
         await this.distributeQuestions(
           categoryName,
           totalSets,
-          minQuestionsPerSet,
+          // minQuestionsPerSet,
           courseSets,
           queryRunner,
           questionsPerSet,
@@ -972,5 +661,18 @@ export class CoursesService {
       this.logger.error(`Error deleting course: ${error.message}`);
       throw new BadRequestException('Error deleting course');
     }
+  }
+
+  // Hàm insert theo batch
+  private async batchInsertQuestions(
+    relations: Array<{ courseSetId: number; udemyQuestionBankId: number }>,
+    queryRunner: QueryRunner,
+  ): Promise<void> {
+    await queryRunner.manager
+      .createQueryBuilder()
+      .insert()
+      .into('course_set_udemy_question_banks_udemy_question_bank')
+      .values(relations)
+      .execute();
   }
 }
