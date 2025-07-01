@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNumber, IsNotEmpty, IsBoolean } from 'class-validator';
+import { IsString, IsNumber, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class UdemyQuestionBankDto {
   @ApiProperty({ description: 'Category name for the class marker' })
@@ -21,8 +21,8 @@ export class CreateCourseDto {
 
   @ApiProperty({ description: 'Description of the course' })
   @IsString()
-  @IsNotEmpty()
-  description: string;
+  @IsOptional()
+  description?: string;
 
   @ApiProperty({ description: 'Price of the course' })
   @IsNumber()
