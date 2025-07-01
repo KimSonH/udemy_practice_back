@@ -6,6 +6,7 @@ import {
   OrdersController,
   ApiError,
   CheckoutPaymentIntent,
+  PaymentsController,
 } from '@paypal/paypal-server-sdk';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -19,6 +20,8 @@ import { firstValueFrom } from 'rxjs';
 export class PaymentsPremiumService {
   private readonly logger = new Logger(PaymentsPremiumService.name);
   private readonly client: Client;
+  private readonly ordersController: OrdersController;
+  private readonly paymentsController: PaymentsController;
 
   constructor(
     private readonly configService: ConfigService,
@@ -31,17 +34,19 @@ export class PaymentsPremiumService {
         oAuthClientId: this.configService.get('PAYPAL_CLIENT_ID'),
         oAuthClientSecret: this.configService.get('PAYPAL_CLIENT_SECRET'),
       },
-      environment: Environment.Sandbox,
+      timeout: 0,
+      environment:
+        this.configService.get('NODE_ENV') === 'production'
+          ? Environment.Production
+          : Environment.Sandbox,
       logging: {
         logLevel: LogLevel.Info,
         logRequest: { logBody: true },
         logResponse: { logHeaders: true },
       },
     });
-  }
-
-  private ordersController() {
-    return new OrdersController(this.client);
+    this.ordersController = new OrdersController(this.client);
+    this.paymentsController = new PaymentsController(this.client);
   }
 
   async createOrder(user: User, dto: CreateOrderPremiumDto) {
@@ -69,28 +74,40 @@ export class PaymentsPremiumService {
     };
 
     try {
-      const { body } = await this.ordersController().createOrder(collect);
+      const { body, ...httpResponse } = await this.ordersController.createOrder(collect);
       const response = JSON.parse(body.toString());
 
-      await this.userPremiumService.create({
-        userId: user.id,
-        accountEmail,
-        accountId,
-        orderId: response.id,
-        status: 'pending',
-        orderData: null,
-        orderBy: 'paypal',
-      });
+      this.logger.log(`Order account premium created successfully: ${response.id}`);
+
+       if (response.id) {
+        const userCourse = await this.userPremiumService.create({
+          userId: user.id,
+          accountEmail,
+          accountId,
+          orderId: response.id,
+          status: 'pending',
+          orderData: JSON.stringify(response),
+          orderBy: 'paypal',
+        });
+
+        return {
+          jsonResponse: response,
+          httpStatusCode: httpResponse.statusCode,
+          userCourseId: userCourse.id,
+        };
+      }
 
       return {
-        orderId: response.id,
-        status: 'pending',
+        jsonResponse: response,
+        httpStatusCode: httpResponse.statusCode,
+        userCourseId: null,
       };
     } catch (error) {
+      this.logger.error('Error creating order', error?.message || error);
       if (error instanceof ApiError) {
-        throw new Error(error.message);
+        throw new BadRequestException(error.message);
       }
-      throw error;
+      throw new BadRequestException('Unable to create PayPal order');
     }
   }
 
@@ -101,13 +118,16 @@ export class PaymentsPremiumService {
     accountId: number,
   ) {
     try {
-      const { body } = await this.ordersController().captureOrder({
+      const { body } = await this.ordersController.captureOrder({
         id: orderID,
         prefer: 'return=minimal',
       });
-      const response = JSON.parse(body.toString());
 
-      const status = response.status === 'COMPLETED' ? 'completed' : 'failed';
+      const response = JSON.parse(body.toString());
+      const paypalStatus = response.status;
+
+      const status: 'completed' | 'failed' =
+        paypalStatus === 'COMPLETED' ? 'completed' : 'failed';
 
       await this.userPremiumService.updateStatusByAccountId(
         user.id,
@@ -119,8 +139,7 @@ export class PaymentsPremiumService {
       if (status === 'completed') {
         try {
           const privateKey = this.configService.get('MASS_PRIVATE_KEY');
-
-          const response = await firstValueFrom(
+          const result = await firstValueFrom(
             this.httpService.post(
               'http://localhost:3304/api/account-service/sold-account',
               { account_id: Number(accountId) },
@@ -133,7 +152,8 @@ export class PaymentsPremiumService {
             ),
           );
 
-          return response.data;
+          this.logger.log('Account marked as sold successfully.');
+          return result.data;
         } catch (err) {
           this.logger.error(
             'Call API sold-account failed',
@@ -144,13 +164,14 @@ export class PaymentsPremiumService {
 
       return {
         orderId: orderID,
-        status: response.status,
+        status: paypalStatus,
       };
     } catch (error) {
+      this.logger.error('Error capturing order', error?.message || error);
       if (error instanceof ApiError) {
-        throw new Error(error.message);
+        throw new BadRequestException(error.message);
       }
-      throw error;
+      throw new BadRequestException('Unable to capture PayPal order');
     }
   }
 
@@ -162,8 +183,8 @@ export class PaymentsPremiumService {
       if (
         typeof payload === 'object' &&
         'userId' in payload &&
-        'courseId' in payload &&
-        'userCourseId' in payload
+        'accountEmail' in payload &&
+        'userPremiumId' in payload
       ) {
         return payload;
       }
@@ -177,12 +198,14 @@ export class PaymentsPremiumService {
     userId: number,
     accountEmail: string,
     accountId: number,
+    orderBy:string
   ) {
     const userPremium = await this.createUserPremiumWithStatus({
       userId,
       accountEmail,
       status: 'pending',
       accountId,
+      orderBy,
     });
 
     const payload = {
@@ -206,8 +229,9 @@ export class PaymentsPremiumService {
     accountEmail: string;
     status: 'pending' | 'completed' | 'failed';
     accountId: number;
+    orderBy: string;
   }) {
-    const { userId, accountEmail, status, accountId } = body;
+    const { userId, accountEmail, status, accountId, orderBy } = body;
 
     if (!accountEmail) {
       throw new BadRequestException('Account email is required');
@@ -220,13 +244,14 @@ export class PaymentsPremiumService {
         orderData: null,
         accountId,
         orderId: null,
-        orderBy: 'vietqr',
+        orderBy,
         status,
       });
 
       return userPremium;
     } catch (error) {
-      throw new Error(error.message);
+      this.logger.error('Failed to create user premium', error?.message || error);
+      throw new BadRequestException('Could not create premium access');
     }
   }
 

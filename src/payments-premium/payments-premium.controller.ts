@@ -49,12 +49,14 @@ export class PaymentsPremiumController {
       userId: number;
       accountEmail: string;
       accountId: number;
+       orderBy: string;
     },
   ) {
     return this.paymentsPremiumService.generateLinkSessionPremium(
       query.userId,
       query.accountEmail,
       query.accountId,
+      query.orderBy,
     );
   }
 
