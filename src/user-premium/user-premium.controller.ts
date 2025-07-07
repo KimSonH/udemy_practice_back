@@ -136,4 +136,29 @@ export class UserPremiumsController {
       data: result,
     };
   }
+
+
+  @ApiOperation({ summary: 'Get all completed premium accounts' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns all completed premium payments',
+    schema: {
+      type: 'object',
+      properties: {
+        items: { type: 'array', items: { $ref: getSchemaPath(UserPremium) } },
+        total: { type: 'number' },
+        page: { type: 'number' },
+        limit: { type: 'number' },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiQuery({ name: 'page', required: false, type: 'number' })
+  @ApiQuery({ name: 'limit', required: false, type: 'number' })
+  @ApiQuery({ name: 'search', required: false, type: 'string' })
+  @ApiQuery({ name: 'orderBy', required: false, enum: ['ASC', 'DESC'] })
+  @Get()
+  findAll(@Query() query: PaginationParams) {
+    return this.userPremiumsService.findAllAccountPremium(query, 'completed');
+  }
 }

@@ -255,4 +255,43 @@ export class UserPremiumsService {
       );
     }
   }
+
+async findAllAccountPremium(
+  query: PaginationParams,
+  status: 'completed' | 'failed' | 'pending' = 'completed',
+) {
+  const { page, limit, search, orderBy } = query;
+  const offset = (page - 1) * limit;
+
+  const order = {
+    DESC: 'DESC',
+    ASC: 'ASC',
+  };
+
+  try {
+    const [items, total] = await this.userPremiumRepository.findAndCount({
+      where: {
+        status,
+        accountEmail: search ? ILike(`%${search}%`) : undefined,
+      },
+      order: {
+        createdAt: order[orderBy] || 'DESC',
+      },
+      skip: page === 9999 ? undefined : offset,
+      take: page === 9999 ? undefined : limit,
+    });
+
+    return {
+      items,
+      total,
+      page,
+      limit,
+    };
+  } catch (error) {
+    this.logger.error(`Error getting user premium: ${error.message}`);
+    throw new BadRequestException('Error getting user premium');
+  }
+}
+
+
 }
