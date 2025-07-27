@@ -11,6 +11,7 @@ import {
   Req,
 } from '@nestjs/common';
 import {
+  ConfirmVietQRDto,
   CreateUserPremiumDto,
   GetSoldAccountDto,
 } from './dto/create-user-premium.dto';
@@ -138,6 +139,22 @@ export class UserPremiumsController {
   }
 
 
+
+  @Get('by-user-id')
+@UseGuards(JwtAuthenticationGuard)
+async getPremiumAccounts(
+  @Req() req: RequestWithUser,
+  @Query() query: PaginationParams,
+) {
+  return this.userPremiumsService.getPremiumAccountsOfCurrentUser(
+    req.user.id,
+    query,
+    'completed',
+  );
+}
+
+
+
   @ApiOperation({ summary: 'Get all completed premium accounts' })
   @ApiResponse({
     status: 200,
@@ -161,4 +178,19 @@ export class UserPremiumsController {
   findAll(@Query() query: PaginationParams) {
     return this.userPremiumsService.findAllAccountPremium(query, 'completed');
   }
+
+
+@ApiOperation({ summary: 'Confirm payment VietQR' })
+@ApiResponse({ status: 200, description: 'Confirmation successful' })
+@Post('vietqr/confirm')
+async confirmVietQRPayment(
+  @Req() req: RequestWithUser,
+  @Body() dto: ConfirmVietQRDto,
+) {
+  return this.userPremiumsService.confirmVietQRPayment({
+    userId: req.user.id,
+    accountId: dto.accountId,
+    accountEmail: dto.accountEmail,
+  });
+}
 }

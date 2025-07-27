@@ -52,3 +52,20 @@ export class GetSoldAccountDto {
   @IsNumber()
   accountId: number;
 }
+
+
+
+
+export class ConfirmVietQRDto {
+  @ApiProperty({ example: 1 })
+  @IsNumber()
+  userId: number;
+
+  @ApiProperty({ example: 610 })
+  @IsNumber()
+  accountId: number;
+
+  @ApiProperty({ example: 'abc@gmail.com' })
+  @IsEmail()
+  accountEmail: string;
+}
