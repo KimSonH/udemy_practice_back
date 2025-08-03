@@ -231,31 +231,32 @@ export class UserPremiumsService {
     }
   }
 
+
   async getSoldAccountInfo(accountId: number) {
-    try {
-      const privateKey = this.configService.get('MASS_PRIVATE_KEY');
+  try {
+    const privateKey = this.configService.get('MASS_PRIVATE_KEY');
 
-      const response = await firstValueFrom(
-        this.httpService.get(
-          `http://localhost:3304/api/account-service/sold-account/${accountId}`,
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'x-Private-key': privateKey,
-            },
+    const response = await firstValueFrom(
+      this.httpService.get(
+        `http://localhost:3304/api/account-service/sold-account/${accountId}`,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-Private-key': privateKey,
           },
-        ),
-      );
+        },
+      ),
+    );
 
-      return response.data;
-    } catch (error) {
-      throw new Error(
-        error?.response?.data?.message ||
-          'Failed to fetch sold account information',
-      );
-    }
+    return response.data;
+  } catch (error) {
+    console.error('getSoldAccountInfo error:', error?.response?.data || error);
+    throw new BadRequestException(
+      error?.response?.data?.message ||
+      'Failed to fetch sold account information',
+    );
   }
-
+}
 
   async getPremiumAccountsOfCurrentUser(
   userId: number,

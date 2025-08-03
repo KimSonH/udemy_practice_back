@@ -139,7 +139,6 @@ export class UserPremiumsController {
   }
 
 
-
   @Get('by-user-id')
 @UseGuards(JwtAuthenticationGuard)
 async getPremiumAccounts(
@@ -152,8 +151,6 @@ async getPremiumAccounts(
     'completed',
   );
 }
-
-
 
   @ApiOperation({ summary: 'Get all completed premium accounts' })
   @ApiResponse({
