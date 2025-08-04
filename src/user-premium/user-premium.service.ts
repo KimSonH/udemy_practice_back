@@ -231,155 +231,150 @@ export class UserPremiumsService {
     }
   }
 
-
   async getSoldAccountInfo(accountId: number) {
-  try {
-    const privateKey = this.configService.get('MASS_PRIVATE_KEY');
+    try {
+      const privateKey = this.configService.get('MASS_PRIVATE_KEY');
 
-    const response = await firstValueFrom(
-      this.httpService.get(
-        `http://localhost:3304/api/account-service/sold-account/${accountId}`,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'x-Private-key': privateKey,
+      const response = await firstValueFrom(
+        this.httpService.get(
+          `http://localhost:3304/api/account-service/sold-account/${accountId}`,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'x-Private-key': privateKey,
+            },
           },
-        },
-      ),
-    );
+        ),
+      );
 
-    return response.data;
-  } catch (error) {
-    console.error('getSoldAccountInfo error:', error?.response?.data || error);
-    throw new BadRequestException(
-      error?.response?.data?.message ||
-      'Failed to fetch sold account information',
-    );
+      return response.data;
+    } catch (error) {
+      console.error(
+        'getSoldAccountInfo error:',
+        error?.response?.data || error,
+      );
+      throw new BadRequestException(
+        error?.response?.data?.message ||
+          'Failed to fetch sold account information',
+      );
+    }
   }
-}
 
   async getPremiumAccountsOfCurrentUser(
-  userId: number,
-  query: PaginationParams,
-  status: 'completed' | 'pending' | 'failed' = 'completed',
-) {
-  const { page, limit, search, orderBy } = query;
-  const offset = (page - 1) * limit;
-  const order = { DESC: 'DESC', ASC: 'ASC' };
+    userId: number,
+    query: PaginationParams,
+    status: 'completed' | 'pending' | 'failed' = 'completed',
+  ) {
+    const { page, limit, search, orderBy } = query;
+    const offset = (page - 1) * limit;
+    const order = { DESC: 'DESC', ASC: 'ASC' };
 
-  const [items, total] = await this.userPremiumRepository.findAndCount({
-    where: {
-      user: { id: userId },
-      status,
-      accountEmail: search ? ILike(`%${search}%`) : undefined,
-    },
-    order: { createdAt: order[orderBy] || 'DESC' },
-    relations: ['user'],
-    skip: page === 9999 ? undefined : offset,
-    take: page === 9999 ? undefined : limit,
-  });
-
-  return { items, total, page, limit };
-}
-
-
-async findAllAccountPremium(
-  query: PaginationParams,
-  status: 'completed' | 'failed' | 'pending' = 'completed',
-) {
-  const { page, limit, search, orderBy } = query;
-  const offset = (page - 1) * limit;
-
-  const order = {
-    DESC: 'DESC',
-    ASC: 'ASC',
-  };
-
-  try {
     const [items, total] = await this.userPremiumRepository.findAndCount({
       where: {
+        user: { id: userId },
         status,
         accountEmail: search ? ILike(`%${search}%`) : undefined,
       },
-      order: {
-        createdAt: order[orderBy] || 'DESC',
-      },
+      order: { createdAt: order[orderBy] || 'DESC' },
+      relations: ['user'],
       skip: page === 9999 ? undefined : offset,
       take: page === 9999 ? undefined : limit,
     });
 
-    return {
-      items,
-      total,
-      page,
-      limit,
+    return { items, total, page, limit };
+  }
+
+  async findAllAccountPremium(
+    query: PaginationParams,
+    status: 'completed' | 'failed' | 'pending' = 'completed',
+  ) {
+    const { page, limit, search, orderBy } = query;
+    const offset = (page - 1) * limit;
+
+    const order = {
+      DESC: 'DESC',
+      ASC: 'ASC',
     };
-  } catch (error) {
-    this.logger.error(`Error getting user premium: ${error.message}`);
-    throw new BadRequestException('Error getting user premium');
-  }
-}
 
-
-
-
-async confirmVietQRPayment(params: {
-  userId: number;
-  accountId: number;
-  accountEmail: string;
-}) {
-  const { userId, accountId, accountEmail } = params;
-
-  let userPremium = await this.userPremiumRepository.findOne({
-    where: {
-      user: { id: userId },
-      accountId,
-      accountEmail,
-    },
-    relations: ['user'],
-  });
-
-  if (!userPremium) {
-    userPremium = await this.create({
-      userId,
-      accountEmail,
-      accountId,
-      orderBy: 'vietqr',
-      status: 'completed',
-    });
-  } else {
-    userPremium.status = 'completed';
-    userPremium.orderBy = 'vietqr';
-    await this.userPremiumRepository.save(userPremium);
-  }
-
-  try {
-    const privateKey = this.configService.get('MASS_PRIVATE_KEY');
-    await firstValueFrom(
-      this.httpService.post(
-        'http://localhost:3304/api/account-service/sold-account',
-        { account_id: Number(accountId) },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'x-Private-key': privateKey,
-          },
+    try {
+      const [items, total] = await this.userPremiumRepository.findAndCount({
+        where: {
+          status,
+          accountEmail: search ? ILike(`%${search}%`) : undefined,
         },
-      ),
-    );
-    this.logger.log(`Sold-account API called for accountId: ${accountId}`);
-  } catch (err) {
-    this.logger.error(
-      `Failed to call sold-account API: ${err?.message || err}`,
-    );
+        order: {
+          createdAt: order[orderBy] || 'DESC',
+        },
+        skip: page === 9999 ? undefined : offset,
+        take: page === 9999 ? undefined : limit,
+      });
+
+      return {
+        items,
+        total,
+        page,
+        limit,
+      };
+    } catch (error) {
+      this.logger.error(`Error getting user premium: ${error.message}`);
+      throw new BadRequestException('Error getting user premium');
+    }
   }
 
-  return {
-    message: 'VietQR payment confirmed successfully',
-    userPremiumId: userPremium.id,
-  };
-}
+  async confirmVietQRPayment(params: {
+    userId: number;
+    accountId: number;
+    accountEmail: string;
+  }) {
+    const { userId, accountId, accountEmail } = params;
 
+    let userPremium = await this.userPremiumRepository.findOne({
+      where: {
+        user: { id: userId },
+        accountId,
+        accountEmail,
+      },
+      relations: ['user'],
+    });
 
+    if (!userPremium) {
+      userPremium = await this.create({
+        userId,
+        accountEmail,
+        accountId,
+        orderBy: 'vietqr',
+        status: 'completed',
+      });
+    } else {
+      userPremium.status = 'completed';
+      userPremium.orderBy = 'vietqr';
+      await this.userPremiumRepository.save(userPremium);
+    }
 
+    try {
+      const privateKey = this.configService.get('MASS_PRIVATE_KEY');
+      await firstValueFrom(
+        this.httpService.post(
+          'http://localhost:3304/api/account-service/sold-account',
+          { account_id: Number(accountId) },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'x-Private-key': privateKey,
+            },
+          },
+        ),
+      );
+      this.logger.log(`Sold-account API called for accountId: ${accountId}`);
+    } catch (err) {
+      this.logger.error(
+        `Failed to call sold-account API: ${err?.message || err}`,
+      );
+    }
+
+    return {
+      message: 'VietQR payment confirmed successfully',
+      userPremiumId: userPremium.id,
+    };
+  }
 }
