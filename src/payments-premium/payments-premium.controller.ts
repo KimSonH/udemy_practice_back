@@ -91,7 +91,7 @@ export class PaymentsPremiumController {
 
     try {
       const privateKey = this.configService.get('MASS_PRIVATE_KEY');
-      const result = await firstValueFrom(
+       await firstValueFrom(
         this.httpService.post(
           'http://localhost:3304/api/account-service/sold-account',
           { account_id: Number(userPremium.accountId) },
