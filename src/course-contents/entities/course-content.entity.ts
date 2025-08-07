@@ -1,5 +1,4 @@
 import { CourseSession } from 'src/course-sessions/entities/course-session.entity';
-import { Course } from 'src/courses/entities/courses.entity';
 import {
   Column,
   CreateDateColumn,
@@ -30,6 +29,9 @@ export class CourseContent {
 
   @Column({ nullable: true })
   public isRead?: boolean;
+
+  @Column({ nullable: true })
+  public isShown?: boolean;
 
   @Column()
   public type: string;
