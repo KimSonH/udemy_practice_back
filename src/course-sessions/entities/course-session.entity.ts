@@ -26,6 +26,9 @@ export class CourseSession {
   @Column({ nullable: true })
   public uploadUrl?: string;
 
+  @Column({ nullable: true })
+  public order?: number;
+
   @CreateDateColumn()
   public createdAt!: Date;
 

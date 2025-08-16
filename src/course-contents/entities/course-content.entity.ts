@@ -36,6 +36,9 @@ export class CourseContent {
   @Column()
   public type: string;
 
+  @Column({ nullable: true })
+  public order?: number;
+
   @CreateDateColumn()
   public createdAt!: Date;
 
