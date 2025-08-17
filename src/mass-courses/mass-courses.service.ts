@@ -12,7 +12,7 @@ export class MassCoursesService {
   ) {}
 
   async getMassCourses(query: GetCoursesDto) {
-    const { page = '1', limit = '10', search = '' } = query;
+    const { page = '0', limit = '12', search = '' } = query;
     const baseUrl = this.configService.get<string>('MASS_BASE_API_URL');
     const privateKey = this.configService.get<string>('MASS_PRIVATE_KEY');
 

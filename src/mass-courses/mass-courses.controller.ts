@@ -10,8 +10,8 @@ export class MassCoursesController {
 
   @Get()
   @ApiOperation({ summary: 'Get Mass Courses' })
-  @ApiQuery({ name: 'page', required: false, example: '1' })
-  @ApiQuery({ name: 'limit', required: false, example: '10' })
+  @ApiQuery({ name: 'page', required: false, example: '0' })
+  @ApiQuery({ name: 'limit', required: false, example: '12' })
   @ApiQuery({ name: 'search', required: false, example: 'CISSP' })
   async getMassCourses(@Query() query: GetCoursesDto) {
     return await this.massCourseService.getMassCourses(query);
