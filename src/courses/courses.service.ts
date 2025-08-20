@@ -421,6 +421,12 @@ export class CoursesService {
         },
         order: {
           createdAt: orderByOrder || 'DESC',
+          courseSessions: {
+            order: 'ASC',
+            courseContents: {
+              order: 'ASC',
+            },
+          },
         },
         skip: page === 9999 ? undefined : offset,
         take: page === 9999 ? undefined : limit,
@@ -735,14 +741,15 @@ export class CoursesService {
       }
 
       const courseSessions: CourseSession[] = [];
-      for (const sessionData of createCourseSessions) {
+      for (const [index, sessionData] of createCourseSessions.entries()) {
         const courseSession = new CourseSession();
         courseSession.name = sessionData.name;
         courseSession.description = sessionData.description;
         courseSession.uploadUrl = sessionData.uploadUrl;
+        courseSession.order = index + 1;
 
         const courseContents: CourseContent[] = [];
-        for (const contentData of sessionData.courseContents) {
+        for (const [indx, contentData] of sessionData.courseContents.entries()) {
           const courseContent = new CourseContent();
           courseContent.name = contentData.name;
           courseContent.description = contentData.description;
@@ -751,6 +758,8 @@ export class CoursesService {
           courseContent.duration = contentData.duration;
           courseContent.isRead = contentData.isRead;
           courseContent.isShown = contentData.isShown;
+          courseContent.order = indx + 1;
+
           const courseContentSaved =
             await queryRunner.manager.save(courseContent);
           courseContents.push(courseContentSaved);
