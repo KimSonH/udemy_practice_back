@@ -1,4 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsOptional, IsString } from 'class-validator';
 
 export class GetCoursesDto {
   @ApiPropertyOptional({ description: 'Page number', example: '1' })
@@ -9,4 +10,10 @@ export class GetCoursesDto {
 
   @ApiPropertyOptional({ description: 'Search keyword', example: 'CISSP' })
   search?: string;
+
+  @ApiPropertyOptional({ example: 'security' })
+  @IsOptional()
+  @IsString()
+  category?: string;
+  
 }
