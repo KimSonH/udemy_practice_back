@@ -703,7 +703,6 @@ export class CoursesService {
       content,
       description,
       name,
-      organizationId,
       price,
       status,
       type,
@@ -720,12 +719,6 @@ export class CoursesService {
     course.slug = await this.generateSlug(name);
     course.thumbnailImageUrl = thumbnailImageUrl;
     try {
-      course.organization = await queryRunner.manager
-        .getRepository(Organization)
-        .findOne({
-          where: { id: Number(organizationId) },
-        });
-
       if (course.courseSessions?.length > 0) {
         for (const session of course.courseSessions) {
           await queryRunner.manager.softDelete(CourseSession, {
@@ -749,7 +742,10 @@ export class CoursesService {
         courseSession.order = index + 1;
 
         const courseContents: CourseContent[] = [];
-        for (const [indx, contentData] of sessionData.courseContents.entries()) {
+        for (const [
+          indx,
+          contentData,
+        ] of sessionData.courseContents.entries()) {
           const courseContent = new CourseContent();
           courseContent.name = contentData.name;
           courseContent.description = contentData.description;
