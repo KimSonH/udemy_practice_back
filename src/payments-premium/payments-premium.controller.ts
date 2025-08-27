@@ -87,7 +87,6 @@ export class PaymentsPremiumController {
     const userPremium = await this.userPremiumService.findOne(
       verify.userPremiumId,
     );
-    console.log('UserPremium', userPremium);
 
     try {
       const privateKey = this.configService.get('MASS_PRIVATE_KEY');
@@ -103,7 +102,6 @@ export class PaymentsPremiumController {
           },
         ),
       );
-      console.log('Account marked as sold.');
     } catch (err) {
       console.error(
         'Failed to mark account as sold',
