@@ -61,15 +61,12 @@ import { CourseSessionsModule } from './course-sessions/course-sessions.module';
     OrganizationsModule,
     PaymentsModule,
     UserCoursesModule,
-<<<<<<< HEAD
     MassCoursesModule,
     MassAccountsModule,
     UserPremiumModule,
     PaymentsPremiumModule,
-=======
     CourseContentsModule,
     CourseSessionsModule,
->>>>>>> develop
   ],
   controllers: [],
   providers: [
