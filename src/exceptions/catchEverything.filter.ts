@@ -20,6 +20,8 @@ export class CatchEverythingFilter implements ExceptionFilter {
     const { httpAdapter } = this.httpAdapterHost;
 
     const ctx = host.switchToHttp();
+    console.log(exception);
+
     const message =
       exception instanceof HttpException
         ? exception.getResponse()
