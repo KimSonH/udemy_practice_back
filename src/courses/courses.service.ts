@@ -19,6 +19,9 @@ import * as fs from 'fs';
 import { Organization } from 'src/organizations/entities/organization.entity';
 import { generateUniqueSlug } from 'src/utils/slug';
 import { OrganizationsService } from 'src/organizations/organizations.service';
+import { VideoCourseDto } from './dto/create-video-course.dto';
+import { CourseSession } from 'src/course-sessions/entities/course-session.entity';
+import { CourseContent } from 'src/course-contents/entities/course-content.entity';
 @Injectable()
 export class CoursesService {
   private logger = new Logger(CoursesService.name);
@@ -27,6 +30,8 @@ export class CoursesService {
     'courseSets',
     'courseSets.udemyQuestionBanks',
     'organization',
+    'courseSessions',
+    'courseSessions.courseContents',
   ];
 
   constructor(
@@ -179,13 +184,18 @@ export class CoursesService {
   }
 
   private async generateSlug(title: string) {
-    const slug = await generateUniqueSlug(title, async (slug) => {
-      const course = await this.coursesRepository.findOne({
-        where: { slug },
+    try {
+      const slug = await generateUniqueSlug(title, async (slug) => {
+        const course = await this.coursesRepository.findOne({
+          where: { slug },
+        });
+        return !!course;
       });
-      return !!course;
-    });
-    return slug;
+      return slug;
+    } catch (error) {
+      this.logger.error(`Error generating slug: ${error.message}`);
+      throw new BadRequestException('Error generating slug');
+    }
   }
 
   async createCourse(createCourse: CreateCourseDto) {
@@ -411,6 +421,12 @@ export class CoursesService {
         },
         order: {
           createdAt: orderByOrder || 'DESC',
+          courseSessions: {
+            order: 'ASC',
+            courseContents: {
+              order: 'ASC',
+            },
+          },
         },
         skip: page === 9999 ? undefined : offset,
         take: page === 9999 ? undefined : limit,
@@ -674,5 +690,112 @@ export class CoursesService {
       .into('course_set_udemy_question_banks_udemy_question_bank')
       .values(relations)
       .execute();
+  }
+
+  private async batchInsertVideoCourse(
+    course: Course,
+    insertCourse: VideoCourseDto,
+  ) {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    const {
+      content,
+      description,
+      name,
+      price,
+      status,
+      type,
+      thumbnailImageUrl,
+      courseSessions: createCourseSessions,
+    } = insertCourse;
+    course.name = name;
+    course.description = description;
+    course.price = price;
+    course.status = status;
+    course.type = type;
+    course.categoryName = '';
+    course.content = content;
+    course.slug = await this.generateSlug(name);
+    course.thumbnailImageUrl = thumbnailImageUrl;
+    try {
+      if (course.courseSessions?.length > 0) {
+        for (const session of course.courseSessions) {
+          await queryRunner.manager.softDelete(CourseSession, {
+            id: session.id,
+          });
+
+          for (const content of session.courseContents) {
+            await queryRunner.manager.softDelete(CourseContent, {
+              id: content.id,
+            });
+          }
+        }
+      }
+
+      const courseSessions: CourseSession[] = [];
+      for (const [index, sessionData] of createCourseSessions.entries()) {
+        const courseSession = new CourseSession();
+        courseSession.name = sessionData.name;
+        courseSession.description = sessionData.description;
+        courseSession.uploadUrl = sessionData.uploadUrl;
+        courseSession.order = index + 1;
+
+        const courseContents: CourseContent[] = [];
+        for (const [
+          indx,
+          contentData,
+        ] of sessionData.courseContents.entries()) {
+          const courseContent = new CourseContent();
+          courseContent.name = contentData.name;
+          courseContent.description = contentData.description;
+          courseContent.uploadUrl = contentData.uploadUrl;
+          courseContent.type = contentData.type;
+          courseContent.duration = contentData.duration;
+          courseContent.isRead = contentData.isRead;
+          courseContent.isShown = contentData.isShown;
+          courseContent.order = indx + 1;
+
+          const courseContentSaved =
+            await queryRunner.manager.save(courseContent);
+          courseContents.push(courseContentSaved);
+        }
+        courseSession.courseContents = courseContents;
+        courseSessions.push(courseSession);
+      }
+      const courseSessionsSaved =
+        await queryRunner.manager.save(courseSessions);
+      course.courseSessions = courseSessionsSaved;
+
+      await queryRunner.manager.save(course);
+      await queryRunner.commitTransaction();
+      return course;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(error);
+      this.logger.error(`Failed to transaction video course: ${error.message}`);
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async createVideoCourse(createCourse: VideoCourseDto) {
+    const courseEntity = new Course();
+    const course = await this.batchInsertVideoCourse(
+      courseEntity,
+      createCourse,
+    );
+    return course;
+  }
+
+  async updateVideoCourse(id: number, updateCourse: VideoCourseDto) {
+    const courseEntity = await this.getCourseById(id);
+    delete updateCourse.id;
+    const course = await this.batchInsertVideoCourse(
+      courseEntity,
+      updateCourse,
+    );
+    return course;
   }
 }

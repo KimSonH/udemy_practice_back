@@ -30,6 +30,7 @@ import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import LocalFilesInterceptor from 'src/interceptors/localFiles.interceptor';
 import { Course } from './entities/courses.entity';
+import { VideoCourseDto } from './dto/create-video-course.dto';
 
 @ApiTags('Admin Courses')
 @ApiBearerAuth()
@@ -49,6 +50,19 @@ export class CoursesAdminController {
   @Post()
   createCourse(@Body() course: CreateCourseDto) {
     return this.coursesService.createCourse(course);
+  }
+
+  @ApiOperation({ summary: 'Create a new video course' })
+  @ApiResponse({
+    status: 201,
+    description: 'Video Course successfully created',
+    type: Course,
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiBody({ type: VideoCourseDto })
+  @Post('video')
+  createVideoCourse(@Body() course: VideoCourseDto) {
+    return this.coursesService.createVideoCourse(course);
   }
 
   @ApiOperation({ summary: 'Upload course thumbnail' })
@@ -142,6 +156,20 @@ export class CoursesAdminController {
   @Put(':id')
   updateCourse(@Param('id') id: number, @Body() course: UpdateCourseDto) {
     return this.coursesService.updateCourse(id, course);
+  }
+
+  @ApiOperation({ summary: 'Update video course' })
+  @ApiResponse({
+    status: 200,
+    description: 'Video course successfully updated',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Video course not found' })
+  @ApiParam({ name: 'id', type: 'number' })
+  @ApiBody({ type: VideoCourseDto })
+  @Put('video/:id')
+  updateVideoCourse(@Param('id') id: number, @Body() course: VideoCourseDto) {
+    return this.coursesService.updateVideoCourse(id, course);
   }
 
   @ApiOperation({ summary: 'Delete course' })
