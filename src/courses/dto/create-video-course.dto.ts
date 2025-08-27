@@ -41,8 +41,8 @@ export class VideoCourseDto {
 
   @ApiProperty({ description: 'Organization id of the course' })
   @IsString()
-  @IsNotEmpty()
-  organizationId: string;
+  @IsOptional()
+  organizationId?: string;
 
   @ApiProperty({ description: 'Content of the course' })
   @IsString()
