@@ -11,9 +11,39 @@ export class MassCoursesService {
     private readonly configService: ConfigService,
   ) {}
 
+  private async fetchAccountsRecursively(
+    baseUrl: string,
+    privateKey: string,
+    page = 1,
+    limit = 1000,
+  ): Promise<any[]> {
+    const url = `${baseUrl}/account-service/mass-account?page=${page}&limit=${limit}`;
+    const res = await firstValueFrom(
+      this.httpService.get(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-Private-key': privateKey,
+        },
+      }),
+    );
+
+    const items = res.data?.data?.items ?? [];
+
+    if (items.length === limit) {
+      const nextItems = await this.fetchAccountsRecursively(
+        baseUrl,
+        privateKey,
+        page + 1,
+        limit,
+      );
+      return [...items, ...nextItems];
+    }
+
+    return items;
+  }
+
   async getMassCourses(query: GetCoursesDto) {
     const { page = '0', limit = '12', search = '', category = '' } = query;
-
     const baseUrl = this.configService.get<string>('MASS_BASE_API_URL');
     const privateKey = this.configService.get<string>('MASS_PRIVATE_KEY');
 
@@ -29,42 +59,23 @@ export class MassCoursesService {
 
     const courses = response.data?.data?.items || [];
 
-    const emails = new Set<string>();
-    courses.forEach((course: any) => {
-      (course.MassEnrolled ?? []).forEach((enroll: any) => {
-        if (enroll.account?.email) {
-          emails.add(enroll.account.email);
-        }
-      });
-    });
-
-    const accountResults = await Promise.allSettled(
-      Array.from(emails).map(async (email) => {
-        const accUrl = `${baseUrl}/account-service/mass-account?search=${email}`;
-        const accRes = await firstValueFrom(
-          this.httpService.get(accUrl, {
-            headers: {
-              'Content-Type': 'application/json',
-              'x-Private-key': privateKey,
-            },
-          }),
-        );
-        const account = accRes.data?.data?.items?.[0] ?? null;
-        return { email, account };
-      }),
+    const allAccounts = await this.fetchAccountsRecursively(
+      baseUrl,
+      privateKey,
     );
 
-    const emailToAccount = new Map<string, any>();
-    accountResults.forEach((r) => {
-      if (r.status === 'fulfilled' && r.value.account) {
-        emailToAccount.set(r.value.email, r.value.account);
-      }
-    });
+    const emailToAccount = new Map(
+      allAccounts
+        .filter((acc) => acc.email)
+        .map((acc) => [acc.email.toLowerCase(), acc]),
+    );
 
     const enrichedCourses = courses.map((course: any) => {
       const enrichedEnrolled = (course.MassEnrolled ?? []).map(
         (enroll: any) => {
-          const account = emailToAccount.get(enroll.account?.email);
+          const email = enroll.account?.email?.toLowerCase();
+          const account = email ? emailToAccount.get(email) : null;
+
           return {
             account: {
               ...enroll.account,
@@ -75,6 +86,7 @@ export class MassCoursesService {
           };
         },
       );
+
       return { ...course, MassEnrolled: enrichedEnrolled };
     });
 
