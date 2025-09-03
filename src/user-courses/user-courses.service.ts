@@ -107,7 +107,7 @@ export class UserCoursesService {
         take: page === 9999 ? undefined : limit,
       });
       return {
-        items,
+        items: items.map((item) => item.course),
         total,
         page,
         limit,

@@ -18,6 +18,10 @@ import typeorm from './config/typeorm';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PaymentsModule } from './payments/payments.module';
 import { UserCoursesModule } from './user-courses/user-courses.module';
+import { MassCoursesModule } from './mass-courses/mass-courses.module';
+import { MassAccountsModule } from './mass-account/mass-account.module';
+import { UserPremiumModule } from './user-premium/user-premium.module';
+import { PaymentsPremiumModule } from './payments-premium/payments-premium.module';
 import { CourseContentsModule } from './course-contents/course-contents.module';
 import { CourseSessionsModule } from './course-sessions/course-sessions.module';
 
@@ -57,6 +61,10 @@ import { CourseSessionsModule } from './course-sessions/course-sessions.module';
     OrganizationsModule,
     PaymentsModule,
     UserCoursesModule,
+    MassCoursesModule,
+    MassAccountsModule,
+    UserPremiumModule,
+    PaymentsPremiumModule,
     CourseContentsModule,
     CourseSessionsModule,
   ],
