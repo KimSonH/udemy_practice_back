@@ -407,30 +407,46 @@ export class CoursesService {
     };
     const orderByOrder = order[orderBy];
     try {
-      const [items, total] = await this.coursesRepository.findAndCount({
-        relations: this.relations,
-        where: {
-          status: 'active',
-          name: search ? ILike(`%${search}%`) : undefined,
-          type: type ? typeWhere[type] : undefined,
-          organization: {
-            id: organizationId ? +organizationId : undefined,
-            slug: organizationSlug ? organizationSlug : undefined,
-          },
-          deletedAt: null,
-        },
-        order: {
-          createdAt: orderByOrder || 'DESC',
-          courseSessions: {
-            order: 'ASC',
-            courseContents: {
-              order: 'ASC',
-            },
-          },
-        },
-        skip: page === 9999 ? undefined : offset,
-        take: page === 9999 ? undefined : limit,
-      });
+      // const [items, total] = await this.coursesRepository.findAndCount({
+      //   relations: this.relations,
+      //   where: {
+      //     status: 'active',
+      //     name: search ? ILike(`%${search}%`) : undefined,
+      //     type: type ? typeWhere[type] : undefined,
+      //     organization: {
+      //       id: organizationId ? +organizationId : undefined,
+      //       slug: organizationSlug ? organizationSlug : undefined,
+      //     },
+      //     deletedAt: null,
+      //   },
+      //   order: {
+      //     createdAt: orderByOrder || 'DESC',
+      //     courseSessions: {
+      //       order: 'ASC',
+      //       courseContents: {
+      //         order: 'ASC',
+      //       },
+      //     },
+      //   },
+      //   skip: page === 9999 ? undefined : offset,
+      //   take: page === 9999 ? undefined : limit,
+      // });
+      const query = this.coursesRepository
+        .createQueryBuilder('course')
+        .leftJoinAndSelect('course.organization', 'organization')
+        .leftJoinAndSelect('course.courseSets', 'courseSets')
+        .leftJoinAndSelect(
+          'courseSets.udemyQuestionBanks',
+          'udemyQuestionBanks',
+        )
+        .leftJoinAndSelect('course.courseSessions', 'courseSessions')
+        .leftJoinAndSelect('courseSessions.courseContents', 'courseContents')
+        .where('course.status = :status', { status: 'active' })
+        .andWhere('course.deletedAt IS NULL')
+        .orderBy('course.createdAt', orderByOrder || 'DESC')
+        .skip(page === 9999 ? undefined : offset)
+        .take(page === 9999 ? undefined : limit);
+      const [items, total] = await query.getManyAndCount();
       return {
         items,
         total,
