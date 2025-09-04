@@ -33,7 +33,7 @@ export class Course {
   @Column()
   public status: string;
 
-  @Column()
+  @Column({ type: 'numeric', precision: 10, scale: 2, nullable: true })
   public price: number;
 
   @Column()
