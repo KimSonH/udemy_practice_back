@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { UserCourse } from 'src/user-courses/entities/user-course.entity';
+import { UserPremium } from 'src/user-premium/entities/user-premium.entity';
 
 @Entity()
 export class User {
@@ -50,4 +51,7 @@ export class User {
 
   @OneToMany(() => UserCourse, (userCourse) => userCourse.user)
   public userCourses: UserCourse[];
+
+  @OneToMany(() => UserPremium, (premium) => premium.user)
+  public userPremiums: UserPremium[];
 }
