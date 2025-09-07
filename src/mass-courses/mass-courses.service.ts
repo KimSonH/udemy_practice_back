@@ -3,6 +3,12 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { GetCoursesDto } from './dto/createMassCourse';
+import {
+  Account,
+  Course,
+  Enrolled,
+  PaginatedResponse,
+} from './types/mass-courses.types';
 
 @Injectable()
 export class MassCoursesService {
@@ -11,15 +17,14 @@ export class MassCoursesService {
     private readonly configService: ConfigService,
   ) {}
 
-  private async fetchAccountsRecursively(
+  private async fetchAllAccounts(
     baseUrl: string,
     privateKey: string,
-    page = 1,
-    limit = 1000,
-  ): Promise<any[]> {
-    const url = `${baseUrl}/account-service/mass-account?page=${page}&limit=${limit}`;
-    const res = await firstValueFrom(
-      this.httpService.get(url, {
+    limit = 200,
+  ): Promise<Account[]> {
+    const firstUrl = `${baseUrl}/account-service/mass-account?page=1&limit=${limit}`;
+    const firstRes = await firstValueFrom(
+      this.httpService.get<PaginatedResponse<Account>>(firstUrl, {
         headers: {
           'Content-Type': 'application/json',
           'x-Private-key': privateKey,
@@ -27,19 +32,28 @@ export class MassCoursesService {
       }),
     );
 
-    const items = res.data?.data?.items ?? [];
+    const firstItems = firstRes.data?.data?.items ?? [];
+    const totalData = firstRes.data?.data?.totalData ?? firstItems.length;
+    const totalPages = Math.ceil(totalData / limit);
 
-    if (items.length === limit) {
-      const nextItems = await this.fetchAccountsRecursively(
-        baseUrl,
-        privateKey,
-        page + 1,
-        limit,
+    const requests: Promise<Account[]>[] = [];
+    for (let page = 2; page <= totalPages; page++) {
+      const url = `${baseUrl}/account-service/mass-account?page=${page}&limit=${limit}`;
+      requests.push(
+        firstValueFrom(
+          this.httpService.get<PaginatedResponse<Account>>(url, {
+            headers: {
+              'Content-Type': 'application/json',
+              'x-Private-key': privateKey,
+            },
+          }),
+        ).then((res) => res.data?.data?.items ?? []),
       );
-      return [...items, ...nextItems];
     }
 
-    return items;
+    const results = await Promise.all(requests);
+
+    return [...firstItems, ...results.flat()];
   }
 
   async getMassCourses(query: GetCoursesDto) {
@@ -49,7 +63,7 @@ export class MassCoursesService {
 
     const url = `${baseUrl}/course-service/mass-courses?page=${page}&limit=${limit}&search=${search}&category=${category}`;
     const response = await firstValueFrom(
-      this.httpService.get(url, {
+      this.httpService.get<PaginatedResponse<Course>>(url, {
         headers: {
           'Content-Type': 'application/json',
           'x-Private-key': privateKey,
@@ -57,22 +71,19 @@ export class MassCoursesService {
       }),
     );
 
-    const courses = response.data?.data?.items || [];
+    const courses: Course[] = response.data?.data?.items || [];
 
-    const allAccounts = await this.fetchAccountsRecursively(
-      baseUrl,
-      privateKey,
-    );
+    const allAccounts = await this.fetchAllAccounts(baseUrl, privateKey);
 
-    const emailToAccount = new Map(
+    const emailToAccount = new Map<string, Account>(
       allAccounts
         .filter((acc) => acc.email)
         .map((acc) => [acc.email.toLowerCase(), acc]),
     );
 
-    const enrichedCourses = courses.map((course: any) => {
-      const enrichedEnrolled = (course.MassEnrolled ?? []).map(
-        (enroll: any) => {
+    const enrichedCourses: Course[] = courses.map((course) => {
+      const enrichedEnrolled: Enrolled[] = (course.MassEnrolled ?? []).map(
+        (enroll) => {
           const email = enroll.account?.email?.toLowerCase();
           const account = email ? emailToAccount.get(email) : null;
 
