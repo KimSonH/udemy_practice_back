@@ -1,11 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
+import { catchError, firstValueFrom } from 'rxjs';
 import { GetCoursesDto } from './dto/createMassCourse';
+import { AxiosError } from 'axios';
 
 @Injectable()
 export class MassCoursesService {
+  private readonly logger = new Logger(MassCoursesService.name);
+
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
@@ -18,16 +25,23 @@ export class MassCoursesService {
     limit = 1000,
   ): Promise<any[]> {
     const url = `${baseUrl}/account-service/mass-account?page=${page}&limit=${limit}`;
-    const res = await firstValueFrom(
-      this.httpService.get(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-Private-key': privateKey,
-        },
-      }),
+    const { data } = await firstValueFrom(
+      this.httpService
+        .get(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-Private-key': privateKey,
+          },
+        })
+        .pipe(
+          catchError((error: AxiosError) => {
+            this.logger.error(error.response?.data);
+            throw new InternalServerErrorException('An error happened!');
+          }),
+        ),
     );
 
-    const items = res.data?.data?.items ?? [];
+    const items = data?.data?.items ?? [];
 
     if (items.length === limit) {
       const nextItems = await this.fetchAccountsRecursively(
@@ -48,16 +62,23 @@ export class MassCoursesService {
     const privateKey = this.configService.get<string>('MASS_PRIVATE_KEY');
 
     const url = `${baseUrl}/course-service/mass-courses?page=${page}&limit=${limit}&search=${search}&category=${category}`;
-    const response = await firstValueFrom(
-      this.httpService.get(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-Private-key': privateKey,
-        },
-      }),
+    const { data } = await firstValueFrom(
+      this.httpService
+        .get(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-Private-key': privateKey,
+          },
+        })
+        .pipe(
+          catchError((error: AxiosError) => {
+            this.logger.error(error.response?.data);
+            throw new InternalServerErrorException('An error happened!');
+          }),
+        ),
     );
 
-    const courses = response.data?.data?.items || [];
+    const courses = data?.data?.items || [];
 
     const allAccounts = await this.fetchAccountsRecursively(
       baseUrl,
@@ -91,10 +112,10 @@ export class MassCoursesService {
     });
 
     return {
-      ...response.data,
+      ...data,
       data: {
-        ...response.data.data,
-        totalData: response.data.data?.totalData ?? 0,
+        ...data.data,
+        totalData: data.data?.totalData ?? 0,
         items: enrichedCourses,
       },
     };
