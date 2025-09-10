@@ -6,7 +6,14 @@ import {
 } from '@nestjs/common';
 import { Course } from './entities/courses.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, QueryRunner, ILike, In } from 'typeorm';
+import {
+  Repository,
+  DataSource,
+  QueryRunner,
+  ILike,
+  In,
+  Brackets,
+} from 'typeorm';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { UdemyQuestionBanksService } from 'src/udemyQuestionBanks/udemy-question-banks.service';
@@ -407,30 +414,6 @@ export class CoursesService {
     };
     const orderByOrder = order[orderBy];
     try {
-      // const [items, total] = await this.coursesRepository.findAndCount({
-      //   relations: this.relations,
-      //   where: {
-      //     status: 'active',
-      //     name: search ? ILike(`%${search}%`) : undefined,
-      //     type: type ? typeWhere[type] : undefined,
-      //     organization: {
-      //       id: organizationId ? +organizationId : undefined,
-      //       slug: organizationSlug ? organizationSlug : undefined,
-      //     },
-      //     deletedAt: null,
-      //   },
-      //   order: {
-      //     createdAt: orderByOrder || 'DESC',
-      //     courseSessions: {
-      //       order: 'ASC',
-      //       courseContents: {
-      //         order: 'ASC',
-      //       },
-      //     },
-      //   },
-      //   skip: page === 9999 ? undefined : offset,
-      //   take: page === 9999 ? undefined : limit,
-      // });
       const query = this.coursesRepository
         .createQueryBuilder('course')
         .leftJoinAndSelect('course.organization', 'organization')
@@ -443,6 +426,28 @@ export class CoursesService {
         .leftJoinAndSelect('courseSessions.courseContents', 'courseContents')
         .where('course.status = :status', { status: 'active' })
         .andWhere('course.deletedAt IS NULL')
+        .andWhere(
+          new Brackets((qb) => {
+            if (search) {
+              qb.andWhere('course.name ILIKE :search', {
+                search: `%${search}%`,
+              });
+            }
+            if (type) {
+              qb.andWhere('course.type = :type', { type: typeWhere[type] });
+            }
+            if (organizationId) {
+              qb.andWhere('organization.id = :organizationId', {
+                organizationId: +organizationId,
+              });
+            }
+            if (organizationSlug) {
+              qb.andWhere('organization.slug = :organizationSlug', {
+                organizationSlug,
+              });
+            }
+          }),
+        )
         .orderBy('course.createdAt', orderByOrder || 'DESC')
         .skip(page === 9999 ? undefined : offset)
         .take(page === 9999 ? undefined : limit);
