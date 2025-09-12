@@ -1,7 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
+import { catchError, firstValueFrom } from 'rxjs';
+import { AxiosError } from 'axios';
 import { GetCoursesDto } from './dto/createMassCourse';
 import {
   Account,
@@ -12,6 +17,8 @@ import {
 
 @Injectable()
 export class MassCoursesService {
+  private readonly logger = new Logger(MassCoursesService.name);
+
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
@@ -24,35 +31,59 @@ export class MassCoursesService {
   ): Promise<Account[]> {
     const firstUrl = `${baseUrl}/account-service/mass-account?page=1&limit=${limit}`;
     const firstRes = await firstValueFrom(
-      this.httpService.get<PaginatedResponse<Account>>(firstUrl, {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-Private-key': privateKey,
-        },
-      }),
+      this.httpService
+        .get<PaginatedResponse<Account>>(firstUrl, {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-Private-key': privateKey,
+          },
+        })
+        .pipe(
+          catchError((error: AxiosError) => {
+            this.logger.error(error.response?.data);
+            throw new InternalServerErrorException(
+              'Error fetching accounts (page 1)',
+            );
+          }),
+        ),
     );
 
     const firstItems = firstRes.data?.data?.items ?? [];
     const totalData = firstRes.data?.data?.totalData ?? firstItems.length;
     const totalPages = Math.ceil(totalData / limit);
 
+    if (totalPages <= 1) {
+      return firstItems;
+    }
+
     const requests: Promise<Account[]>[] = [];
     for (let page = 2; page <= totalPages; page++) {
       const url = `${baseUrl}/account-service/mass-account?page=${page}&limit=${limit}`;
       requests.push(
         firstValueFrom(
-          this.httpService.get<PaginatedResponse<Account>>(url, {
-            headers: {
-              'Content-Type': 'application/json',
-              'x-Private-key': privateKey,
-            },
-          }),
+          this.httpService
+            .get<PaginatedResponse<Account>>(url, {
+              headers: {
+                'Content-Type': 'application/json',
+                'x-Private-key': privateKey,
+              },
+            })
+            .pipe(
+              catchError((error: AxiosError) => {
+                this.logger.error(
+                  `Error fetching accounts (page ${page}):`,
+                  error.response?.data,
+                );
+                throw new InternalServerErrorException(
+                  `Error fetching accounts (page ${page})`,
+                );
+              }),
+            ),
         ).then((res) => res.data?.data?.items ?? []),
       );
     }
 
     const results = await Promise.all(requests);
-
     return [...firstItems, ...results.flat()];
   }
 
@@ -63,12 +94,19 @@ export class MassCoursesService {
 
     const url = `${baseUrl}/course-service/mass-courses?page=${page}&limit=${limit}&search=${search}&category=${category}`;
     const response = await firstValueFrom(
-      this.httpService.get<PaginatedResponse<Course>>(url, {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-Private-key': privateKey,
-        },
-      }),
+      this.httpService
+        .get<PaginatedResponse<Course>>(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-Private-key': privateKey,
+          },
+        })
+        .pipe(
+          catchError((error: AxiosError) => {
+            this.logger.error(error.response?.data);
+            throw new InternalServerErrorException('Error fetching courses');
+          }),
+        ),
     );
 
     const courses: Course[] = response.data?.data?.items || [];

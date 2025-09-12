@@ -459,7 +459,9 @@ export class CoursesService {
     }
   }
 
-  async getRandomCourses(): Promise<Course[]> {
+  async getRandomCourses() {
+    const limit = 6;
+    const page = 1;
     try {
       const randomCourseIds = await this.coursesRepository
         .createQueryBuilder('course')
@@ -467,20 +469,25 @@ export class CoursesService {
         .where('course.status = :status', { status: 'active' })
         .andWhere('course.deletedAt IS NULL')
         .orderBy('RANDOM()')
-        .limit(6)
+        .limit(limit)
         .getRawMany();
 
       const ids = randomCourseIds.map((row) => row.course_id);
 
       if (ids.length === 0) return [];
 
-      const courses = await this.coursesRepository.find({
+      const [items, total] = await this.coursesRepository.findAndCount({
         where: { id: In(ids) },
         relations: this.relations,
         order: { createdAt: 'DESC' },
       });
 
-      return courses;
+      return {
+        items,
+        total,
+        page,
+        limit,
+      };
     } catch (error) {
       this.logger.error(`Error getting random courses: ${error.message}`);
       throw new BadRequestException('Error getting random courses');
