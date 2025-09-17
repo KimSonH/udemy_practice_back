@@ -40,6 +40,16 @@ export class CoursesService {
     'courseSessions',
     'courseSessions.courseContents',
   ];
+  private randomRelations = [
+    'courseSets',
+    'courseSets.udemyQuestionBanks',
+    'organization',
+  ];
+  private randomVideoRelations = [
+    'organization',
+    'courseSessions',
+    'courseSessions.courseContents',
+  ];
 
   constructor(
     @InjectRepository(Course)
@@ -416,16 +426,82 @@ export class CoursesService {
     try {
       const query = this.coursesRepository
         .createQueryBuilder('course')
+        .leftJoin('course.courseSessions', 'courseSessions')
         .leftJoinAndSelect('course.organization', 'organization')
         .leftJoinAndSelect('course.courseSets', 'courseSets')
         .leftJoinAndSelect(
           'courseSets.udemyQuestionBanks',
           'udemyQuestionBanks',
         )
-        .leftJoinAndSelect('course.courseSessions', 'courseSessions')
-        .leftJoinAndSelect('courseSessions.courseContents', 'courseContents')
         .where('course.status = :status', { status: 'active' })
         .andWhere('course.deletedAt IS NULL')
+        .andWhere('courseSessions.id IS NULL')
+        .andWhere(
+          new Brackets((qb) => {
+            if (search) {
+              qb.andWhere('course.name ILIKE :search', {
+                search: `%${search}%`,
+              });
+            }
+            if (type) {
+              qb.andWhere('course.type = :type', { type: typeWhere[type] });
+            }
+            if (organizationId) {
+              qb.andWhere('organization.id = :organizationId', {
+                organizationId: +organizationId,
+              });
+            }
+            if (organizationSlug) {
+              qb.andWhere('organization.slug = :organizationSlug', {
+                organizationSlug,
+              });
+            }
+          }),
+        )
+        .orderBy('course.createdAt', orderByOrder || 'DESC')
+        .skip(page === 9999 ? undefined : offset)
+        .take(page === 9999 ? undefined : limit);
+      const [items, total] = await query.getManyAndCount();
+      return {
+        items,
+        total,
+        page,
+        limit,
+      };
+    } catch (error) {
+      this.logger.error(`Error getting courses: ${error.message}`);
+      throw new BadRequestException('Error getting courses');
+    }
+  }
+
+  async findAllVideoCourses(query: PaginationParams) {
+    const {
+      page,
+      limit,
+      search,
+      orderBy,
+      type,
+      organizationId,
+      organizationSlug,
+    } = query;
+    const offset = (page - 1) * limit;
+    const order = {
+      DESC: 'DESC',
+      ASC: 'ASC',
+    };
+    const typeWhere = {
+      free: 'free',
+      paid: 'paid',
+    };
+    const orderByOrder = order[orderBy];
+    try {
+      const query = this.coursesRepository
+        .createQueryBuilder('course')
+        .innerJoin('course.courseSessions', 'cs') // bắt buộc có ít nhất 1 session
+        .leftJoinAndSelect('course.organization', 'organization')
+        .where('course.status = :status', { status: 'active' })
+        .andWhere('course.deletedAt IS NULL')
+        .andWhere('cs.id IS NOT NULL')
         .andWhere(
           new Brackets((qb) => {
             if (search) {
@@ -471,19 +547,27 @@ export class CoursesService {
       const randomCourseIds = await this.coursesRepository
         .createQueryBuilder('course')
         .select('course.id')
+        .leftJoin('course.courseSessions', 'courseSessions') // join vào quan hệ
         .where('course.status = :status', { status: 'active' })
         .andWhere('course.deletedAt IS NULL')
+        .andWhere('courseSessions.id IS NULL') // chỉ lấy course chưa có session nào
         .orderBy('RANDOM()')
         .limit(limit)
         .getRawMany();
 
       const ids = randomCourseIds.map((row) => row.course_id);
 
-      if (ids.length === 0) return [];
+      if (ids.length === 0)
+        return {
+          items: [],
+          total: 0,
+          page,
+          limit,
+        };
 
       const [items, total] = await this.coursesRepository.findAndCount({
         where: { id: In(ids) },
-        relations: this.relations,
+        relations: this.randomRelations,
         order: { createdAt: 'DESC' },
       });
 
@@ -496,6 +580,48 @@ export class CoursesService {
     } catch (error) {
       this.logger.error(`Error getting random courses: ${error.message}`);
       throw new BadRequestException('Error getting random courses');
+    }
+  }
+
+  async getRandomVideoCourses() {
+    const limit = 6;
+    const page = 1;
+    try {
+      const randomCourseIdsRaw = await this.coursesRepository
+        .createQueryBuilder('course')
+        .select('course.id', 'id') // chỉ lấy id
+        .innerJoin('course.courseSessions', 'cs') // bắt buộc có ít nhất 1 session
+        .where('course.status = :status', { status: 'active' })
+        .andWhere('course.deletedAt IS NULL')
+        .groupBy('course.id') // tránh duplicate thay cho DISTINCT
+        .orderBy('RANDOM()')
+        .limit(limit)
+        .getRawMany();
+
+      const ids = randomCourseIdsRaw.map((r) => Number(r.id));
+      if (ids.length === 0)
+        return {
+          items: [],
+          total: 0,
+          page,
+          limit,
+        };
+
+      const [items, total] = await this.coursesRepository.findAndCount({
+        where: { id: In(ids) },
+        order: { createdAt: 'DESC' },
+        relations: this.randomVideoRelations,
+      });
+
+      return {
+        items,
+        total,
+        page,
+        limit,
+      };
+    } catch (error) {
+      this.logger.error(`Error getting random video courses: ${error.message}`);
+      throw new BadRequestException('Error getting random video courses');
     }
   }
 

@@ -210,7 +210,7 @@ export class PaymentsService {
     orderBy: string;
   }) {
     const { userId, courseId, status, orderBy } = body;
-    const course = await this.coursesService.getCourseById(courseId);
+    const course = await this.coursesService.getCourseById(+courseId);
     if (!course) {
       throw new BadRequestException('User course not found');
     }
