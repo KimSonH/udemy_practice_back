@@ -40,6 +40,30 @@ export class CoursesController {
     return this.coursesService.findAll(query);
   }
 
+  @ApiOperation({ summary: 'Get all video courses' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns paginated video courses',
+    schema: {
+      type: 'object',
+      properties: {
+        items: {
+          type: 'array',
+          items: { $ref: getSchemaPath(Course) },
+        },
+        total: { type: 'number' },
+        page: { type: 'number' },
+        limit: { type: 'number' },
+      },
+    },
+  })
+  @ApiQuery({ name: 'page', required: false, type: 'number' })
+  @ApiQuery({ name: 'limit', required: false, type: 'number' })
+  @Get('video')
+  findAllVideoCourses(@Query() query: PaginationParams) {
+    return this.coursesService.findAllVideoCourses(query);
+  }
+
   @ApiOperation({ summary: 'Get random courses' })
   @ApiResponse({
     status: 200,
@@ -52,6 +76,20 @@ export class CoursesController {
   @Get('random-courses')
   getRandomCourses() {
     return this.coursesService.getRandomCourses();
+  }
+
+  @ApiOperation({ summary: 'Get random video courses' })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns random video courses',
+    schema: {
+      type: 'array',
+      items: { $ref: getSchemaPath(Course) },
+    },
+  })
+  @Get('random-video-courses')
+  getRandomVideoCourses() {
+    return this.coursesService.getRandomVideoCourses();
   }
 
   @ApiOperation({ summary: 'Get courses by organization' })
