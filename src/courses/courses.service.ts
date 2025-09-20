@@ -403,6 +403,77 @@ export class CoursesService {
     }
   }
 
+  async findAllByAdmin(query: PaginationParams) {
+    const {
+      page,
+      limit,
+      search,
+      orderBy,
+      type,
+      organizationId,
+      organizationSlug,
+    } = query;
+    const offset = (page - 1) * limit;
+    const order = {
+      DESC: 'DESC',
+      ASC: 'ASC',
+    };
+    const typeWhere = {
+      free: 'free',
+      paid: 'paid',
+    };
+    const orderByOrder = order[orderBy];
+    try {
+      const query = this.coursesRepository
+        .createQueryBuilder('course')
+        .leftJoinAndSelect('course.courseSessions', 'courseSessions')
+        .leftJoinAndSelect('course.organization', 'organization')
+        .leftJoinAndSelect('course.courseSets', 'courseSets')
+        .leftJoinAndSelect(
+          'courseSets.udemyQuestionBanks',
+          'udemyQuestionBanks',
+        )
+        .leftJoinAndSelect('courseSessions.courseContents', 'courseContents')
+        .where('course.status = :status', { status: 'active' })
+        .andWhere('course.deletedAt IS NULL')
+        .andWhere(
+          new Brackets((qb) => {
+            if (search) {
+              qb.andWhere('course.name ILIKE :search', {
+                search: `%${search}%`,
+              });
+            }
+            if (type) {
+              qb.andWhere('course.type = :type', { type: typeWhere[type] });
+            }
+            if (organizationId) {
+              qb.andWhere('organization.id = :organizationId', {
+                organizationId: +organizationId,
+              });
+            }
+            if (organizationSlug) {
+              qb.andWhere('organization.slug = :organizationSlug', {
+                organizationSlug,
+              });
+            }
+          }),
+        )
+        .orderBy('course.createdAt', orderByOrder || 'DESC')
+        .skip(page === 9999 ? undefined : offset)
+        .take(page === 9999 ? undefined : limit);
+      const [items, total] = await query.getManyAndCount();
+      return {
+        items,
+        total,
+        page,
+        limit,
+      };
+    } catch (error) {
+      this.logger.error(`Error getting courses: ${error.message}`);
+      throw new BadRequestException('Error getting courses');
+    }
+  }
+
   async findAll(query: PaginationParams) {
     const {
       page,
