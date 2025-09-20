@@ -6,8 +6,14 @@ import {
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { catchError, firstValueFrom } from 'rxjs';
-import { GetCoursesDto } from './dto/createMassCourse';
 import { AxiosError } from 'axios';
+import { GetCoursesDto } from './dto/createMassCourse';
+import {
+  Account,
+  Course,
+  Enrolled,
+  PaginatedResponse,
+} from './types/mass-courses.types';
 
 @Injectable()
 export class MassCoursesService {
@@ -18,16 +24,15 @@ export class MassCoursesService {
     private readonly configService: ConfigService,
   ) {}
 
-  private async fetchAccountsRecursively(
+  private async fetchAllAccounts(
     baseUrl: string,
     privateKey: string,
-    page = 1,
-    limit = 1000,
-  ): Promise<any[]> {
-    const url = `${baseUrl}/account-service/mass-account?page=${page}&limit=${limit}`;
-    const { data } = await firstValueFrom(
+    limit = 200,
+  ): Promise<Account[]> {
+    const firstUrl = `${baseUrl}/account-service/mass-account?page=1&limit=${limit}`;
+    const firstRes = await firstValueFrom(
       this.httpService
-        .get(url, {
+        .get<PaginatedResponse<Account>>(firstUrl, {
           headers: {
             'Content-Type': 'application/json',
             'x-Private-key': privateKey,
@@ -36,24 +41,50 @@ export class MassCoursesService {
         .pipe(
           catchError((error: AxiosError) => {
             this.logger.error(error.response?.data);
-            throw new InternalServerErrorException('An error happened!');
+            throw new InternalServerErrorException(
+              'Error fetching accounts (page 1)',
+            );
           }),
         ),
     );
 
-    const items = data?.data?.items ?? [];
+    const firstItems = firstRes.data?.data?.items ?? [];
+    const totalData = firstRes.data?.data?.totalData ?? firstItems.length;
+    const totalPages = Math.ceil(totalData / limit);
 
-    if (items.length === limit) {
-      const nextItems = await this.fetchAccountsRecursively(
-        baseUrl,
-        privateKey,
-        page + 1,
-        limit,
-      );
-      return [...items, ...nextItems];
+    if (totalPages <= 1) {
+      return firstItems;
     }
 
-    return items;
+    const requests: Promise<Account[]>[] = [];
+    for (let page = 2; page <= totalPages; page++) {
+      const url = `${baseUrl}/account-service/mass-account?page=${page}&limit=${limit}`;
+      requests.push(
+        firstValueFrom(
+          this.httpService
+            .get<PaginatedResponse<Account>>(url, {
+              headers: {
+                'Content-Type': 'application/json',
+                'x-Private-key': privateKey,
+              },
+            })
+            .pipe(
+              catchError((error: AxiosError) => {
+                this.logger.error(
+                  `Error fetching accounts (page ${page}):`,
+                  error.response?.data,
+                );
+                throw new InternalServerErrorException(
+                  `Error fetching accounts (page ${page})`,
+                );
+              }),
+            ),
+        ).then((res) => res.data?.data?.items ?? []),
+      );
+    }
+
+    const results = await Promise.all(requests);
+    return [...firstItems, ...results.flat()];
   }
 
   async getMassCourses(query: GetCoursesDto) {
@@ -62,9 +93,9 @@ export class MassCoursesService {
     const privateKey = this.configService.get<string>('MASS_PRIVATE_KEY');
 
     const url = `${baseUrl}/course-service/mass-courses?page=${page}&limit=${limit}&search=${search}&category=${category}`;
-    const { data } = await firstValueFrom(
+    const response = await firstValueFrom(
       this.httpService
-        .get(url, {
+        .get<PaginatedResponse<Course>>(url, {
           headers: {
             'Content-Type': 'application/json',
             'x-Private-key': privateKey,
@@ -73,27 +104,24 @@ export class MassCoursesService {
         .pipe(
           catchError((error: AxiosError) => {
             this.logger.error(error.response?.data);
-            throw new InternalServerErrorException('An error happened!');
+            throw new InternalServerErrorException('Error fetching courses');
           }),
         ),
     );
 
-    const courses = data?.data?.items || [];
+    const courses: Course[] = response.data?.data?.items || [];
 
-    const allAccounts = await this.fetchAccountsRecursively(
-      baseUrl,
-      privateKey,
-    );
+    const allAccounts = await this.fetchAllAccounts(baseUrl, privateKey);
 
-    const emailToAccount = new Map(
+    const emailToAccount = new Map<string, Account>(
       allAccounts
         .filter((acc) => acc.email)
         .map((acc) => [acc.email.toLowerCase(), acc]),
     );
 
-    const enrichedCourses = courses.map((course: any) => {
-      const enrichedEnrolled = (course.MassEnrolled ?? []).map(
-        (enroll: any) => {
+    const enrichedCourses: Course[] = courses.map((course) => {
+      const enrichedEnrolled: Enrolled[] = (course.MassEnrolled ?? []).map(
+        (enroll) => {
           const email = enroll.account?.email?.toLowerCase();
           const account = email ? emailToAccount.get(email) : null;
 
@@ -112,10 +140,10 @@ export class MassCoursesService {
     });
 
     return {
-      ...data,
+      ...response.data,
       data: {
-        ...data.data,
-        totalData: data.data?.totalData ?? 0,
+        ...response.data.data,
+        totalData: response.data.data?.totalData ?? 0,
         items: enrichedCourses,
       },
     };
