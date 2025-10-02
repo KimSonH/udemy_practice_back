@@ -41,7 +41,6 @@ export class CategoriesCourseAdminService {
         limit,
       };
     } catch (error) {
-      console.log('error', error);
       throw new BadRequestException('Error getting categories');
     }
   }
@@ -67,7 +66,6 @@ export class CategoriesCourseAdminService {
         limit,
       };
     } catch (error) {
-      console.log('error', error);
       throw new BadRequestException('Error getting categories');
     }
   }
@@ -84,7 +82,6 @@ export class CategoriesCourseAdminService {
 
       return category;
     } catch (error) {
-      console.log('error', error);
       throw new BadRequestException('Error getting category');
     }
   }
@@ -94,7 +91,6 @@ export class CategoriesCourseAdminService {
       await this.findOne(id);
       return this.categoryCourseRepository.update(id, updateCategoryCourseDto);
     } catch (error) {
-      console.log('error', error);
       throw new BadRequestException('Error updating category');
     }
   }
@@ -104,7 +100,6 @@ export class CategoriesCourseAdminService {
       await this.findOne(id);
       return this.categoryCourseRepository.softDelete(id);
     } catch (error) {
-      console.log('error', error);
       throw new BadRequestException('Error deleting category');
     }
   }

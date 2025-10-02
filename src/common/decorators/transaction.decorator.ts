@@ -22,7 +22,6 @@ export const WithTransaction = () => {
         return result;
       } catch (error) {
         await queryRunner.rollbackTransaction();
-        console.log('error', error);
         throw new BadRequestException(
           `Error in ${propertyKey}: ${error.message}`,
         );

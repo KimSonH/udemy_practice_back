@@ -130,7 +130,7 @@ export class CoursesAdminController {
   @ApiQuery({ name: 'limit', required: false, type: 'number' })
   @Get()
   getCourses(@Query() query: PaginationParams) {
-    return this.coursesService.findAll(query);
+    return this.coursesService.findAllByAdmin(query);
   }
 
   @ApiOperation({ summary: 'Get course by ID' })

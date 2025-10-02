@@ -64,7 +64,6 @@ export class ClassMarkersService {
 
       return groupedMarkers;
     } catch (error) {
-      console.log(error);
       throw new BadRequestException(
         'Error grouping class markers by category name',
       );
