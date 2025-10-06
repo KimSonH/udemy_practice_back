@@ -242,6 +242,7 @@ export class PaymentsService {
     await this.userCoursesService.update(userCourse.id, {
       status,
     });
+    return userCourse;
   }
 
   create(createPaymentDto: CreatePaymentDto) {
