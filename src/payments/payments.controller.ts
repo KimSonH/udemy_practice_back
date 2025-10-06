@@ -59,7 +59,10 @@ export class PaymentsController {
   @Post('verify-session')
   async verifySession(@Body() body: { sessionId: string }) {
     const verify = await this.paymentsService.verifySession(body.sessionId);
-    await this.paymentsService.updateUserCourseWithStatus(verify, 'completed');
+    return await this.paymentsService.updateUserCourseWithStatus(
+      verify,
+      'completed',
+    );
   }
 
   @Get()

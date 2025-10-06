@@ -28,7 +28,7 @@ export class PaymentsPremiumController {
     private readonly userPremiumService: UserPremiumsService,
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   @UseGuards(JwtAuthenticationGuard)
   @Post('/orders')
@@ -90,7 +90,7 @@ export class PaymentsPremiumController {
 
     try {
       const privateKey = this.configService.get('MASS_PRIVATE_KEY');
-       await firstValueFrom(
+      await firstValueFrom(
         this.httpService.post(
           'http://localhost:3304/api/account-service/sold-account',
           { account_id: Number(userPremium.accountId) },
@@ -126,6 +126,8 @@ export class PaymentsPremiumController {
         userEmail: userPremium.user.email,
         accountUsername: soldItem.email,
         accountPassword: soldItem.password,
+        firstName: userPremium.user.firstName,
+        lastName: userPremium.user.lastName,
       },
     };
   }
