@@ -239,6 +239,9 @@ export class PaymentsService {
   ) {
     const { userCourseId } = body;
     const userCourse = await this.userCoursesService.findOne(userCourseId);
+    if (userCourse.status === 'completed') {
+      throw new BadRequestException('User course already purchased');
+    }
     await this.userCoursesService.update(userCourse.id, {
       status,
     });
