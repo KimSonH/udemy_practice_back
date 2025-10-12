@@ -74,12 +74,15 @@ export class PaymentsPremiumService {
     };
 
     try {
-      const { body, ...httpResponse } = await this.ordersController.createOrder(collect);
+      const { body, ...httpResponse } =
+        await this.ordersController.createOrder(collect);
       const response = JSON.parse(body.toString());
 
-      this.logger.log(`Order account premium created successfully: ${response.id}`);
+      this.logger.log(
+        `Order account premium created successfully: ${response.id}`,
+      );
 
-       if (response.id) {
+      if (response.id) {
         const userCourse = await this.userPremiumService.create({
           userId: user.id,
           accountEmail,
@@ -198,7 +201,7 @@ export class PaymentsPremiumService {
     userId: number,
     accountEmail: string,
     accountId: number,
-    orderBy:string
+    orderBy: string,
   ) {
     const userPremium = await this.createUserPremiumWithStatus({
       userId,
@@ -250,7 +253,10 @@ export class PaymentsPremiumService {
 
       return userPremium;
     } catch (error) {
-      this.logger.error('Failed to create user premium', error?.message || error);
+      this.logger.error(
+        'Failed to create user premium',
+        error?.message || error,
+      );
       throw new BadRequestException('Could not create premium access');
     }
   }
@@ -265,8 +271,8 @@ export class PaymentsPremiumService {
       body.userPremiumId,
     );
 
-    if (!userPremium) {
-      throw new BadRequestException('UserPremium not found');
+    if (userPremium.status === 'completed') {
+      throw new BadRequestException('User premium already purchased');
     }
 
     await this.userPremiumService.update(userPremium.id, {
