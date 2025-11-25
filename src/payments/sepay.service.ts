@@ -4,6 +4,7 @@ import { SePayPgClient } from 'sepay-pg-node';
 import { SepayPaymentMethod } from './dto/create-sepay-payment.dto';
 
 interface SepayCheckoutParams {
+  operation?: 'PURCHASE';
   invoiceNumber: string;
   amount: number;
   description: string;
@@ -26,10 +27,11 @@ export class SepayService {
   }
 
   private createClient() {
-    const env =
-      (this.configService.get<'sandbox' | 'production'>('SEPAY_ENV') ??
-        'sandbox') as 'sandbox' | 'production';
-    const merchantId = this.configService.get<string>('SEPAY_MERCHANT_ID') ?? '';
+    const env = (this.configService.get<'sandbox' | 'production'>(
+      'SEPAY_ENV',
+    ) ?? 'sandbox') as 'sandbox' | 'production';
+    const merchantId =
+      this.configService.get<string>('SEPAY_MERCHANT_ID') ?? '';
     const secretKey = this.configService.get<string>('SEPAY_SECRET_KEY') ?? '';
     return new SePayPgClient({
       env,
@@ -56,8 +58,8 @@ export class SepayService {
       'VND';
     const paymentMethod =
       params.paymentMethod ??
-      (this.configService.get<SepayPaymentMethod>('SEPAY_PAYMENT_METHOD') ??
-        'BANK_TRANSFER');
+      this.configService.get<SepayPaymentMethod>('SEPAY_PAYMENT_METHOD') ??
+      'BANK_TRANSFER';
     const successUrl =
       params.successUrl ?? this.configService.get<string>('SEPAY_SUCCESS_URL');
     const errorUrl =
@@ -66,6 +68,7 @@ export class SepayService {
       params.cancelUrl ?? this.configService.get<string>('SEPAY_CANCEL_URL');
 
     const fields = this.client.checkout.initOneTimePaymentFields({
+      operation: 'PURCHASE',
       payment_method: paymentMethod,
       order_invoice_number: params.invoiceNumber,
       order_amount: params.amount,
@@ -103,9 +106,7 @@ export class SepayService {
       {} as Record<string, any>,
     );
 
-    const expectedSignature =
-      this.client.checkout.signFields(sanitizedFields);
+    const expectedSignature = this.client.checkout.signFields(sanitizedFields);
     return expectedSignature === signature;
   }
 }
-
