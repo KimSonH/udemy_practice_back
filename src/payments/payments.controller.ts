@@ -17,6 +17,8 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import JwtAuthenticationGuard from 'src/authentication/guard/jwt-authentication.guard';
 import { RequestWithUser } from 'src/authentication/requestWithUser.interface';
 import { GenerateSessionDto } from './dto/generate-session.dto';
+import { CreateSepayPaymentDto } from './dto/create-sepay-payment.dto';
+import { SepayWebhookDto } from './dto/sepay-webhook.dto';
 
 @Controller('payments')
 export class PaymentsController {
@@ -63,6 +65,20 @@ export class PaymentsController {
       verify,
       'completed',
     );
+  }
+
+  @UseGuards(JwtAuthenticationGuard)
+  @Post('sepay/checkout')
+  async createSepayCheckout(
+    @Req() req: RequestWithUser,
+    @Body() body: CreateSepayPaymentDto,
+  ) {
+    return this.paymentsService.createSepayCheckout(req.user, body);
+  }
+
+  @Post('sepay/webhook')
+  async handleSepayWebhook(@Body() payload: SepayWebhookDto) {
+    return this.paymentsService.handleSepayWebhook(payload);
   }
 
   @Get()

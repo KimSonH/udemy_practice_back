@@ -19,6 +19,10 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { User } from 'src/users/entities/user.entity';
 import { GenerateSessionDto } from './dto/generate-session.dto';
+import { CreateSepayPaymentDto } from './dto/create-sepay-payment.dto';
+import { SepayService } from './sepay.service';
+import { SepayWebhookDto } from './dto/sepay-webhook.dto';
+import { randomBytes } from 'crypto';
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
@@ -31,6 +35,7 @@ export class PaymentsService {
     private readonly userCoursesService: UserCoursesService,
     private readonly coursesService: CoursesService,
     private readonly jwtService: JwtService,
+    private readonly sepayService: SepayService,
   ) {
     this.client = new Client({
       clientCredentialsAuthCredentials: {
@@ -208,8 +213,10 @@ export class PaymentsService {
     courseId: number;
     status: 'pending' | 'completed' | 'failed';
     orderBy: string;
+    orderId?: string;
+    orderData?: string | null;
   }) {
-    const { userId, courseId, status, orderBy } = body;
+    const { userId, courseId, status, orderBy, orderId, orderData } = body;
     const course = await this.coursesService.getCourseById(+courseId);
     if (!course) {
       throw new BadRequestException('User course not found');
@@ -218,8 +225,8 @@ export class PaymentsService {
       const userCourse = await this.userCoursesService.create({
         courseId,
         userId,
-        orderData: null,
-        orderId: null,
+        orderData: orderData ?? null,
+        orderId: orderId ?? null,
         orderBy,
         status,
       });
@@ -246,6 +253,117 @@ export class PaymentsService {
       status,
     });
     return userCourse;
+  }
+
+  async createSepayCheckout(user: User, body: CreateSepayPaymentDto) {
+    if (!this.sepayService.isConfigured()) {
+      throw new BadRequestException(
+        'SePay credentials are not configured. Please update the environment variables.',
+      );
+    }
+
+    const course = await this.coursesService.getCourseById(body.courseId);
+    if (!course?.price) {
+      throw new BadRequestException('Course price is not configured yet');
+    }
+
+    const amount = Math.round(Number(course.price));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException('Invalid course price for SePay');
+    }
+
+    const invoiceNumber = this.buildSepayInvoiceNumber(user.id, course.id);
+    const userCourse = await this.createUserCourseWithStatus({
+      userId: user.id,
+      courseId: course.id,
+      status: 'pending',
+      orderBy: 'sepay',
+      orderId: invoiceNumber,
+      orderData: '{}',
+    });
+
+    const customData = JSON.stringify({
+      userCourseId: userCourse.id,
+      userId: user.id,
+      courseId: course.id,
+    });
+
+    const description = `Thanh toan khoa hoc ${course.name}`;
+    const tokenLink = this.generateLinkSession({
+      userId: user.id,
+      courseId: course.id,
+      orderBy: 'sepay',
+    });
+    const successUrl = `${this.configService.get('SITE_URL')}/payments-session?sessionId=${tokenLink}`;
+    const checkoutPayload = this.sepayService.initOneTimePaymentFields({
+      invoiceNumber,
+      amount,
+      description,
+      customerId: String(user.id),
+      paymentMethod: body.paymentMethod,
+      customData,
+      successUrl,
+    });
+
+    await this.userCoursesService.update(userCourse.id, {
+      orderData: JSON.stringify(checkoutPayload.fields),
+    });
+
+    return {
+      checkoutUrl: checkoutPayload.checkoutUrl,
+      fields: checkoutPayload.fields,
+      userCourseId: userCourse.id,
+    };
+  }
+
+  async handleSepayWebhook(payload: SepayWebhookDto) {
+    if (!this.sepayService.isConfigured()) {
+      throw new BadRequestException(
+        'SePay credentials are not configured. Please update the environment variables.',
+      );
+    }
+
+    const isValidSignature = this.sepayService.verifySignature(payload);
+    if (!isValidSignature) {
+      throw new BadRequestException('Invalid SePay signature');
+    }
+
+    const userCourse = await this.userCoursesService.findOneByOrderId(
+      payload.order_invoice_number,
+    );
+
+    const resolvedStatus = this.resolveSepayStatus(
+      payload.order_status ?? payload.payment_status,
+    );
+
+    const updated = await this.userCoursesService.update(userCourse.id, {
+      status: resolvedStatus,
+      orderData: JSON.stringify(payload),
+    });
+
+    return {
+      userCourseId: updated.id,
+      status: updated.status,
+    };
+  }
+
+  private buildSepayInvoiceNumber(userId: number, courseId: number) {
+    const randomSuffix = randomBytes(4).toString('hex').toUpperCase();
+    return `SEP-${userId}-${courseId}-${Date.now()}-${randomSuffix}`;
+  }
+
+  private resolveSepayStatus(status?: string) {
+    const normalized = status?.toUpperCase();
+    if (!normalized) {
+      return 'pending';
+    }
+    if (['PAID', 'SUCCESS', 'COMPLETED'].includes(normalized)) {
+      return 'completed';
+    }
+    if (['CANCELED', 'FAILED', 'ERROR', 'VOID'].includes(normalized)) {
+      return 'failed';
+    }
+    return 'pending';
   }
 
   create(createPaymentDto: CreatePaymentDto) {

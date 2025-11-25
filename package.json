@@ -54,6 +54,7 @@
     "pg": "^8.13.3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "sepay-pg-node": "^1.0.0",
     "transliteration": "^2.3.5",
     "typeorm": "^0.3.20"
   },
