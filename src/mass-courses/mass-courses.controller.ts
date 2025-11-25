@@ -10,7 +10,7 @@ export class MassCoursesController {
 
   @Get()
   @ApiOperation({ summary: 'Get Mass Courses' })
-  @ApiQuery({ name: 'page', required: false, example: '0' })
+  @ApiQuery({ name: 'page', required: false, example: '1' })
   @ApiQuery({ name: 'limit', required: false, example: '12' })
   @ApiQuery({ name: 'search', required: false, example: 'CISSP' })
   @ApiQuery({ name: 'category', required: false, example: 'security' })
