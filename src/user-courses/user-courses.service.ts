@@ -136,6 +136,16 @@ export class UserCoursesService {
     }
   }
 
+  async findOneByOrderId(orderId: string) {
+    const userCourse = await this.userCourseRepository.findOne({
+      where: { orderId },
+    });
+    if (!userCourse) {
+      throw new BadRequestException('User course not found');
+    }
+    return userCourse;
+  }
+
   async findOneWithUserId(
     userId: number,
     id: number,
