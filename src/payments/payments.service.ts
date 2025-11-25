@@ -301,7 +301,7 @@ export class PaymentsService {
     const successUrl = `${this.configService.get('SITE_URL')}/payments-session?sessionId=${token}`;
     const checkoutPayload = this.sepayService.initOneTimePaymentFields({
       invoiceNumber,
-      amount,
+      amount: amount * 26000,
       description,
       customerId: String(user.id),
       paymentMethod: body.paymentMethod,
