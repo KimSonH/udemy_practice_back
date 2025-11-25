@@ -289,12 +289,16 @@ export class PaymentsService {
     });
 
     const description = `Thanh toan khoa hoc ${course.name}`;
-    const tokenLink = this.generateLinkSession({
-      userId: user.id,
-      courseId: course.id,
-      orderBy: 'sepay',
+    const payload: {
+      userId: number;
+      courseId: number;
+      userCourseId: number;
+    } = { userId: user.id, courseId: course.id, userCourseId: userCourse.id };
+    const token = this.jwtService.sign(payload, {
+      secret: this.configService.get('JWT_VERIFICATION_TOKEN_SECRET'),
+      expiresIn: `${this.configService.get('JWT_VERIFICATION_TOKEN_EXPIRATION_TIME')}s`,
     });
-    const successUrl = `${this.configService.get('SITE_URL')}/payments-session?sessionId=${tokenLink}`;
+    const successUrl = `${this.configService.get('SITE_URL')}/payments-session?sessionId=${token}`;
     const checkoutPayload = this.sepayService.initOneTimePaymentFields({
       invoiceNumber,
       amount,
