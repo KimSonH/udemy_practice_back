@@ -4,6 +4,7 @@ import { SePayPgClient } from 'sepay-pg-node';
 import { SepayPaymentMethod } from './dto/create-sepay-payment.dto';
 
 interface SepayCheckoutParams {
+  operation?: 'PURCHASE';
   invoiceNumber: string;
   amount: number;
   description: string;
@@ -26,10 +27,11 @@ export class SepayService {
   }
 
   private createClient() {
-    const env =
-      (this.configService.get<'sandbox' | 'production'>('SEPAY_ENV') ??
-        'sandbox') as 'sandbox' | 'production';
-    const merchantId = this.configService.get<string>('SEPAY_MERCHANT_ID') ?? '';
+    const env = (this.configService.get<'sandbox' | 'production'>(
+      'SEPAY_ENV',
+    ) ?? 'sandbox') as 'sandbox' | 'production';
+    const merchantId =
+      this.configService.get<string>('SEPAY_MERCHANT_ID') ?? '';
     const secretKey = this.configService.get<string>('SEPAY_SECRET_KEY') ?? '';
     return new SePayPgClient({
       env,
@@ -56,8 +58,8 @@ export class SepayService {
       'VND';
     const paymentMethod =
       params.paymentMethod ??
-      (this.configService.get<SepayPaymentMethod>('SEPAY_PAYMENT_METHOD') ??
-        'BANK_TRANSFER');
+      this.configService.get<SepayPaymentMethod>('SEPAY_PAYMENT_METHOD') ??
+      'BANK_TRANSFER';
     const successUrl =
       params.successUrl ?? this.configService.get<string>('SEPAY_SUCCESS_URL');
     const errorUrl =
@@ -66,21 +68,63 @@ export class SepayService {
       params.cancelUrl ?? this.configService.get<string>('SEPAY_CANCEL_URL');
 
     const fields = this.client.checkout.initOneTimePaymentFields({
-      payment_method: paymentMethod,
-      order_invoice_number: params.invoiceNumber,
-      order_amount: params.amount,
       currency,
+      order_amount: params.amount,
+      operation: 'PURCHASE',
       order_description: params.description,
+      order_invoice_number: params.invoiceNumber,
       customer_id: params.customerId,
       success_url: successUrl,
       error_url: errorUrl,
       cancel_url: cancelUrl,
+      payment_method: paymentMethod,
       custom_data: params.customData,
     });
 
+    // Sắp xếp lại thứ tự các fields theo form HTML chuẩn
+    const orderedFields: Record<string, any> = {};
+    const fieldOrder = [
+      'merchant',
+      'currency',
+      'order_amount',
+      'operation',
+      'order_description',
+      'order_invoice_number',
+      'customer_id',
+      'success_url',
+      'error_url',
+      'cancel_url',
+      'signature',
+      'payment_method',
+      'custom_data',
+    ];
+
+    // Thêm các fields theo thứ tự đúng
+    for (const key of fieldOrder) {
+      if (
+        fields[key] !== undefined &&
+        fields[key] !== null &&
+        fields[key] !== ''
+      ) {
+        orderedFields[key] = fields[key];
+      }
+    }
+
+    // Thêm các fields khác (nếu có) mà không nằm trong danh sách
+    for (const key in fields) {
+      if (
+        !fieldOrder.includes(key) &&
+        fields[key] !== undefined &&
+        fields[key] !== null &&
+        fields[key] !== ''
+      ) {
+        orderedFields[key] = fields[key];
+      }
+    }
+
     return {
       checkoutUrl: this.getCheckoutUrl(),
-      fields,
+      fields: orderedFields,
     };
   }
 
@@ -103,9 +147,7 @@ export class SepayService {
       {} as Record<string, any>,
     );
 
-    const expectedSignature =
-      this.client.checkout.signFields(sanitizedFields);
+    const expectedSignature = this.client.checkout.signFields(sanitizedFields);
     return expectedSignature === signature;
   }
 }
-
