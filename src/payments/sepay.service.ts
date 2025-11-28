@@ -68,22 +68,63 @@ export class SepayService {
       params.cancelUrl ?? this.configService.get<string>('SEPAY_CANCEL_URL');
 
     const fields = this.client.checkout.initOneTimePaymentFields({
-      operation: 'PURCHASE',
-      payment_method: paymentMethod,
-      order_invoice_number: params.invoiceNumber,
-      order_amount: params.amount,
       currency,
+      order_amount: params.amount,
+      operation: 'PURCHASE',
       order_description: params.description,
+      order_invoice_number: params.invoiceNumber,
       customer_id: params.customerId,
       success_url: successUrl,
       error_url: errorUrl,
       cancel_url: cancelUrl,
+      payment_method: paymentMethod,
       custom_data: params.customData,
     });
 
+    // Sắp xếp lại thứ tự các fields theo form HTML chuẩn
+    const orderedFields: Record<string, any> = {};
+    const fieldOrder = [
+      'merchant',
+      'currency',
+      'order_amount',
+      'operation',
+      'order_description',
+      'order_invoice_number',
+      'customer_id',
+      'success_url',
+      'error_url',
+      'cancel_url',
+      'signature',
+      'payment_method',
+      'custom_data',
+    ];
+
+    // Thêm các fields theo thứ tự đúng
+    for (const key of fieldOrder) {
+      if (
+        fields[key] !== undefined &&
+        fields[key] !== null &&
+        fields[key] !== ''
+      ) {
+        orderedFields[key] = fields[key];
+      }
+    }
+
+    // Thêm các fields khác (nếu có) mà không nằm trong danh sách
+    for (const key in fields) {
+      if (
+        !fieldOrder.includes(key) &&
+        fields[key] !== undefined &&
+        fields[key] !== null &&
+        fields[key] !== ''
+      ) {
+        orderedFields[key] = fields[key];
+      }
+    }
+
     return {
       checkoutUrl: this.getCheckoutUrl(),
-      fields,
+      fields: orderedFields,
     };
   }
 
