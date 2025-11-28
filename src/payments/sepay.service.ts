@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SePayPgClient } from 'sepay-pg-node';
-import { SepayPaymentMethod } from './dto/create-sepay-payment.dto';
 
 interface SepayCheckoutParams {
   operation?: 'PURCHASE';
@@ -9,7 +8,6 @@ interface SepayCheckoutParams {
   amount: number;
   description: string;
   customerId?: string;
-  paymentMethod?: SepayPaymentMethod;
   successUrl?: string;
   errorUrl?: string;
   cancelUrl?: string;
@@ -56,10 +54,6 @@ export class SepayService {
       params.currency ??
       this.configService.get<string>('SEPAY_CURRENCY') ??
       'VND';
-    const paymentMethod =
-      params.paymentMethod ??
-      this.configService.get<SepayPaymentMethod>('SEPAY_PAYMENT_METHOD') ??
-      'BANK_TRANSFER';
     const successUrl =
       params.successUrl ?? this.configService.get<string>('SEPAY_SUCCESS_URL');
     const errorUrl =
@@ -77,7 +71,6 @@ export class SepayService {
       success_url: successUrl,
       error_url: errorUrl,
       cancel_url: cancelUrl,
-      payment_method: paymentMethod,
       custom_data: params.customData,
     });
 
@@ -95,7 +88,6 @@ export class SepayService {
       'error_url',
       'cancel_url',
       'signature',
-      'payment_method',
       'custom_data',
     ];
 
