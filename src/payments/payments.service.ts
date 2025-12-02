@@ -288,7 +288,7 @@ export class PaymentsService {
       courseId: course.id,
     });
 
-    const description = `Thanh toan khoa hoc ${course.name}`;
+    const description = `${course.name}`;
     const payload: {
       userId: number;
       courseId: number;
@@ -310,6 +310,8 @@ export class PaymentsService {
       errorUrl,
       cancelUrl,
     });
+
+    console.log(checkoutPayload);
 
     await this.userCoursesService.update(userCourse.id, {
       orderData: JSON.stringify(checkoutPayload.fields),
