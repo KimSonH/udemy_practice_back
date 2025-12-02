@@ -306,7 +306,6 @@ export class PaymentsService {
       amount: amount * 26000,
       description,
       customerId: String(user.id),
-      customData,
       successUrl,
       errorUrl,
       cancelUrl,
