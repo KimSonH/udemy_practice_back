@@ -311,8 +311,6 @@ export class PaymentsService {
       cancelUrl,
     });
 
-    console.log(checkoutPayload);
-
     await this.userCoursesService.update(userCourse.id, {
       orderData: JSON.stringify(checkoutPayload.fields),
     });
