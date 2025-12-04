@@ -299,16 +299,16 @@ export class PaymentsService {
       expiresIn: `${this.configService.get('JWT_VERIFICATION_TOKEN_EXPIRATION_TIME')}s`,
     });
     const successUrl = `${this.configService.get('SITE_URL')}/payment-session?sessionId=${token}`;
-    const errorUrl = `${this.configService.get('SITE_URL')}/courses/${course.id}`;
-    const cancelUrl = `${this.configService.get('SITE_URL')}/courses/${course.id}`;
+    // const errorUrl = `${this.configService.get('SITE_URL')}/courses/${course.id}`;
+    // const cancelUrl = `${this.configService.get('SITE_URL')}/courses/${course.id}`;
     const checkoutPayload = this.sepayService.initOneTimePaymentFields({
       invoiceNumber,
       amount: amount * 26000,
       description,
       customerId: String(user.id),
       successUrl,
-      errorUrl,
-      cancelUrl,
+      // errorUrl,
+      // cancelUrl,
     });
 
     await this.userCoursesService.update(userCourse.id, {
