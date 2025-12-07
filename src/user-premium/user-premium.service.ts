@@ -16,7 +16,7 @@ import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class UserPremiumsService {
-  private logger = new Logger(UserPremiumsService.name);
+  private readonly logger = new Logger(UserPremiumsService.name);
 
   private relations = ['user'];
 
@@ -249,7 +249,7 @@ export class UserPremiumsService {
 
       return response.data;
     } catch (error) {
-      console.error(
+      this.logger.error(
         'getSoldAccountInfo error:',
         error?.response?.data || error,
       );
