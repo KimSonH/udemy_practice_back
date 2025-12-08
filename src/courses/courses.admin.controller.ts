@@ -31,6 +31,7 @@ import { UpdateCourseDto } from './dto/update-course.dto';
 import LocalFilesInterceptor from 'src/interceptors/localFiles.interceptor';
 import { Course } from './entities/courses.entity';
 import { VideoCourseDto } from './dto/create-video-course.dto';
+import { UpdateStatusDto } from './dto/update-status.dto';
 
 @ApiTags('Admin Courses')
 @ApiBearerAuth()
@@ -143,6 +144,19 @@ export class CoursesAdminController {
     return this.coursesService.getCourseById(id);
   }
 
+  @ApiOperation({ summary: 'Update status of course' })
+  @ApiResponse({
+    status: 200,
+    description: 'Status of course successfully updated',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'Course not found' })
+  @ApiBody({ type: UpdateStatusDto })
+  @Put('status')
+  updateStatus(@Body() body: UpdateStatusDto) {
+    return this.coursesService.updateManyStatus(body.ids, body.status);
+  }
+
   @ApiOperation({ summary: 'Update course' })
   @ApiResponse({
     status: 200,
@@ -153,7 +167,7 @@ export class CoursesAdminController {
   @ApiResponse({ status: 404, description: 'Course not found' })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiBody({ type: UpdateCourseDto })
-  @Put(':id')
+  @Put('/:id')
   updateCourse(@Param('id') id: number, @Body() course: UpdateCourseDto) {
     return this.coursesService.updateCourse(id, course);
   }

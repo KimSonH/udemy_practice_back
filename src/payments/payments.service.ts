@@ -307,8 +307,8 @@ export class PaymentsService {
       description,
       customerId: String(user.id),
       successUrl,
-      // errorUrl,
-      // cancelUrl,
+      errorUrl: '',
+      cancelUrl: '',
     });
 
     await this.userCoursesService.update(userCourse.id, {

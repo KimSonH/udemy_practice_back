@@ -434,7 +434,6 @@ export class CoursesService {
           'udemyQuestionBanks',
         )
         .leftJoinAndSelect('courseSessions.courseContents', 'courseContents')
-        .where('course.status = :status', { status: 'active' })
         .andWhere('course.deletedAt IS NULL')
         .andWhere(
           new Brackets((qb) => {
@@ -1022,5 +1021,20 @@ export class CoursesService {
       updateCourse,
     );
     return course;
+  }
+
+  async updateManyStatus(ids: string[], status: string) {
+    try {
+      const courses = await this.coursesRepository.find({
+        where: { id: In(ids.map((id) => Number(id))) },
+      });
+      return this.coursesRepository.update(
+        courses.map((course) => course.id),
+        { status },
+      );
+    } catch (error) {
+      this.logger.error(`Error updating many status: ${error.message}`);
+      throw new BadRequestException('Error updating many status');
+    }
   }
 }
