@@ -6,11 +6,20 @@ import { UserCoursesModule } from 'src/user-courses/user-courses.module';
 import { CoursesModule } from 'src/courses/courses.module';
 import { JwtModule } from '@nestjs/jwt';
 import { SepayService } from './sepay.service';
+import { TBTransactionService } from './tb-transaction.service';
+import { TBTransaction } from './entities/tb-transaction.entity';
+import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({
-  imports: [ConfigModule, UserCoursesModule, CoursesModule, JwtModule],
+  imports: [
+    ConfigModule,
+    UserCoursesModule,
+    CoursesModule,
+    JwtModule,
+    TypeOrmModule.forFeature([TBTransaction]),
+  ],
   controllers: [PaymentsController],
-  providers: [PaymentsService, SepayService],
+  providers: [PaymentsService, SepayService, TBTransactionService],
   exports: [PaymentsService],
 })
 export class PaymentsModule {}

@@ -18,7 +18,7 @@ import JwtAuthenticationGuard from 'src/authentication/guard/jwt-authentication.
 import { RequestWithUser } from 'src/authentication/requestWithUser.interface';
 import { GenerateSessionDto } from './dto/generate-session.dto';
 import { CreateSepayPaymentDto } from './dto/create-sepay-payment.dto';
-import { SepayWebhookDto } from './dto/sepay-webhook.dto';
+import { CreateTransactionDto } from './dto/create-transaction.dto';
 
 @Controller('payments')
 export class PaymentsController {
@@ -77,7 +77,7 @@ export class PaymentsController {
   }
 
   @Post('sepay/webhook')
-  async handleSepayWebhook(@Body() payload: SepayWebhookDto) {
+  async handleSepayWebhook(@Body() payload: CreateTransactionDto) {
     return this.paymentsService.handleSepayWebhook(payload);
   }
 
