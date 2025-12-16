@@ -21,8 +21,9 @@ import { User } from 'src/users/entities/user.entity';
 import { GenerateSessionDto } from './dto/generate-session.dto';
 import { CreateSepayPaymentDto } from './dto/create-sepay-payment.dto';
 import { SepayService } from './sepay.service';
-import { SepayWebhookDto } from './dto/sepay-webhook.dto';
+import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { randomBytes } from 'crypto';
+import { TBTransactionService } from './tb-transaction.service';
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
@@ -36,6 +37,7 @@ export class PaymentsService {
     private readonly coursesService: CoursesService,
     private readonly jwtService: JwtService,
     private readonly sepayService: SepayService,
+    private readonly tbTransactionService: TBTransactionService,
   ) {
     this.client = new Client({
       clientCredentialsAuthCredentials: {
@@ -322,35 +324,8 @@ export class PaymentsService {
     };
   }
 
-  async handleSepayWebhook(payload: SepayWebhookDto) {
-    if (!this.sepayService.isConfigured()) {
-      throw new BadRequestException(
-        'SePay credentials are not configured. Please update the environment variables.',
-      );
-    }
-
-    const isValidSignature = this.sepayService.verifySignature(payload);
-    if (!isValidSignature) {
-      throw new BadRequestException('Invalid SePay signature');
-    }
-
-    const userCourse = await this.userCoursesService.findOneByOrderId(
-      payload.order_invoice_number,
-    );
-
-    const resolvedStatus = this.resolveSepayStatus(
-      payload.order_status ?? payload.payment_status,
-    );
-
-    const updated = await this.userCoursesService.update(userCourse.id, {
-      status: resolvedStatus,
-      orderData: JSON.stringify(payload),
-    });
-
-    return {
-      userCourseId: updated.id,
-      status: updated.status,
-    };
+  async handleSepayWebhook(payload: CreateTransactionDto) {
+    return this.tbTransactionService.createFromWebhook(payload);
   }
 
   private buildSepayInvoiceNumber(userId: number, courseId: number) {
