@@ -152,6 +152,8 @@
 
 
 import {
+  BadGatewayException,
+  HttpException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -170,7 +172,7 @@ export class MassCoursesService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   async getMassCourses(query: GetCoursesDto) {
     const { page = '1', limit = '12', search = '', category = '' } = query;
@@ -204,5 +206,29 @@ export class MassCoursesService {
         items: response.data.data?.items ?? [],
       },
     };
+  }
+
+
+  async getEnrolledAccount(courseId: number) {
+    const baseUrl = this.configService.get<string>('MASS_BASE_API_URL');
+    const privateKey = this.configService.get<string>('MASS_PRIVATE_KEY');
+
+    const url = `${baseUrl}/course-service/mass-courses/enrolled?course_id=${courseId}`;
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-Private-key': privateKey,
+          },
+        }),
+      );
+
+      return response.data;
+    } catch (err) {
+      throw new BadGatewayException(
+        err?.response?.data?.message || 'Mass service error',
+      );
+    }
   }
 }
