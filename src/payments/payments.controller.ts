@@ -19,15 +19,13 @@ import { RequestWithUser } from 'src/authentication/requestWithUser.interface';
 import { GenerateSessionDto } from './dto/generate-session.dto';
 import { CreateSepayPaymentDto } from './dto/create-sepay-payment.dto';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
+import { WebhookGuard } from './guard/webhook.guard';
+import { IpnGuard } from './guard/ipn.guard';
+import { SepayIPNDto } from './dto/ipn.dto';
 
 @Controller('payments')
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {}
-
-  @Post()
-  create(@Body() createPaymentDto: CreatePaymentDto) {
-    return this.paymentsService.create(createPaymentDto);
-  }
 
   @UseGuards(JwtAuthenticationGuard)
   @Post('/orders')
@@ -77,27 +75,14 @@ export class PaymentsController {
   }
 
   @Post('sepay/webhook')
+  @UseGuards(WebhookGuard)
   async handleSepayWebhook(@Body() payload: CreateTransactionDto) {
     return this.paymentsService.handleSepayWebhook(payload);
   }
 
-  @Get()
-  findAll() {
-    return this.paymentsService.findAll();
-  }
-
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.paymentsService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updatePaymentDto: UpdatePaymentDto) {
-    return this.paymentsService.update(+id, updatePaymentDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.paymentsService.remove(+id);
+  @Post('sepay/ipn')
+  @UseGuards(IpnGuard)
+  async handleSepayIpn(@Body() payload: SepayIPNDto) {
+    return this.paymentsService.handleSepayIpn(payload);
   }
 }
