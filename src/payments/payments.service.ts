@@ -252,9 +252,9 @@ export class PaymentsService {
     if (userCourse.status === 'completed') {
       throw new BadRequestException('User course already purchased');
     }
-    await this.userCoursesService.update(userCourse.id, {
-      status,
-    });
+    // await this.userCoursesService.update(userCourse.id, {
+    //   status,
+    // });
     return userCourse;
   }
 
