@@ -249,12 +249,12 @@ export class PaymentsService {
   ) {
     const { userCourseId } = body;
     const userCourse = await this.userCoursesService.findOne(userCourseId);
-    if (userCourse.status === 'completed') {
-      throw new BadRequestException('User course already purchased');
+    if (userCourse.status !== 'completed') {
+      await this.userCoursesService.update(userCourse.id, {
+        status,
+      });
     }
-    // await this.userCoursesService.update(userCourse.id, {
-    //   status,
-    // });
+
     return userCourse;
   }
 
@@ -354,12 +354,12 @@ export class PaymentsService {
         await this.userCoursesService.findOneByOrderInvoiceNumber(
           payload.order.order_invoice_number,
         );
-      if (userCourse.status === 'completed') {
-        throw new BadRequestException('User course already purchased');
+      if (userCourse.status !== 'completed') {
+        await this.userCoursesService.update(userCourse.id, {
+          status: 'completed',
+        });
       }
-      await this.userCoursesService.update(userCourse.id, {
-        status: 'completed',
-      });
+
       return { success: true };
     }
 
