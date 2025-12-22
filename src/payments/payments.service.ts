@@ -24,6 +24,7 @@ import { SepayService } from './sepay.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { randomBytes } from 'crypto';
 import { TBTransactionService } from './tb-transaction.service';
+import { SepayIPNDto } from './dto/ipn.dto';
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
@@ -349,23 +350,21 @@ export class PaymentsService {
     return 'pending';
   }
 
-  create(createPaymentDto: CreatePaymentDto) {
-    return 'This action adds a new payment';
-  }
+  async handleSepayIpn(payload: SepayIPNDto) {
+    if (payload.notification_type === 'ORDER_PAID') {
+      const userCourse =
+        await this.userCoursesService.findOneByOrderInvoiceNumber(
+          payload.order.order_invoice_number,
+        );
+      if (userCourse.status === 'completed') {
+        throw new BadRequestException('User course already purchased');
+      }
+      await this.userCoursesService.update(userCourse.id, {
+        status: 'completed',
+      });
+      return { success: true };
+    }
 
-  findAll() {
-    return `This action returns all payments`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} payment`;
-  }
-
-  update(id: number, updatePaymentDto: UpdatePaymentDto) {
-    return `This action updates a #${id} payment`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} payment`;
+    throw new BadRequestException('Invalid IPN payload');
   }
 }
