@@ -276,27 +276,12 @@ export class PaymentsService {
     }
 
     const invoiceNumber = this.buildSepayInvoiceNumber(user.id, course.id);
-    const userCourse = await this.createUserCourseWithStatus({
-      userId: user.id,
-      courseId: course.id,
-      status: 'pending',
-      orderBy: 'sepay',
-      orderId: invoiceNumber,
-      orderData: '{}',
-    });
-
-    const customData = JSON.stringify({
-      userCourseId: userCourse.id,
-      userId: user.id,
-      courseId: course.id,
-    });
 
     const description = `${course.name}`;
     const payload: {
       userId: number;
       courseId: number;
-      userCourseId: number;
-    } = { userId: user.id, courseId: course.id, userCourseId: userCourse.id };
+    } = { userId: user.id, courseId: course.id };
     const token = this.jwtService.sign(payload, {
       secret: this.configService.get('JWT_VERIFICATION_TOKEN_SECRET'),
       expiresIn: `${this.configService.get('JWT_VERIFICATION_TOKEN_EXPIRATION_TIME')}s`,
@@ -314,14 +299,9 @@ export class PaymentsService {
       cancelUrl,
     });
 
-    await this.userCoursesService.update(userCourse.id, {
-      orderData: JSON.stringify(checkoutPayload.fields),
-    });
-
     return {
       checkoutUrl: checkoutPayload.checkoutUrl,
       fields: checkoutPayload.fields,
-      userCourseId: userCourse.id,
     };
   }
 
@@ -334,29 +314,58 @@ export class PaymentsService {
     return `SEP-${userId}-${courseId}-${Date.now()}-${randomSuffix}`;
   }
 
-  private resolveSepayStatus(status?: string) {
-    const normalized = status?.toUpperCase();
-    if (!normalized) {
-      return 'pending';
+  private parseSepayInvoiceNumber(invoiceNumber: string): {
+    userId: number;
+    courseId: number;
+  } | null {
+    // Format: SEP-{userId}-{courseId}-{timestamp}-{randomSuffix}
+    const parts = invoiceNumber.split('-');
+    if (parts.length < 4 || parts[0] !== 'SEP') {
+      return null;
     }
-    if (['PAID', 'SUCCESS', 'COMPLETED'].includes(normalized)) {
-      return 'completed';
+    const userId = parseInt(parts[1], 10);
+    const courseId = parseInt(parts[2], 10);
+    if (isNaN(userId) || isNaN(courseId)) {
+      return null;
     }
-    if (['CANCELED', 'FAILED', 'ERROR', 'VOID'].includes(normalized)) {
-      return 'failed';
-    }
-    return 'pending';
+    return { userId, courseId };
   }
 
   async handleSepayIpn(payload: SepayIPNDto) {
     if (payload.notification_type === 'ORDER_PAID') {
-      const userCourse =
-        await this.userCoursesService.findOneByOrderInvoiceNumber(
-          payload.order.order_invoice_number,
+      const invoiceNumber = payload.order.order_invoice_number;
+
+      // Extract userId and courseId from invoice number
+      const parsed = this.parseSepayInvoiceNumber(invoiceNumber);
+      if (!parsed) {
+        throw new BadRequestException(
+          `Invalid invoice number format: ${invoiceNumber}`,
         );
-      if (userCourse.status !== 'completed') {
-        await this.userCoursesService.update(userCourse.id, {
+      }
+
+      const { userId, courseId } = parsed;
+
+      // Check if userCourse already exists
+      let userCourse;
+      try {
+        userCourse =
+          await this.userCoursesService.findOneByOrderInvoiceNumber(
+            invoiceNumber,
+          );
+      } catch (error) {
+        // UserCourse doesn't exist, will create it below
+        userCourse = null;
+      }
+
+      // Create userCourse only if it doesn't exist
+      if (!userCourse) {
+        await this.createUserCourseWithStatus({
+          userId,
+          courseId,
           status: 'completed',
+          orderBy: 'sepay',
+          orderId: invoiceNumber,
+          orderData: JSON.stringify(payload),
         });
       }
 
