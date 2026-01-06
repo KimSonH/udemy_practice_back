@@ -65,6 +65,14 @@ export class PaymentsController {
     );
   }
 
+  @Post('verify-session-success')
+  async verifySessionSuccess(@Body() body: { sessionId: string }) {
+    const verify = await this.paymentsService.verifySessionSuccess(
+      body.sessionId,
+    );
+    return await this.paymentsService.getUserAndCourse(verify.userCourseId);
+  }
+
   @UseGuards(JwtAuthenticationGuard)
   @Post('sepay/checkout')
   async createSepayCheckout(

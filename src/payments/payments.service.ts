@@ -25,6 +25,7 @@ import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { randomBytes } from 'crypto';
 import { TBTransactionService } from './tb-transaction.service';
 import { SepayIPNDto } from './dto/ipn.dto';
+import { UsersService } from 'src/users/users.service';
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
@@ -34,6 +35,7 @@ export class PaymentsService {
 
   constructor(
     private readonly configService: ConfigService,
+    private readonly usersService: UsersService,
     private readonly userCoursesService: UserCoursesService,
     private readonly coursesService: CoursesService,
     private readonly jwtService: JwtService,
@@ -208,6 +210,36 @@ export class PaymentsService {
       throw new BadRequestException('Invalid session');
     } catch (error) {
       throw new BadRequestException('Invalid session');
+    }
+  }
+
+  async verifySessionSuccess(session: string) {
+    try {
+      const payload = this.jwtService.verify(session, {
+        secret: this.configService.get('JWT_VERIFICATION_TOKEN_SECRET'),
+      });
+      if (
+        typeof payload === 'object' &&
+        'userId' in payload &&
+        'courseId' in payload
+      ) {
+        return payload;
+      }
+      throw new BadRequestException('Invalid session');
+    } catch (error) {
+      throw new BadRequestException('Invalid session');
+    }
+  }
+
+  async getUserAndCourse(body: { userId: number; courseId: number }) {
+    try {
+      const [user, course] = await Promise.all([
+        this.usersService.getById(body.userId),
+        this.coursesService.getCourseById(body.courseId),
+      ]);
+      return { user, course };
+    } catch (error) {
+      throw new BadRequestException(error.message);
     }
   }
 
