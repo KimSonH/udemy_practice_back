@@ -9,10 +9,12 @@ import { SepayService } from './sepay.service';
 import { TBTransactionService } from './tb-transaction.service';
 import { TBTransaction } from './entities/tb-transaction.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { UsersModule } from 'src/users/users.module';
 
 @Module({
   imports: [
     ConfigModule,
+    UsersModule,
     UserCoursesModule,
     CoursesModule,
     JwtModule,
