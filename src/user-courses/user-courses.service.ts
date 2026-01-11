@@ -136,6 +136,16 @@ export class UserCoursesService {
     }
   }
 
+  async findOneByOrderInvoiceNumber(orderInvoiceNumber: string) {
+    const userCourse = await this.userCourseRepository.findOne({
+      where: { orderId: orderInvoiceNumber },
+    });
+    if (!userCourse) {
+      throw new BadRequestException('User course not found');
+    }
+    return userCourse;
+  }
+
   async findOneByOrderId(orderId: string) {
     const userCourse = await this.userCourseRepository.findOne({
       where: { orderId },

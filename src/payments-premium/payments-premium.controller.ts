@@ -9,6 +9,7 @@ import {
   Query,
   BadRequestException,
   InternalServerErrorException,
+  Logger,
 } from '@nestjs/common';
 import { PaymentsPremiumService } from './payments-premium.service';
 import { CreateOrderPremiumDto } from './dto/create-order-premium.dto';
@@ -23,12 +24,14 @@ import { firstValueFrom } from 'rxjs';
 @ApiTags('Payment Premium Accounts')
 @Controller('payments-premium')
 export class PaymentsPremiumController {
+  private readonly logger = new Logger(PaymentsPremiumController.name);
+
   constructor(
     private readonly paymentsPremiumService: PaymentsPremiumService,
     private readonly userPremiumService: UserPremiumsService,
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   @UseGuards(JwtAuthenticationGuard)
   @Post('/orders')
@@ -103,7 +106,7 @@ export class PaymentsPremiumController {
         ),
       );
     } catch (err) {
-      console.error(
+      this.logger.error(
         'Failed to mark account as sold',
         err?.response?.data || err.message || err,
       );

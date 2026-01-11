@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { CreateUdemyQuestionBankDto } from './dto/create-udemy-question-bank.dto';
@@ -11,6 +12,8 @@ import { Like, Repository } from 'typeorm';
 
 @Injectable()
 export class UdemyQuestionBanksService {
+  private readonly logger = new Logger(UdemyQuestionBanksService.name);
+
   constructor(
     @InjectRepository(UdemyQuestionBank)
     private readonly udemyQuestionBanksRepository: Repository<UdemyQuestionBank>,
@@ -39,7 +42,7 @@ export class UdemyQuestionBanksService {
         total,
       };
     } catch (error) {
-      console.log('error', error);
+      this.logger.error('error', error);
       throw new BadRequestException('Error getting questions');
     }
   }
@@ -64,7 +67,7 @@ export class UdemyQuestionBanksService {
         limit,
       };
     } catch (error) {
-      console.log('error', error);
+      this.logger.error('error', error);
       throw new BadRequestException('Error getting questions');
     }
   }
@@ -77,7 +80,7 @@ export class UdemyQuestionBanksService {
         });
       return { questions, total };
     } catch (error) {
-      console.log('error', error);
+      this.logger.error('error', error);
       throw new BadRequestException('Error getting questions');
     }
   }
@@ -93,7 +96,7 @@ export class UdemyQuestionBanksService {
 
       return groupedQuestions;
     } catch (error) {
-      console.log('error', error);
+      this.logger.error('error', error);
       throw new BadRequestException('Error getting questions');
     }
   }
@@ -133,7 +136,7 @@ export class UdemyQuestionBanksService {
 
       return question;
     } catch (error) {
-      console.log('error', error);
+      this.logger.error('error', error);
       throw new BadRequestException('Error getting question');
     }
   }
@@ -149,7 +152,7 @@ export class UdemyQuestionBanksService {
         updateUdemyQuestionBankDto,
       );
     } catch (error) {
-      console.log('error', error);
+      this.logger.error('error', error);
       throw new BadRequestException('Error updating question');
     }
   }
@@ -159,7 +162,7 @@ export class UdemyQuestionBanksService {
       await this.findOne(id);
       return this.udemyQuestionBanksRepository.softDelete(id);
     } catch (error) {
-      console.log('error', error);
+      this.logger.error('error', error);
       throw new BadRequestException('Error deleting question');
     }
   }

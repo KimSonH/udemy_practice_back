@@ -24,6 +24,8 @@ import { SepayService } from './sepay.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { randomBytes } from 'crypto';
 import { TBTransactionService } from './tb-transaction.service';
+import { SepayIPNDto } from './dto/ipn.dto';
+import { UsersService } from 'src/users/users.service';
 @Injectable()
 export class PaymentsService {
   private readonly logger = new Logger(PaymentsService.name);
@@ -33,6 +35,7 @@ export class PaymentsService {
 
   constructor(
     private readonly configService: ConfigService,
+    private readonly usersService: UsersService,
     private readonly userCoursesService: UserCoursesService,
     private readonly coursesService: CoursesService,
     private readonly jwtService: JwtService,
@@ -210,6 +213,36 @@ export class PaymentsService {
     }
   }
 
+  async verifySessionSuccess(session: string) {
+    try {
+      const payload = this.jwtService.verify(session, {
+        secret: this.configService.get('JWT_VERIFICATION_TOKEN_SECRET'),
+      });
+      if (
+        typeof payload === 'object' &&
+        'userId' in payload &&
+        'courseId' in payload
+      ) {
+        return payload;
+      }
+      throw new BadRequestException('Invalid session');
+    } catch (error) {
+      throw new BadRequestException('Invalid session');
+    }
+  }
+
+  async getUserAndCourse(body: { userId: number; courseId: number }) {
+    try {
+      const [user, course] = await Promise.all([
+        this.usersService.getById(body.userId),
+        this.coursesService.getCourseById(body.courseId),
+      ]);
+      return { user, course };
+    } catch (error) {
+      throw new BadRequestException(error.message);
+    }
+  }
+
   async createUserCourseWithStatus(body: {
     userId: number;
     courseId: number;
@@ -248,12 +281,12 @@ export class PaymentsService {
   ) {
     const { userCourseId } = body;
     const userCourse = await this.userCoursesService.findOne(userCourseId);
-    if (userCourse.status === 'completed') {
-      throw new BadRequestException('User course already purchased');
+    if (userCourse.status !== 'completed') {
+      await this.userCoursesService.update(userCourse.id, {
+        status,
+      });
     }
-    await this.userCoursesService.update(userCourse.id, {
-      status,
-    });
+
     return userCourse;
   }
 
@@ -275,32 +308,17 @@ export class PaymentsService {
     }
 
     const invoiceNumber = this.buildSepayInvoiceNumber(user.id, course.id);
-    const userCourse = await this.createUserCourseWithStatus({
-      userId: user.id,
-      courseId: course.id,
-      status: 'pending',
-      orderBy: 'sepay',
-      orderId: invoiceNumber,
-      orderData: '{}',
-    });
 
-    const customData = JSON.stringify({
-      userCourseId: userCourse.id,
-      userId: user.id,
-      courseId: course.id,
-    });
-
-    const description = `Thanh toan khoa hoc ${course.name}`;
+    const description = `${course.name}`;
     const payload: {
       userId: number;
       courseId: number;
-      userCourseId: number;
-    } = { userId: user.id, courseId: course.id, userCourseId: userCourse.id };
+    } = { userId: user.id, courseId: course.id };
     const token = this.jwtService.sign(payload, {
       secret: this.configService.get('JWT_VERIFICATION_TOKEN_SECRET'),
       expiresIn: `${this.configService.get('JWT_VERIFICATION_TOKEN_EXPIRATION_TIME')}s`,
     });
-    const successUrl = `${this.configService.get('SITE_URL')}/payments-session?sessionId=${token}`;
+    const successUrl = `${this.configService.get('SITE_URL')}/payment-session?sessionId=${token}`;
     const errorUrl = `${this.configService.get('SITE_URL')}/courses/${course.id}`;
     const cancelUrl = `${this.configService.get('SITE_URL')}/courses/${course.id}`;
     const checkoutPayload = this.sepayService.initOneTimePaymentFields({
@@ -308,21 +326,14 @@ export class PaymentsService {
       amount: amount * 26000,
       description,
       customerId: String(user.id),
-      paymentMethod: body.paymentMethod,
-      customData,
       successUrl,
       errorUrl,
       cancelUrl,
     });
 
-    await this.userCoursesService.update(userCourse.id, {
-      orderData: JSON.stringify(checkoutPayload.fields),
-    });
-
     return {
       checkoutUrl: checkoutPayload.checkoutUrl,
       fields: checkoutPayload.fields,
-      userCourseId: userCourse.id,
     };
   }
 
@@ -335,37 +346,64 @@ export class PaymentsService {
     return `SEP-${userId}-${courseId}-${Date.now()}-${randomSuffix}`;
   }
 
-  private resolveSepayStatus(status?: string) {
-    const normalized = status?.toUpperCase();
-    if (!normalized) {
-      return 'pending';
+  private parseSepayInvoiceNumber(invoiceNumber: string): {
+    userId: number;
+    courseId: number;
+  } | null {
+    // Format: SEP-{userId}-{courseId}-{timestamp}-{randomSuffix}
+    const parts = invoiceNumber.split('-');
+    if (parts.length < 4 || parts[0] !== 'SEP') {
+      return null;
     }
-    if (['PAID', 'SUCCESS', 'COMPLETED'].includes(normalized)) {
-      return 'completed';
+    const userId = parseInt(parts[1], 10);
+    const courseId = parseInt(parts[2], 10);
+    if (isNaN(userId) || isNaN(courseId)) {
+      return null;
     }
-    if (['CANCELED', 'FAILED', 'ERROR', 'VOID'].includes(normalized)) {
-      return 'failed';
+    return { userId, courseId };
+  }
+
+  async handleSepayIpn(payload: SepayIPNDto) {
+    if (payload.notification_type === 'ORDER_PAID') {
+      const invoiceNumber = payload.order.order_invoice_number;
+
+      // Extract userId and courseId from invoice number
+      const parsed = this.parseSepayInvoiceNumber(invoiceNumber);
+      if (!parsed) {
+        throw new BadRequestException(
+          `Invalid invoice number format: ${invoiceNumber}`,
+        );
+      }
+
+      const { userId, courseId } = parsed;
+
+      // Check if userCourse already exists
+      let userCourse;
+      try {
+        userCourse =
+          await this.userCoursesService.findOneByOrderInvoiceNumber(
+            invoiceNumber,
+          );
+      } catch (error) {
+        // UserCourse doesn't exist, will create it below
+        userCourse = null;
+      }
+
+      // Create userCourse only if it doesn't exist
+      if (!userCourse) {
+        await this.createUserCourseWithStatus({
+          userId,
+          courseId,
+          status: 'completed',
+          orderBy: 'sepay',
+          orderId: invoiceNumber,
+          orderData: JSON.stringify(payload),
+        });
+      }
+
+      return { success: true };
     }
-    return 'pending';
-  }
 
-  create(createPaymentDto: CreatePaymentDto) {
-    return 'This action adds a new payment';
-  }
-
-  findAll() {
-    return `This action returns all payments`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} payment`;
-  }
-
-  update(id: number, updatePaymentDto: UpdatePaymentDto) {
-    return `This action updates a #${id} payment`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} payment`;
+    throw new BadRequestException('Invalid IPN payload');
   }
 }

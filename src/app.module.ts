@@ -46,6 +46,8 @@ import { CourseSessionsModule } from './course-sessions/course-sessions.module';
         SEPAY_MERCHANT_ID: Joi.string().required(),
         SEPAY_SECRET_KEY: Joi.string().required(),
         SEPAY_CURRENCY: Joi.string().required(),
+        SEPAY_WEBHOOK_SECRET_KEY: Joi.string().required(),
+        SEPAY_IPN_SECRET_KEY: Joi.string().required(),
       }),
       isGlobal: true,
       load: [typeorm],
