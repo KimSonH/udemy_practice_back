@@ -7,7 +7,7 @@ import {
 import { CreateUserCourseDto } from './dto/create-user-course.dto';
 import { UpdateUserCourseDto } from './dto/update-user-course.dto';
 import { UserCourse } from './entities/user-course.entity';
-import { ILike, Repository } from 'typeorm';
+import { Brackets, ILike, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PaginationParams } from 'src/common/pagination.type';
 import { CoursesService } from 'src/courses/courses.service';
@@ -27,7 +27,7 @@ export class UserCoursesService {
     @InjectRepository(UserCourse)
     private readonly userCourseRepository: Repository<UserCourse>,
     private readonly coursesService: CoursesService,
-  ) {}
+  ) { }
 
   async create(createUserCourseDto: CreateUserCourseDto) {
     try {
@@ -77,6 +77,7 @@ export class UserCoursesService {
   async findAll(
     query: PaginationParams,
     status?: 'completed' | 'failed' | 'pending',
+    userId?: number,
   ) {
     const { page, limit, search, orderBy, organizationId, organizationSlug } =
       query;
@@ -85,27 +86,71 @@ export class UserCoursesService {
       DESC: 'DESC',
       ASC: 'ASC',
     };
-    const orderByOrder = order[orderBy];
+    const orderByOrder = order[orderBy] || 'DESC';
     try {
-      const [items, total] = await this.userCourseRepository.findAndCount({
-        relations: this.relations,
-        where: {
-          course: {
-            name: search ? ILike(`%${search}%`) : undefined,
-            organization: {
-              id: organizationId ? +organizationId : undefined,
-              slug: organizationSlug ? organizationSlug : undefined,
-            },
-            status: 'active',
-          },
-          status: status ? status : undefined,
-        },
-        order: {
-          createdAt: orderByOrder || 'DESC',
-        },
-        skip: page === 9999 ? undefined : offset,
-        take: page === 9999 ? undefined : limit,
-      });
+      // Use subquery to get the latest userCourse id for each courseId
+      const subQuery = this.userCourseRepository
+        .createQueryBuilder('uc_sub')
+        .select('MAX(uc_sub.id)', 'maxId')
+        .where('uc_sub.userId = :userId', { userId })
+        .groupBy('uc_sub.courseId');
+
+      if (status) {
+        subQuery.andWhere('uc_sub.status = :status', { status });
+      }
+
+      // Main query to get unique userCourses using DISTINCT ON
+      const queryBuilder = this.userCourseRepository
+        .createQueryBuilder('userCourse')
+        .leftJoinAndSelect('userCourse.user', 'user')
+        .leftJoinAndSelect('userCourse.course', 'course')
+        .leftJoinAndSelect('course.courseSets', 'courseSets')
+        .leftJoinAndSelect('courseSets.udemyQuestionBanks', 'udemyQuestionBanks')
+        .leftJoinAndSelect('course.organization', 'organization')
+        .where('userCourse.userId = :userId', { userId })
+        .andWhere('course.status = :courseStatus', { courseStatus: 'active' })
+        .andWhere(`userCourse.id IN (${subQuery.getQuery()})`);
+
+      // Add status filter
+      if (status) {
+        queryBuilder.andWhere('userCourse.status = :status', { status });
+      }
+
+      // Add search filter
+      if (search) {
+        queryBuilder.andWhere('course.name ILIKE :search', {
+          search: `%${search}%`,
+        });
+      }
+
+      // Add organization filters
+      if (organizationId) {
+        queryBuilder.andWhere('organization.id = :organizationId', {
+          organizationId: +organizationId,
+        });
+      }
+
+      if (organizationSlug) {
+        queryBuilder.andWhere('organization.slug = :organizationSlug', {
+          organizationSlug,
+        });
+      }
+
+      // Set parameters from subquery
+      queryBuilder.setParameters(subQuery.getParameters());
+
+      // Get total count before pagination
+      const total = await queryBuilder.getCount();
+
+      // Apply ordering and pagination
+      queryBuilder.orderBy('userCourse.createdAt', orderByOrder);
+
+      if (page !== 9999) {
+        queryBuilder.skip(offset).take(limit);
+      }
+
+      const items = await queryBuilder.getMany();
+
       return {
         items: items.map((item) => item.course),
         total,
@@ -134,6 +179,18 @@ export class UserCoursesService {
       this.logger.error(`Error getting user course: ${error.message}`);
       throw new BadRequestException('Error getting user course');
     }
+  }
+
+  async findOneByCourseId(courseId: number, userId: number, status?: 'completed' | 'failed' | 'pending') {
+    const userCourse = await this.userCourseRepository.findOne({
+      where: { courseId, userId, status },
+      relations: this.relations,
+    })
+    if (!userCourse) {
+      throw new BadRequestException('User course not found');
+    }
+
+    return userCourse.course;
   }
 
   async findOneByOrderInvoiceNumber(orderInvoiceNumber: string) {

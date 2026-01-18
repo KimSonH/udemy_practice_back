@@ -32,7 +32,7 @@ import { Course } from 'src/courses/entities/courses.entity';
 @Controller('user-courses')
 @UseGuards(JwtAuthenticationGuard)
 export class UserCoursesController {
-  constructor(private readonly userCoursesService: UserCoursesService) {}
+  constructor(private readonly userCoursesService: UserCoursesService) { }
 
   @ApiOperation({ summary: 'Create a new user course' })
   @ApiResponse({
@@ -117,8 +117,9 @@ export class UserCoursesController {
   @ApiQuery({ name: 'page', required: false, type: 'number' })
   @ApiQuery({ name: 'limit', required: false, type: 'number' })
   @Get()
-  findAll(@Query() query: PaginationParams) {
-    return this.userCoursesService.findAll(query, 'completed');
+  @UseGuards(JwtAuthenticationGuard)
+  findAll(@Req() req: RequestWithUser, @Query() query: PaginationParams) {
+    return this.userCoursesService.findAll(query, 'completed', req.user.id);
   }
 
   @ApiOperation({ summary: 'Get user course by ID' })
@@ -131,8 +132,9 @@ export class UserCoursesController {
   @ApiResponse({ status: 404, description: 'User course not found' })
   @ApiParam({ name: 'id', type: 'number' })
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.userCoursesService.findOne(+id, 'completed');
+  @UseGuards(JwtAuthenticationGuard)
+  findOne(@Req() req: RequestWithUser, @Param('id') id: string) {
+    return this.userCoursesService.findOneByCourseId(+id, req.user.id, 'completed');
   }
 
   @ApiOperation({ summary: 'Update user course' })
