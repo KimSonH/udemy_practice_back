@@ -46,23 +46,28 @@ export class UserPremiumsService {
     query: PaginationParams,
     status?: 'pending' | 'completed' | 'failed',
   ) {
-    const { page, limit, search, orderBy } = query;
+    const { page = 1, limit = 10, orderBy } = query;
     const offset = (page - 1) * limit;
-    const order = {
+
+    const orderMap = {
       DESC: 'DESC',
       ASC: 'ASC',
-    };
+    } as const;
+
     try {
       const [userPremiums, total] =
         await this.userPremiumRepository.findAndCount({
-          where: { user: { id: userId }, status: status ? status : undefined },
-          relations: this.relations,
+          where: {
+            userId,
+            ...(status && { status }),
+          },
           order: {
-            createdAt: order[orderBy] || 'DESC',
+            createdAt: orderMap[orderBy] || 'DESC',
           },
           skip: page === 9999 ? undefined : offset,
           take: page === 9999 ? undefined : limit,
         });
+
       return {
         items: userPremiums,
         total,
