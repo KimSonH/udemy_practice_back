@@ -139,7 +139,6 @@ export class UserPremiumsController {
   }
 
   @Get('by-user-id')
-  @UseGuards(JwtAuthenticationGuard)
   async getPremiumAccounts(
     @Req() req: RequestWithUser,
     @Query() query: PaginationParams,

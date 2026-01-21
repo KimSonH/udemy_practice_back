@@ -318,7 +318,7 @@ export class PaymentsService {
       secret: this.configService.get('JWT_VERIFICATION_TOKEN_SECRET'),
       expiresIn: `${this.configService.get('JWT_VERIFICATION_TOKEN_EXPIRATION_TIME')}s`,
     });
-    const successUrl = `${this.configService.get('SITE_URL')}/payment-session?sessionId=${token}`;
+    const successUrl = `${this.configService.get('SITE_URL')}/payment/success?sessionId=${token}`;
     const errorUrl = `${this.configService.get('SITE_URL')}/courses/${course.id}`;
     const cancelUrl = `${this.configService.get('SITE_URL')}/courses/${course.id}`;
     const checkoutPayload = this.sepayService.initOneTimePaymentFields({
