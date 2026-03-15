@@ -6,6 +6,7 @@ import {
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
+  JoinColumn,
   JoinTable,
   ManyToMany,
   ManyToOne,
@@ -18,23 +19,31 @@ export class CourseSet {
   @PrimaryGeneratedColumn()
   public id: number;
 
-  @Column()
+  @Column({ name: 'name' })
   public name: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   public createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   public updatedAt!: Date;
 
-  @DeleteDateColumn()
+  @DeleteDateColumn({ name: 'deleted_at' })
   @Exclude()
   public deletedAt?: Date;
 
   @ManyToOne(() => Course, (course) => course.courseSets)
+  @JoinColumn({ name: 'course_id' })
   public course: Course;
 
   @ManyToMany(() => UdemyQuestionBank)
-  @JoinTable()
+  @JoinTable({
+    name: 'course_set_udemy_question_bank',
+    joinColumn: { name: 'course_set_id', referencedColumnName: 'id' },
+    inverseJoinColumn: {
+      name: 'udemy_question_bank_id',
+      referencedColumnName: 'id',
+    },
+  })
   public udemyQuestionBanks: UdemyQuestionBank[];
 }

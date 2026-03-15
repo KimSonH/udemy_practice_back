@@ -16,39 +16,39 @@ export class UserCourse {
   @PrimaryGeneratedColumn()
   public id: number;
 
-  @Column()
+  @Column({ name: 'user_id' })
   public userId: number;
 
-  @Column()
+  @Column({ name: 'course_id' })
   public courseId: number;
 
-  @Column({ nullable: true })
+  @Column({ name: 'order_id', nullable: true })
   public orderId?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'order_data', nullable: true })
   public orderData?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'order_by', nullable: true })
   public orderBy?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'status', nullable: true })
   public status?: 'pending' | 'completed' | 'failed';
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   public createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   public updatedAt!: Date;
 
-  @DeleteDateColumn()
+  @DeleteDateColumn({ name: 'deleted_at' })
   @Exclude()
   public deletedAt?: Date;
 
   @ManyToOne(() => User, (user) => user.userCourses)
-  @JoinColumn({ name: 'userId' })
+  @JoinColumn({ name: 'user_id' })
   public user: User;
 
   @ManyToOne(() => Course, (course) => course.userCourses)
-  @JoinColumn({ name: 'courseId' })
+  @JoinColumn({ name: 'course_id' })
   public course: Course;
 }

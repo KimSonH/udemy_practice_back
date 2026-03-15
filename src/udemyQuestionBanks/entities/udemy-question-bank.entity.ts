@@ -13,67 +13,67 @@ export class UdemyQuestionBank {
   @PrimaryGeneratedColumn()
   public id?: number;
 
-  @Column({ nullable: true })
+  @Column({ name: 'question', nullable: true })
   public question?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'question_type', nullable: true })
   public questionType?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'category_name', nullable: true })
   public categoryName?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'answer_option_1', nullable: true })
   public answerOption1?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'explanation_1', nullable: true })
   public explanation1?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'answer_option_2', nullable: true })
   public answerOption2?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'explanation_2', nullable: true })
   public explanation2?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'answer_option_3', nullable: true })
   public answerOption3?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'explanation_3', nullable: true })
   public explanation3?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'answer_option_4', nullable: true })
   public answerOption4?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'explanation_4', nullable: true })
   public explanation4?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'answer_option_5', nullable: true })
   public answerOption5?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'explanation_5', nullable: true })
   public explanation5?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'answer_option_6', nullable: true })
   public answerOption6?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'explanation_6', nullable: true })
   public explanation6?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'correct_answer', nullable: true })
   public correctAnswer?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'overall_explanation', nullable: true })
   public overallExplanation?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'domain', nullable: true })
   public domain?: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   public createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   public updatedAt!: Date;
 
-  @DeleteDateColumn()
+  @DeleteDateColumn({ name: 'deleted_at' })
   @Exclude()
   public deletedAt?: Date;
 }

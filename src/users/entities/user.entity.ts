@@ -19,33 +19,34 @@ export class User {
   public id?: number;
 
   @ApiProperty({ description: 'User email address' })
-  @Column({ unique: true })
+  @Column({ name: 'email', unique: true })
   public email: string;
 
-  @Column()
+  @Column({ name: 'first_name' })
   public firstName: string;
 
-  @Column()
+  @Column({ name: 'last_name' })
   public lastName: string;
 
   @ApiProperty({ description: 'User password (hashed)' })
-  @Column()
+  @Column({ name: 'password' })
   @Exclude()
   public password: string;
 
   @Column({
+    name: 'current_hashed_refresh_token',
     nullable: true,
   })
   @Exclude()
   public currentHashedRefreshToken?: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   public createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   public updatedAt!: Date;
 
-  @DeleteDateColumn()
+  @DeleteDateColumn({ name: 'deleted_at' })
   @Exclude()
   public deletedAt?: Date;
 
