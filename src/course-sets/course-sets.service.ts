@@ -4,7 +4,7 @@ import { UpdateCourseSetDto } from './dto/update-course-set.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CourseSet } from './entities/course-set.entity';
-import { UdemyQuestionBanksService } from 'src/udemyQuestionBanks/udemy-question-banks.service';
+import { UdemyQuestionBanksService } from 'src/udemy-question-banks/udemy-question-banks.service';
 @Injectable()
 export class CourseSetsService {
   constructor(

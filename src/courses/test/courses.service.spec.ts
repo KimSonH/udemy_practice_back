@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CoursesService } from '../courses.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Course } from '../entities/courses.entity';
-import { ClassMarkersService } from 'src/classMarkers/classMarkers.service';
+import { ClassMarkersService } from 'src/class-markers/classMarkers.service';
 
 describe('CoursesService', () => {
   let service: CoursesService;

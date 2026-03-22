@@ -1,6 +1,6 @@
 import { Exclude } from 'class-transformer';
 import { Course } from 'src/courses/entities/courses.entity';
-import { UdemyQuestionBank } from 'src/udemyQuestionBanks/entities/udemy-question-bank.entity';
+import { UdemyQuestionBank } from 'src/udemy-question-banks/entities/udemy-question-bank.entity';
 import {
   Column,
   CreateDateColumn,

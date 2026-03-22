@@ -16,7 +16,7 @@ import {
 } from 'typeorm';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
-import { UdemyQuestionBanksService } from 'src/udemyQuestionBanks/udemy-question-banks.service';
+import { UdemyQuestionBanksService } from 'src/udemy-question-banks/udemy-question-banks.service';
 import { CourseSetsService } from 'src/course-sets/course-sets.service';
 import { CourseSet } from 'src/course-sets/entities/course-set.entity';
 import { PaginationParams } from 'src/common/pagination.type';
