@@ -94,7 +94,7 @@ export class CoursesService {
     // Xóa câu hỏi cũ nếu có (dành cho update)
     const courseSetIds = courseSets.map((set) => set.id).join(',');
     await queryRunner.manager.query(
-      `DELETE FROM course_set_udemy_question_banks_udemy_question_bank WHERE "courseSetId" IN (${courseSetIds})`,
+      `DELETE FROM course_set_udemy_question_bank WHERE "course_set_id" IN (${courseSetIds})`,
     );
     // Phân phối đều nếu đủ
     if (totalQuestions >= totalNeeded) {
@@ -113,8 +113,8 @@ export class CoursesService {
         }
         usedIdx += questionsPerSet;
         const relations = setQuestions.map((question) => ({
-          courseSetId: courseSets[i].id,
-          udemyQuestionBankId: question.id,
+          course_set_id: courseSets[i].id,
+          udemy_question_bank_id: question.id,
         }));
         await this.batchInsertQuestions(relations, queryRunner);
       }
@@ -138,8 +138,8 @@ export class CoursesService {
         );
       }
       const relations = setQuestions.map((question) => ({
-        courseSetId: courseSets[i].id,
-        udemyQuestionBankId: question.id,
+        course_set_id: courseSets[i].id,
+        udemy_question_bank_id: question.id,
       }));
       allRelations.push(...relations);
     }
@@ -149,7 +149,7 @@ export class CoursesService {
     // Mượn cho từng set nếu thiếu
     for (let i = 0; i < totalSets; i++) {
       const currentCountRes = await queryRunner.manager.query(
-        `SELECT COUNT(*) FROM course_set_udemy_question_banks_udemy_question_bank WHERE "courseSetId" = $1`,
+        `SELECT COUNT(*) FROM course_set_udemy_question_bank WHERE "course_set_id" = $1`,
         [courseSets[i].id],
       );
       let shortage = questionsPerSet - parseInt(currentCountRes[0].count);
@@ -157,19 +157,19 @@ export class CoursesService {
       // Mượn câu hỏi chưa có trong set này, ưu tiên câu hỏi ít xuất hiện nhất
       const availableQuestions = await queryRunner.manager.query(
         `WITH CurrentSetQuestions AS (
-            SELECT "udemyQuestionBankId" FROM course_set_udemy_question_banks_udemy_question_bank WHERE "courseSetId" = $1
+            SELECT "udemy_question_bank_id" FROM course_set_udemy_question_bank WHERE "course_set_id" = $1
         ),
         QuestionUsage AS (
-            SELECT q.id, COUNT(DISTINCT csq."courseSetId") as usage_count
+            SELECT q.id, COUNT(DISTINCT csq."course_set_id") as usage_count
             FROM udemy_question_bank q
-            LEFT JOIN course_set_udemy_question_banks_udemy_question_bank csq ON q.id = csq."udemyQuestionBankId"
-            WHERE q."categoryName" = $2
+            LEFT JOIN course_set_udemy_question_bank csq ON q.id = csq."udemy_question_bank_id"
+            WHERE q."category_name" = $2
             GROUP BY q.id
         )
         SELECT q.id FROM udemy_question_bank q
         LEFT JOIN QuestionUsage qu ON q.id = qu.id
-        WHERE q."categoryName" = $2
-        AND q.id NOT IN (SELECT "udemyQuestionBankId" FROM CurrentSetQuestions)
+        WHERE q."category_name" = $2
+        AND q.id NOT IN (SELECT "udemy_question_bank_id" FROM CurrentSetQuestions)
         ORDER BY COALESCE(qu.usage_count, 0) ASC, RANDOM()
         LIMIT $3`,
         [courseSets[i].id, categoryName, shortage],
@@ -180,16 +180,16 @@ export class CoursesService {
         );
       }
       const borrowRelations = availableQuestions.map((q) => ({
-        courseSetId: courseSets[i].id,
-        udemyQuestionBankId: q.id,
+        course_set_id: courseSets[i].id,
+        udemy_question_bank_id: q.id,
       }));
       await this.batchInsertQuestions(borrowRelations, queryRunner);
     }
     // Kiểm tra trùng lặp trong từng set
     const duplicates = await queryRunner.manager.query(`
       WITH DuplicateCheck AS (
-          SELECT csq."courseSetId", csq."udemyQuestionBankId", COUNT(*) OVER (PARTITION BY csq."courseSetId", csq."udemyQuestionBankId") as duplicate_count
-          FROM course_set_udemy_question_banks_udemy_question_bank csq
+          SELECT csq."course_set_id", csq."udemy_question_bank_id", COUNT(*) OVER (PARTITION BY csq."course_set_id", csq."udemy_question_bank_id") as duplicate_count
+          FROM course_set_udemy_question_bank csq
       )
       SELECT * FROM DuplicateCheck WHERE duplicate_count > 1
     `);
@@ -836,7 +836,7 @@ export class CoursesService {
       ) {
         for (const set of course.courseSets) {
           await queryRunner.manager.query(
-            `DELETE FROM course_set_udemy_question_banks_udemy_question_bank WHERE "courseSetId" = $1`,
+            `DELETE FROM course_set_udemy_question_bank WHERE "course_set_id" = $1`,
             [set.id],
           );
           await queryRunner.manager
@@ -905,13 +905,13 @@ export class CoursesService {
 
   // Hàm insert theo batch
   private async batchInsertQuestions(
-    relations: Array<{ courseSetId: number; udemyQuestionBankId: number }>,
+    relations: Array<{ course_set_id: number; udemy_question_bank_id: number }>,
     queryRunner: QueryRunner,
   ): Promise<void> {
     await queryRunner.manager
       .createQueryBuilder()
       .insert()
-      .into('course_set_udemy_question_banks_udemy_question_bank')
+      .into('course_set_udemy_question_bank')
       .values(relations)
       .execute();
   }
