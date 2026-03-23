@@ -7,7 +7,7 @@ import {
   IsArray,
   IsOptional,
 } from 'class-validator';
-import { UdemyQuestionBank } from 'src/udemyQuestionBanks/entities/udemy-question-bank.entity';
+import { UdemyQuestionBank } from 'src/udemy-question-banks/entities/udemy-question-bank.entity';
 import { Course } from 'src/courses/entities/courses.entity';
 export class CreateCourseSetDto {
   @ApiProperty({ description: 'Name of the course set' })

@@ -21,73 +21,74 @@ export class ClassMarker {
   public id?: number;
 
   @Column({
+    name: 'question_type',
     type: 'enum',
     enum: QuestionType,
     default: QuestionType.MULTIPLE_CHOICE,
   })
   public questionType: QuestionType;
 
-  @Column({ nullable: true })
+  @Column({ name: 'parent_category_name', nullable: true })
   public parentCategoryName?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'category_name', nullable: true })
   public categoryName?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'random_answer', nullable: true })
   public randomAnswer?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'correct_feedback', nullable: true })
   public correctFeedback?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'incorrect_feedback', nullable: true })
   public incorrectFeedback?: string;
 
-  @Column()
+  @Column({ name: 'point' })
   public point: number;
 
-  @Column()
+  @Column({ name: 'question' })
   public question: string;
 
-  @Column()
+  @Column({ name: 'correct' })
   public correct: string;
 
-  @Column()
+  @Column({ name: 'answer_a' })
   public answerA: string;
 
-  @Column()
+  @Column({ name: 'answer_b' })
   public answerB: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'answer_c', nullable: true })
   public answerC?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'answer_d', nullable: true })
   public answerD?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'answer_e', nullable: true })
   public answerE?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'answer_f', nullable: true })
   public answerF?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'answer_g', nullable: true })
   public answerG?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'answer_h', nullable: true })
   public answerH?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'answer_i', nullable: true })
   public answerI?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'answer_j', nullable: true })
   public answerJ?: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   public createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   public updatedAt!: Date;
 
-  @DeleteDateColumn()
+  @DeleteDateColumn({ name: 'deleted_at' })
   @Exclude()
   public deletedAt?: Date;
 }

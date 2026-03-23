@@ -5,7 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Course } from './entities/courses.entity';
 import { CourseSetsModule } from 'src/course-sets/course-sets.module';
 import { CoursesController } from './courses.controller';
-import { UdemyQuestionBanksModule } from 'src/udemyQuestionBanks/udemy-question-banks.module';
+import { UdemyQuestionBanksModule } from 'src/udemy-question-banks/udemy-question-banks.module';
 import { ConfigModule } from '@nestjs/config';
 import { OrganizationsModule } from 'src/organizations/organizations.module';
 @Module({

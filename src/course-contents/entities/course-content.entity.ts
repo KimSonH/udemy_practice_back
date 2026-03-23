@@ -7,6 +7,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
   DeleteDateColumn,
+  JoinColumn,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 
@@ -15,37 +16,37 @@ export class CourseContent {
   @PrimaryGeneratedColumn()
   public id: number;
 
-  @Column()
+  @Column({ name: 'name' })
   public name: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'description', nullable: true })
   public description?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'upload_url', nullable: true })
   public uploadUrl?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'duration', nullable: true })
   public duration?: number;
 
-  @Column({ nullable: true })
+  @Column({ name: 'is_read', nullable: true })
   public isRead?: boolean;
 
-  @Column({ nullable: true })
+  @Column({ name: 'is_shown', nullable: true })
   public isShown?: boolean;
 
-  @Column()
+  @Column({ name: 'type' })
   public type: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'order', nullable: true })
   public order?: number;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   public createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   public updatedAt!: Date;
 
-  @DeleteDateColumn()
+  @DeleteDateColumn({ name: 'deleted_at' })
   @Exclude()
   public deletedAt?: Date;
 
@@ -53,5 +54,6 @@ export class CourseContent {
     () => CourseSession,
     (courseSession) => courseSession.courseContents,
   )
+  @JoinColumn({ name: 'course_session_id' })
   public courseSession: CourseSession;
 }

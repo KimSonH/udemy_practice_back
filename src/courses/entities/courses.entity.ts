@@ -8,6 +8,7 @@ import {
   CreateDateColumn,
   OneToMany,
   ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { CourseSet } from 'src/course-sets/entities/course-set.entity';
 import { Organization } from 'src/organizations/entities/organization.entity';
@@ -18,40 +19,46 @@ export class Course {
   @PrimaryGeneratedColumn()
   public id: number;
 
-  @Column()
+  @Column({ name: 'name' })
   public name: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'description', nullable: true })
   public description?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'content', nullable: true })
   public content?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'thumbnail_image_url', nullable: true })
   public thumbnailImageUrl?: string;
 
-  @Column()
+  @Column({ name: 'status' })
   public status: string;
 
-  @Column({ type: 'numeric', precision: 10, scale: 2, nullable: true })
+  @Column({
+    name: 'price',
+    type: 'numeric',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
   public price: number;
 
-  @Column()
+  @Column({ name: 'type' })
   public type: string;
 
-  @Column()
+  @Column({ name: 'category_name' })
   public categoryName: string;
 
-  @Column({ unique: true })
+  @Column({ name: 'slug', unique: true })
   public slug: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   public createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   public updatedAt!: Date;
 
-  @DeleteDateColumn()
+  @DeleteDateColumn({ name: 'deleted_at' })
   @Exclude()
   public deletedAt?: Date;
 
@@ -59,6 +66,7 @@ export class Course {
   public courseSets: CourseSet[];
 
   @ManyToOne(() => Organization, (organization) => organization.courses)
+  @JoinColumn({ name: 'organization_id' })
   public organization: Organization;
 
   @OneToMany(() => UserCourse, (userCourse) => userCourse.course)
