@@ -7,6 +7,7 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
+  JoinColumn,
 } from 'typeorm';
 import { Exclude } from 'class-transformer';
 import { Course } from 'src/courses/entities/courses.entity';
@@ -17,29 +18,30 @@ export class CourseSession {
   @PrimaryGeneratedColumn()
   public id: number;
 
-  @Column()
+  @Column({ name: 'name' })
   public name: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'description', nullable: true })
   public description?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'upload_url', nullable: true })
   public uploadUrl?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'order', nullable: true })
   public order?: number;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   public createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   public updatedAt!: Date;
 
-  @DeleteDateColumn()
+  @DeleteDateColumn({ name: 'deleted_at' })
   @Exclude()
   public deletedAt?: Date;
 
   @ManyToOne(() => Course, (course) => course.courseSessions)
+  @JoinColumn({ name: 'course_id' })
   public course: Course;
 
   @OneToMany(

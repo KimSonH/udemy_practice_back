@@ -16,38 +16,38 @@ export class UserPremium {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column()
+  @Column({ name: 'user_id' })
   userId: number;
 
-  @Column()
+  @Column({ name: 'account_email' })
   accountEmail: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'account_id', nullable: true })
   accountId: number;
 
-  @Column({ nullable: true })
+  @Column({ name: 'order_id', nullable: true })
   orderId?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'order_data', nullable: true })
   orderData?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'order_by', nullable: true })
   orderBy?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'status', nullable: true })
   status?: 'pending' | 'completed' | 'failed';
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
-  @DeleteDateColumn()
+  @DeleteDateColumn({ name: 'deleted_at' })
   @Exclude()
   deletedAt?: Date;
 
   @ManyToOne(() => User, (user) => user.userPremiums)
-  @JoinColumn({ name: 'userId' })
+  @JoinColumn({ name: 'user_id' })
   user: User;
 }
