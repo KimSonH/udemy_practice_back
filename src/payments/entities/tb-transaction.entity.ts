@@ -10,42 +10,71 @@ export class TBTransaction {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'varchar', length: 100 })
+  @Column({ name: 'gateway', type: 'varchar', length: 100 })
   gateway: string;
 
   @Column({
+    name: 'transaction_date',
     type: 'timestamp',
     default: () => 'CURRENT_TIMESTAMP',
   })
-  transaction_date: Date;
+  transactionDate: Date;
 
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  account_number: string | null;
+  @Column({
+    name: 'account_number',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
+  accountNumber: string | null;
 
-  @Column({ type: 'varchar', length: 250, nullable: true })
-  sub_account: string | null;
+  @Column({ name: 'sub_account', type: 'varchar', length: 250, nullable: true })
+  subAccount: string | null;
 
-  @Column({ type: 'decimal', precision: 20, scale: 2, default: 0 })
-  amount_in: number;
+  @Column({
+    name: 'amount_in',
+    type: 'decimal',
+    precision: 20,
+    scale: 2,
+    default: 0,
+  })
+  amountIn: number;
 
-  @Column({ type: 'decimal', precision: 20, scale: 2, default: 0 })
-  amount_out: number;
+  @Column({
+    name: 'amount_out',
+    type: 'decimal',
+    precision: 20,
+    scale: 2,
+    default: 0,
+  })
+  amountOut: number;
 
-  @Column({ type: 'decimal', precision: 20, scale: 2, default: 0 })
+  @Column({
+    name: 'accumulated',
+    type: 'decimal',
+    precision: 20,
+    scale: 2,
+    default: 0,
+  })
   accumulated: number;
 
-  @Column({ type: 'varchar', length: 250, nullable: true })
+  @Column({ name: 'code', type: 'varchar', length: 250, nullable: true })
   code: string | null;
 
-  @Column({ type: 'text', nullable: true })
-  transaction_content: string | null;
+  @Column({ name: 'transaction_content', type: 'text', nullable: true })
+  transactionContent: string | null;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  reference_number: string | null;
+  @Column({
+    name: 'reference_number',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
+  referenceNumber: string | null;
 
-  @Column({ type: 'text', nullable: true })
+  @Column({ name: 'body', type: 'text', nullable: true })
   body: string | null;
 
-  @CreateDateColumn({ type: 'timestamp' })
-  created_at: Date;
+  @CreateDateColumn({ name: 'created_at', type: 'timestamp' })
+  createdAt: Date;
 }

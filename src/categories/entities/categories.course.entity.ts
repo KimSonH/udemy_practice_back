@@ -13,19 +13,19 @@ export class CategoryCourse {
   @PrimaryGeneratedColumn()
   public id?: number;
 
-  @Column()
+  @Column({ name: 'name' })
   public name: string;
 
-  @Column()
+  @Column({ name: 'description' })
   public description?: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   public createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   public updatedAt!: Date;
 
-  @DeleteDateColumn()
+  @DeleteDateColumn({ name: 'deleted_at' })
   @Exclude()
   public deletedAt?: Date;
 }

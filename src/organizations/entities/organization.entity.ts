@@ -15,25 +15,25 @@ export class Organization {
   @PrimaryGeneratedColumn()
   public id: number;
 
-  @Column()
+  @Column({ name: 'name' })
   public name: string;
 
-  @Column({ unique: true })
+  @Column({ name: 'slug', unique: true })
   public slug: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'description', nullable: true })
   public description?: string;
 
-  @Column({ nullable: true })
+  @Column({ name: 'thumbnail_image_url', nullable: true })
   public thumbnailImageUrl?: string;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   public createdAt!: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   public updatedAt!: Date;
 
-  @DeleteDateColumn()
+  @DeleteDateColumn({ name: 'deleted_at' })
   @Exclude()
   public deletedAt?: Date;
 

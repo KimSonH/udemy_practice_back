@@ -43,15 +43,15 @@ export class TBTransactionService {
 
     const transaction = this.tbTransactionRepository.create({
       gateway,
-      transaction_date: new Date(transactionDate),
-      account_number: accountNumber,
-      sub_account: subAccount,
-      amount_in,
-      amount_out,
+      transactionDate: new Date(transactionDate),
+      accountNumber: accountNumber,
+      subAccount: subAccount,
+      amountIn: amount_in,
+      amountOut: amount_out,
       accumulated,
       code,
-      transaction_content: content,
-      reference_number: referenceCode,
+      transactionContent: content,
+      referenceNumber: referenceCode,
       body: description,
     });
 
