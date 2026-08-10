@@ -32,13 +32,37 @@ import LocalFilesInterceptor from 'src/interceptors/localFiles.interceptor';
 import { Course } from './entities/courses.entity';
 import { VideoCourseDto } from './dto/create-video-course.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
+import { CourseSetsService } from 'src/course-sets/course-sets.service';
+import { CreateCourseSetForCourseDto } from 'src/course-sets/dto/create-course-set-for-course.dto';
+import { CourseSet } from 'src/course-sets/entities/course-set.entity';
 
 @ApiTags('Admin Courses')
 @ApiBearerAuth()
 @Controller('admin/courses')
 @UseGuards(JwtAdminAuthenticationGuard)
 export class CoursesAdminController {
-  constructor(private readonly coursesService: CoursesService) {}
+  constructor(
+    private readonly coursesService: CoursesService,
+    private readonly courseSetsService: CourseSetsService,
+  ) {}
+
+  @ApiOperation({
+    summary: 'Tạo 1 course set rỗng cho course (quản lý riêng lẻ)',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Course set created',
+    type: CourseSet,
+  })
+  @ApiParam({ name: 'courseId', type: 'number' })
+  @ApiBody({ type: CreateCourseSetForCourseDto })
+  @Post(':courseId/course-sets')
+  createCourseSet(
+    @Param('courseId') courseId: string,
+    @Body() dto: CreateCourseSetForCourseDto,
+  ) {
+    return this.courseSetsService.createForCourse(+courseId, dto);
+  }
 
   @ApiOperation({ summary: 'Create a new course' })
   @ApiResponse({

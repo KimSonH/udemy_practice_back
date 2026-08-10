@@ -19,7 +19,10 @@ export class UdemyQuestionBanksService {
     private readonly udemyQuestionBanksRepository: Repository<UdemyQuestionBank>,
   ) {}
   create(createUdemyQuestionBankDto: CreateUdemyQuestionBankDto) {
-    return this.udemyQuestionBanksRepository.create(createUdemyQuestionBankDto);
+    const question = this.udemyQuestionBanksRepository.create(
+      createUdemyQuestionBankDto,
+    );
+    return this.udemyQuestionBanksRepository.save(question);
   }
 
   async findAll(page: number, limit: number) {

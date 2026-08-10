@@ -46,6 +46,9 @@ export class Course {
   @Column({ name: 'type' })
   public type: string;
 
+  @Column({ name: 'creation_mode', default: 'auto' })
+  public creationMode: string;
+
   @Column({ name: 'category_name' })
   public categoryName: string;
 

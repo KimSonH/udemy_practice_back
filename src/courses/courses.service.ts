@@ -228,7 +228,13 @@ export class CoursesService {
       type,
       udemyQuestionBanks: questionsPerSet,
       thumbnailImageUrl,
+      creationMode = 'auto',
     } = createCourse;
+    if (creationMode === 'auto' && !questionsPerSet) {
+      throw new BadRequestException(
+        'udemyQuestionBanks là bắt buộc khi creationMode = "auto"',
+      );
+    }
     const course = new Course();
     course.name = name;
     course.description = description;
@@ -239,6 +245,7 @@ export class CoursesService {
     course.content = content;
     course.slug = await this.generateSlug(name);
     course.thumbnailImageUrl = thumbnailImageUrl;
+    course.creationMode = creationMode;
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -254,6 +261,7 @@ export class CoursesService {
       for (let i = 0; i < totalSets; i++) {
         const courseSet = new CourseSet();
         courseSet.name = `Course Set ${i + 1}`;
+        courseSet.order = i + 1;
         const courseSetSaved = await queryRunner.manager
           .createQueryBuilder()
           .insert()
@@ -264,13 +272,19 @@ export class CoursesService {
       }
       course.courseSets = courseSets;
 
-      await this.distributeQuestions(
-        categoryName,
-        totalSets,
-        courseSets,
-        queryRunner,
-        questionsPerSet,
-      );
+      if (creationMode === 'auto') {
+        await this.distributeQuestions(
+          categoryName,
+          totalSets,
+          courseSets,
+          queryRunner,
+          questionsPerSet,
+        );
+      } else {
+        this.logger.log(
+          'creationMode = "manual" — bỏ qua distributeQuestions, câu hỏi sẽ được import riêng bằng CSV cho từng course set',
+        );
+      }
 
       // Commit transaction if everything is successful / Commit transaction nếu mọi thứ thành công
       await queryRunner.manager.save(course);
@@ -830,9 +844,10 @@ export class CoursesService {
           where: { id: Number(organizationId) },
         });
       if (
-        course.categoryName !== categoryName ||
-        course.courseSets.length !== totalSets ||
-        course.courseSets[0].udemyQuestionBanks.length !== questionsPerSet
+        course.creationMode === 'auto' &&
+        (course.categoryName !== categoryName ||
+          course.courseSets.length !== totalSets ||
+          course.courseSets[0].udemyQuestionBanks.length !== questionsPerSet)
       ) {
         for (const set of course.courseSets) {
           await queryRunner.manager.query(
@@ -850,6 +865,7 @@ export class CoursesService {
         for (let i = 0; i < totalSets; i++) {
           const courseSet = new CourseSet();
           courseSet.name = `${course.name} Set ${i + 1}`;
+          courseSet.order = i + 1;
           courseSet.course = course;
           courseSets.push(courseSet);
         }
