@@ -2,13 +2,13 @@ version: '3.5'
 
 services:
   db:
-    image: postgres:18
+    # Keep in sync with postgres_data/PG_VERSION (currently 17).
+    # postgres:18+ requires mounting at /var/lib/postgresql and a pg_upgrade.
+    image: postgres:17
     restart: always
     env_file:
       - docker.env
     container_name: postgres
-    environment:
-      - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
       - ./postgres_data:/var/lib/postgresql/data
     ports:
