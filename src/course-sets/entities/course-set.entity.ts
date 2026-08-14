@@ -22,6 +22,9 @@ export class CourseSet {
   @Column({ name: 'name' })
   public name: string;
 
+  @Column({ name: 'order', type: 'int' })
+  public order: number;
+
   @CreateDateColumn({ name: 'created_at' })
   public createdAt!: Date;
 

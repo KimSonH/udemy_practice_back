@@ -1,5 +1,17 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNumber, IsNotEmpty, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsNumber,
+  IsNotEmpty,
+  IsOptional,
+  IsIn,
+  Max,
+  Min,
+} from 'class-validator';
+
+export const MAX_COURSE_SETS = 6;
+export const COURSE_CREATION_MODES = ['auto', 'manual'] as const;
+export type CourseCreationMode = (typeof COURSE_CREATION_MODES)[number];
 
 export class UdemyQuestionBankDto {
   @ApiProperty({ description: 'Category name for the class marker' })
@@ -49,15 +61,34 @@ export class CreateCourseDto {
   @IsNotEmpty()
   organizationId: string;
 
-  @ApiProperty({ description: 'Course sets of the course' })
+  @ApiProperty({
+    description: `Course sets of the course (max ${MAX_COURSE_SETS})`,
+  })
   @IsNumber()
   @IsNotEmpty()
+  @Min(1)
+  @Max(MAX_COURSE_SETS)
   courseSets: number;
 
-  @ApiProperty({ description: 'Udemy question banks of the course' })
+  @ApiProperty({
+    description:
+      'Cách tạo course set: "auto" (mặc định, random câu hỏi theo categoryName như trước) hoặc "manual" (chỉ tạo course set rỗng, câu hỏi được import riêng bằng CSV sau)',
+    enum: COURSE_CREATION_MODES,
+    required: false,
+    default: 'auto',
+  })
+  @IsIn(COURSE_CREATION_MODES)
+  @IsOptional()
+  creationMode?: CourseCreationMode;
+
+  @ApiProperty({
+    description:
+      'Udemy question banks of the course (bắt buộc khi creationMode = "auto", không cần khi "manual")',
+    required: false,
+  })
   @IsNumber()
-  @IsNotEmpty()
-  udemyQuestionBanks: number;
+  @IsOptional()
+  udemyQuestionBanks?: number;
 
   @ApiProperty({ description: 'Content of the course' })
   @IsString()
