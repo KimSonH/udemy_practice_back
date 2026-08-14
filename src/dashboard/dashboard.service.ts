@@ -13,7 +13,7 @@ export interface DashboardStats {
   totalCompletedEnrollments: number;
 }
 
-export interface EnrollmentTrendPoint {
+export interface TrendPoint {
   date: string;
   count: number;
 }
@@ -52,24 +52,51 @@ export class DashboardService {
     };
   }
 
-  async getEnrollmentTrend(days: number): Promise<EnrollmentTrendPoint[]> {
+  getCourseTrend(days: number): Promise<TrendPoint[]> {
+    return this.getDailyTrend(this.courseRepository, days);
+  }
+
+  getUserTrend(days: number): Promise<TrendPoint[]> {
+    return this.getDailyTrend(this.userRepository, days);
+  }
+
+  getOrganizationTrend(days: number): Promise<TrendPoint[]> {
+    return this.getDailyTrend(this.organizationRepository, days);
+  }
+
+  getEnrollmentTrend(days: number): Promise<TrendPoint[]> {
+    return this.getDailyTrend(this.userCourseRepository, days, {
+      condition: 'e.status = :status',
+      params: { status: 'completed' },
+    });
+  }
+
+  /**
+   * Số bản ghi MỚI được tạo mỗi ngày (theo created_at) trong N ngày gần nhất,
+   * fill 0 cho ngày không có dữ liệu để chart không bị đứt đoạn.
+   */
+  private async getDailyTrend(
+    repository: Repository<any>,
+    days: number,
+    extraWhere?: { condition: string; params: Record<string, unknown> },
+  ): Promise<TrendPoint[]> {
     const safedays = Math.min(Math.max(days || 30, 1), 365);
 
-    const rows: { date: string; count: string }[] =
-      await this.userCourseRepository
-        .createQueryBuilder('userCourse')
-        .select('CAST(userCourse.createdAt AS DATE)', 'date')
-        .addSelect('COUNT(*)', 'count')
-        .where('userCourse.status = :status', { status: 'completed' })
-        .andWhere(
-          "userCourse.createdAt >= NOW() - (INTERVAL '1 day' * :days)",
-          {
-            days: safedays,
-          },
-        )
-        .groupBy('CAST(userCourse.createdAt AS DATE)')
-        .orderBy('date', 'ASC')
-        .getRawMany();
+    const qb = repository
+      .createQueryBuilder('e')
+      .select('CAST(e.createdAt AS DATE)', 'date')
+      .addSelect('COUNT(*)', 'count')
+      .where("e.createdAt >= NOW() - (INTERVAL '1 day' * :days)", {
+        days: safedays,
+      });
+    if (extraWhere) {
+      qb.andWhere(extraWhere.condition, extraWhere.params);
+    }
+
+    const rows: { date: string; count: string }[] = await qb
+      .groupBy('CAST(e.createdAt AS DATE)')
+      .orderBy('date', 'ASC')
+      .getRawMany();
 
     const countByDate = new Map<string, number>();
     for (const row of rows) {
@@ -77,7 +104,7 @@ export class DashboardService {
       countByDate.set(key, parseInt(row.count, 10));
     }
 
-    const result: EnrollmentTrendPoint[] = [];
+    const result: TrendPoint[] = [];
     const today = new Date();
     for (let i = safedays - 1; i >= 0; i--) {
       const d = new Date(today);
