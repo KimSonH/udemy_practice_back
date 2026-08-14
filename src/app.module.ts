@@ -24,6 +24,7 @@ import { UserPremiumModule } from './user-premium/user-premium.module';
 import { PaymentsPremiumModule } from './payments-premium/payments-premium.module';
 import { CourseContentsModule } from './course-contents/course-contents.module';
 import { CourseSessionsModule } from './course-sessions/course-sessions.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { CourseSessionsModule } from './course-sessions/course-sessions.module';
     PaymentsPremiumModule,
     CourseContentsModule,
     CourseSessionsModule,
+    DashboardModule,
   ],
   controllers: [],
   providers: [
