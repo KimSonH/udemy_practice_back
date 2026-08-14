@@ -19,6 +19,26 @@ export class DashboardController {
     return this.dashboardService.getStats();
   }
 
+  @ApiOperation({ summary: 'New courses created per day for the last N days' })
+  @Get('course-trend')
+  getCourseTrend(@Query('days') days?: string) {
+    return this.dashboardService.getCourseTrend(days ? +days : 30);
+  }
+
+  @ApiOperation({ summary: 'New users registered per day for the last N days' })
+  @Get('user-trend')
+  getUserTrend(@Query('days') days?: string) {
+    return this.dashboardService.getUserTrend(days ? +days : 30);
+  }
+
+  @ApiOperation({
+    summary: 'New organizations created per day for the last N days',
+  })
+  @Get('organization-trend')
+  getOrganizationTrend(@Query('days') days?: string) {
+    return this.dashboardService.getOrganizationTrend(days ? +days : 30);
+  }
+
   @ApiOperation({
     summary: 'Completed enrollments per day for the last N days',
   })
