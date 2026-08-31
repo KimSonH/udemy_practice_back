@@ -14,6 +14,7 @@ import { CourseSet } from 'src/course-sets/entities/course-set.entity';
 import { Organization } from 'src/organizations/entities/organization.entity';
 import { UserCourse } from 'src/user-courses/entities/user-course.entity';
 import { CourseSession } from 'src/course-sessions/entities/course-session.entity';
+import { CourseResource } from 'src/course-resources/entities/course-resource.entity';
 @Entity()
 export class Course {
   @PrimaryGeneratedColumn()
@@ -77,4 +78,7 @@ export class Course {
 
   @OneToMany(() => CourseSession, (courseSession) => courseSession.course)
   public courseSessions: CourseSession[];
+
+  @OneToMany(() => CourseResource, (courseResource) => courseResource.course)
+  public courseResources: CourseResource[];
 }
