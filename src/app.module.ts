@@ -24,6 +24,7 @@ import { UserPremiumModule } from './user-premium/user-premium.module';
 import { PaymentsPremiumModule } from './payments-premium/payments-premium.module';
 import { CourseContentsModule } from './course-contents/course-contents.module';
 import { CourseSessionsModule } from './course-sessions/course-sessions.module';
+import { CourseResourcesModule } from './course-resources/course-resources.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
@@ -75,6 +76,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     PaymentsPremiumModule,
     CourseContentsModule,
     CourseSessionsModule,
+    CourseResourcesModule,
     DashboardModule,
   ],
   controllers: [],
