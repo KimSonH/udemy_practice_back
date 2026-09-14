@@ -50,8 +50,8 @@ export class Course {
   @Column({ name: 'creation_mode', default: 'auto' })
   public creationMode: string;
 
-  @Column({ name: 'category_name' })
-  public categoryName: string;
+  @Column({ name: 'category_name', nullable: true })
+  public categoryName?: string;
 
   @Column({ name: 'slug', unique: true })
   public slug: string;

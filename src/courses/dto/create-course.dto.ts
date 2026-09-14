@@ -51,10 +51,14 @@ export class CreateCourseDto {
   @IsNotEmpty()
   type: string;
 
-  @ApiProperty({ description: 'Category name of the course' })
+  @ApiProperty({
+    description:
+      'Category name của course. Không bắt buộc, nhưng BẮT BUỘC khi creationMode = "auto" vì dùng để phân phối câu hỏi.',
+    required: false,
+  })
   @IsString()
-  @IsNotEmpty()
-  categoryName: string;
+  @IsOptional()
+  categoryName?: string;
 
   @ApiProperty({ description: 'Organization id of the course' })
   @IsString()
