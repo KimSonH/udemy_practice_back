@@ -14,6 +14,12 @@ import {
   parseQuestionCsv,
 } from './utils/parse-question-csv.util';
 
+/**
+ * Namespace tuỳ ý cho advisory lock, để khoá của việc import CSV không đụng
+ * với bất kỳ advisory lock nào khác dùng cùng id.
+ */
+const COURSE_SET_IMPORT_LOCK_NAMESPACE = 771001;
+
 export interface ImportQuestionCsvFile {
   originalname: string;
   buffer: Buffer;
@@ -165,7 +171,11 @@ export class CourseSetsService {
         courseSetId: courseSet.id,
         insertedCount: 0,
         success: false,
-        errors: [`Lỗi khi lưu vào DB: ${error.message}`],
+        errors: [
+          error instanceof BadRequestException
+            ? error.message
+            : `Lỗi khi lưu vào DB: ${error.message}`,
+        ],
       };
     }
   }
@@ -271,7 +281,11 @@ export class CourseSetsService {
           courseSetId: courseSet.id,
           insertedCount: 0,
           success: false,
-          errors: [`Lỗi khi lưu vào DB: ${error.message}`],
+          errors: [
+          error instanceof BadRequestException
+            ? error.message
+            : `Lỗi khi lưu vào DB: ${error.message}`,
+        ],
         });
       }
     }
@@ -288,6 +302,21 @@ export class CourseSetsService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
+      // Import là thao tác "replace" (xoá hết câu hỏi cũ của set rồi chèn mới).
+      // Hai lần import đồng thời vào CÙNG 1 set sẽ đè lên nhau -> khoá theo
+      // course_set. Dùng advisory lock mức transaction: tự nhả khi commit hoặc
+      // rollback, nên request chết giữa chừng cũng không kẹt khoá.
+      const [{ locked }]: { locked: boolean }[] = await queryRunner.manager.query(
+        `SELECT pg_try_advisory_xact_lock($1, $2) AS locked`,
+        [COURSE_SET_IMPORT_LOCK_NAMESPACE, courseSetId],
+      );
+      if (!locked) {
+        throw new BadRequestException(
+          `Course Set id=${courseSetId} đang được import bởi một tiến trình khác. ` +
+            'Đợi lần import hiện tại xong rồi thử lại.',
+        );
+      }
+
       const previousLinks: { udemy_question_bank_id: number }[] =
         await queryRunner.manager.query(
           `SELECT udemy_question_bank_id FROM course_set_udemy_question_bank WHERE course_set_id = $1`,
