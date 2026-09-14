@@ -347,10 +347,32 @@ export class CourseSetsService {
       return newQuestionIds.length;
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      throw error;
+      throw this.explainDbError(error);
     } finally {
       await queryRunner.release();
     }
+  }
+
+  /**
+   * Dịch lỗi Postgres khó hiểu thành thông báo hành động được.
+   *
+   * 23505 (unique_violation) trên khoá chính của udemy_question_bank gần như
+   * luôn có nghĩa là sequence id đã tụt sau max(id) — nextval sinh ra id đã
+   * tồn tại. Tên constraint do TypeORM sinh (PK_b456e1...) không nói lên điều
+   * gì, nên admin không thể tự xử lý nếu chỉ thấy message gốc.
+   */
+  private explainDbError(error: unknown): unknown {
+    const pgError = error as { code?: string; message?: string };
+    if (pgError?.code === '23505') {
+      return new Error(
+        'Trùng khoá chính khi thêm câu hỏi: sequence id của bảng ' +
+          'udemy_question_bank đang tụt lại sau max(id) nên sinh ra id đã tồn tại ' +
+          '(thường do dữ liệu được seed/restore bằng id tường minh mà không setval). ' +
+          "Khắc phục: SELECT setval('udemy_question_bank_id_seq', " +
+          '(SELECT COALESCE(max(id), 0) + 1 FROM udemy_question_bank), false);',
+      );
+    }
+    return error;
   }
 
   private async batchInsertLinks(
