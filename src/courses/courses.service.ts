@@ -235,6 +235,13 @@ export class CoursesService {
         'udemyQuestionBanks là bắt buộc khi creationMode = "auto"',
       );
     }
+    // categoryName là optional, nhưng auto mode dùng nó để phân phối câu hỏi
+    // (distributeQuestions) nên không thể thiếu.
+    if (creationMode === 'auto' && !categoryName?.trim()) {
+      throw new BadRequestException(
+        'categoryName là bắt buộc khi creationMode = "auto"',
+      );
+    }
     const course = new Course();
     course.name = name;
     course.description = description;
@@ -823,6 +830,14 @@ export class CoursesService {
       thumbnailImageUrl,
     } = updateCourse;
     const course = await this.getCourseById(id);
+    // categoryName là optional, nhưng với course "auto" việc đổi categoryName sẽ
+    // xoá toàn bộ course set rồi phân phối lại câu hỏi theo category. Nếu để
+    // trống ở đây sẽ xoá sạch câu hỏi mà không phân phối lại được -> chặn sớm.
+    if (course.creationMode === 'auto' && !categoryName?.trim()) {
+      throw new BadRequestException(
+        'categoryName là bắt buộc với course có creationMode = "auto"',
+      );
+    }
     course.name = name;
     course.description = description;
     course.price = price;

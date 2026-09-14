@@ -90,6 +90,58 @@ export class CoursesAdminController {
     return this.coursesService.createVideoCourse(course);
   }
 
+  @ApiOperation({
+    summary:
+      'Upload thumbnail chưa gắn với course (dùng cho form Create, khi chưa có id)',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Trả về filename và path tĩnh của ảnh',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid image' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @Post('upload-thumbnail')
+  @UseInterceptors(
+    LocalFilesInterceptor({
+      fieldName: 'file',
+      path: '/courses',
+      fileFilter: (request, file, callback) => {
+        if (!file.mimetype.includes('image')) {
+          return callback(
+            new BadRequestException('Provide a valid image'),
+            false,
+          );
+        }
+        callback(null, true);
+      },
+      limits: {
+        fileSize: Math.pow(1024, 5),
+      },
+    }),
+  )
+  uploadThumbnailFile(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('Provide a valid image');
+    }
+    // main.ts serve thư mục uploads tại prefix '/uploads'. Trả path tương đối
+    // để client tự ghép với API base (tránh phụ thuộc proxy/host ở backend).
+    return {
+      filename: file.filename,
+      path: `/uploads/courses/${file.filename}`,
+    };
+  }
+
   @ApiOperation({ summary: 'Upload course thumbnail' })
   @ApiResponse({ status: 200, description: 'Thumbnail successfully uploaded' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
