@@ -282,10 +282,10 @@ export class CourseSetsService {
           insertedCount: 0,
           success: false,
           errors: [
-          error instanceof BadRequestException
-            ? error.message
-            : `Lỗi khi lưu vào DB: ${error.message}`,
-        ],
+            error instanceof BadRequestException
+              ? error.message
+              : `Lỗi khi lưu vào DB: ${error.message}`,
+          ],
         });
       }
     }
@@ -306,10 +306,11 @@ export class CourseSetsService {
       // Hai lần import đồng thời vào CÙNG 1 set sẽ đè lên nhau -> khoá theo
       // course_set. Dùng advisory lock mức transaction: tự nhả khi commit hoặc
       // rollback, nên request chết giữa chừng cũng không kẹt khoá.
-      const [{ locked }]: { locked: boolean }[] = await queryRunner.manager.query(
-        `SELECT pg_try_advisory_xact_lock($1, $2) AS locked`,
-        [COURSE_SET_IMPORT_LOCK_NAMESPACE, courseSetId],
-      );
+      const [{ locked }]: { locked: boolean }[] =
+        await queryRunner.manager.query(
+          `SELECT pg_try_advisory_xact_lock($1, $2) AS locked`,
+          [COURSE_SET_IMPORT_LOCK_NAMESPACE, courseSetId],
+        );
       if (!locked) {
         throw new BadRequestException(
           `Course Set id=${courseSetId} đang được import bởi một tiến trình khác. ` +
