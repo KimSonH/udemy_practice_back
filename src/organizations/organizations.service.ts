@@ -125,7 +125,17 @@ export class OrganizationsService {
         .addSelect('organization.slug', 'slug')
         .addSelect('organization.thumbnailImageUrl', 'thumbnailImageUrl')
         .addSelect('COUNT(course.id)', 'count')
-        .leftJoin('organization.courses', 'course')
+        // Chỉ đếm course thực sự hiển thị được ở trang organization
+        // (findAllByOrganization lọc status='active'). Nếu không, card báo
+        // "3 Courses" nhưng bấm vào chỉ thấy 1 vì các course inactive/đã xoá
+        // vẫn được đếm. Điều kiện đặt ở ON chứ không phải WHERE để organization
+        // chưa có course nào vẫn xuất hiện với count = 0.
+        .leftJoin(
+          'organization.courses',
+          'course',
+          'course.status = :activeStatus AND course.deletedAt IS NULL',
+          { activeStatus: 'active' },
+        )
         .groupBy(
           'organization.name, organization.slug, organization.thumbnailImageUrl',
         )
