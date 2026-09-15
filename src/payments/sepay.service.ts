@@ -52,7 +52,7 @@ export class SepayService {
 
   /**
    * Sign fields theo logic PHP
-   * Chỉ ký các fields được phép: merchant, operation, payment_method, order_amount, currency,
+   * Only sign the allowed fields: merchant, operation, payment_method, order_amount, currency,
    * order_invoice_number, order_description, customer_id, success_url, error_url, cancel_url
    */
   private signFields(fields: Record<string, any>, secretKey: string): string {

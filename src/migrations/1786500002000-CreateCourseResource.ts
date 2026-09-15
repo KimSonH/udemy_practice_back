@@ -28,7 +28,7 @@ export class CreateCourseResource1786500002000 implements MigrationInterface {
       ON DELETE CASCADE ON UPDATE NO ACTION
     `);
 
-    // Slug là duy nhất trong phạm vi 1 course, chỉ tính các bản chưa xóa mềm.
+    // A slug is unique within one course, counting only rows not soft-deleted.
     await queryRunner.query(`
       CREATE UNIQUE INDEX "UQ_course_resource_course_slug"
       ON "course_resource" ("course_id", "slug")

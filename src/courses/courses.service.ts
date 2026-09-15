@@ -52,7 +52,7 @@ export class CoursesService {
     private readonly dataSource: DataSource,
   ) {}
 
-  // Helper method để shuffle mảng (Fisher-Yates algorithm)
+  // Shuffle an array in place (Fisher-Yates)
   private shuffleArray(array: any[]): void {
     for (let i = array.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -60,7 +60,8 @@ export class CoursesService {
     }
   }
 
-  // Refactored: Phân phối và mượn câu hỏi trong 1 hàm duy nhất, loại bỏ các hàm phụ không cần thiết
+  // Distributing and borrowing questions live in this single method; the extra
+  // helpers this used to need are gone.
   async distributeQuestions(
     categoryName: string,
     totalSets: number,
@@ -71,24 +72,24 @@ export class CoursesService {
     totalSets = totalSets || 6;
     questionsPerSet = questionsPerSet || 120;
     this.logger.log(
-      `Bắt đầu phân phối với: totalSets=${totalSets}, questionsPerSet=${questionsPerSet}`,
+      `Starting distribution with totalSets=${totalSets}, questionsPerSet=${questionsPerSet}`,
     );
     const { questions: allQuestions, total: totalQuestions } =
       await this.udemyQuestionBanksService.findAllByCategoryName(categoryName);
-    this.logger.log(`Tổng số câu hỏi có sẵn: ${totalQuestions}`);
+    this.logger.log(`Total questions available: ${totalQuestions}`);
     const totalNeeded = totalSets * questionsPerSet;
     const minNeeded = Math.floor(totalNeeded * 0.8);
     if (totalQuestions < minNeeded) {
       throw new BadRequestException(
-        `Bạn đang yêu cầu ${totalNeeded} câu hỏi, cần ít nhất 80% của ${totalQuestions} câu hỏi.`,
+        `You asked for ${totalNeeded} questions, which needs at least 80% of the ${totalQuestions} available.`,
       );
     }
-    // Xóa câu hỏi cũ nếu có (dành cho update)
+    // Drop the previous questions, if any: this path also serves updates
     const courseSetIds = courseSets.map((set) => set.id).join(',');
     await queryRunner.manager.query(
       `DELETE FROM course_set_udemy_question_bank WHERE "course_set_id" IN (${courseSetIds})`,
     );
-    // Phân phối đều nếu đủ
+    // Enough questions available: distribute them evenly
     if (totalQuestions >= totalNeeded) {
       const shuffledQuestions = [...allQuestions];
       this.shuffleArray(shuffledQuestions);
@@ -100,7 +101,7 @@ export class CoursesService {
         );
         if (setQuestions.length < questionsPerSet) {
           throw new BadRequestException(
-            `Không đủ câu hỏi không trùng lặp cho set ${i + 1}`,
+            `Not enough distinct questions for set ${i + 1}`,
           );
         }
         usedIdx += questionsPerSet;
@@ -112,7 +113,7 @@ export class CoursesService {
       }
       return;
     }
-    // Nếu thiếu, phân phối đều nhất có thể, sau đó mượn
+    // Not enough: spread them as evenly as possible, then borrow
     const baseQuestionsPerSet = Math.floor(totalQuestions / totalSets);
     const remainder = totalQuestions % totalSets;
     const allRelations = [];
@@ -126,7 +127,7 @@ export class CoursesService {
       questionIndex += setQuestionCount;
       if (setQuestions.length === 0) {
         throw new BadRequestException(
-          `Không có câu hỏi để phân phối cho Set ${i + 1}`,
+          `No questions left to distribute to set ${i + 1}`,
         );
       }
       const relations = setQuestions.map((question) => ({
@@ -138,7 +139,7 @@ export class CoursesService {
     if (allRelations.length > 0) {
       await this.batchInsertQuestions(allRelations, queryRunner);
     }
-    // Mượn cho từng set nếu thiếu
+    // Borrow for each set that is still short
     for (let i = 0; i < totalSets; i++) {
       const currentCountRes = await queryRunner.manager.query(
         `SELECT COUNT(*) FROM course_set_udemy_question_bank WHERE "course_set_id" = $1`,
@@ -146,7 +147,7 @@ export class CoursesService {
       );
       const shortage = questionsPerSet - parseInt(currentCountRes[0].count);
       if (shortage <= 0) continue;
-      // Mượn câu hỏi chưa có trong set này, ưu tiên câu hỏi ít xuất hiện nhất
+      // Borrow questions the set does not have yet, least-used ones first
       const availableQuestions = await queryRunner.manager.query(
         `WITH CurrentSetQuestions AS (
             SELECT "udemy_question_bank_id" FROM course_set_udemy_question_bank WHERE "course_set_id" = $1
@@ -168,7 +169,7 @@ export class CoursesService {
       );
       if (availableQuestions.length < shortage) {
         throw new BadRequestException(
-          `Không thể mượn đủ câu hỏi cho set ${i + 1}. Còn thiếu ${shortage - availableQuestions.length} câu hỏi.`,
+          `Cannot borrow enough questions for set ${i + 1}, still ${shortage - availableQuestions.length} short.`,
         );
       }
       const borrowRelations = availableQuestions.map((q) => ({
@@ -177,7 +178,7 @@ export class CoursesService {
       }));
       await this.batchInsertQuestions(borrowRelations, queryRunner);
     }
-    // Kiểm tra trùng lặp trong từng set
+    // Check for duplicates within each set
     const duplicates = await queryRunner.manager.query(`
       WITH DuplicateCheck AS (
           SELECT csq."course_set_id", csq."udemy_question_bank_id", COUNT(*) OVER (PARTITION BY csq."course_set_id", csq."udemy_question_bank_id") as duplicate_count
@@ -187,7 +188,7 @@ export class CoursesService {
     `);
     if (duplicates.length > 0) {
       throw new BadRequestException(
-        'Phát hiện câu hỏi trùng lặp trong các set!',
+        'Duplicate questions detected within the sets',
       );
     }
   }
@@ -224,14 +225,14 @@ export class CoursesService {
     } = createCourse;
     if (creationMode === 'auto' && !questionsPerSet) {
       throw new BadRequestException(
-        'udemyQuestionBanks là bắt buộc khi creationMode = "auto"',
+        'udemyQuestionBanks is required when creationMode = "auto"',
       );
     }
-    // categoryName là optional, nhưng auto mode dùng nó để phân phối câu hỏi
-    // (distributeQuestions) nên không thể thiếu.
+    // categoryName is optional in general, but auto mode distributes questions by
+    // it (distributeQuestions), so it cannot be missing here.
     if (creationMode === 'auto' && !categoryName?.trim()) {
       throw new BadRequestException(
-        'categoryName là bắt buộc khi creationMode = "auto"',
+        'categoryName is required when creationMode = "auto"',
       );
     }
     const course = new Course();
@@ -281,24 +282,24 @@ export class CoursesService {
         );
       } else {
         this.logger.log(
-          'creationMode = "manual" — bỏ qua distributeQuestions, câu hỏi sẽ được import riêng bằng CSV cho từng course set',
+          'creationMode = "manual": skipping distributeQuestions, questions are imported per course set from CSV instead',
         );
       }
 
-      // Commit transaction if everything is successful / Commit transaction nếu mọi thứ thành công
+      // Commit the transaction if everything succeeded
       await queryRunner.manager.save(course);
       await queryRunner.commitTransaction();
 
-      // Check the final result / Kiểm tra kết quả cuối cùng
-      this.logger.log('Phân phối câu hỏi hoàn tất');
+      // Check the final result
+      this.logger.log('Question distribution finished');
       return course;
     } catch (error) {
-      // Rollback if there is an error / Rollback nếu có lỗi
+      // Roll back on error
       await queryRunner.rollbackTransaction();
       this.logger.error(`Failed to distribute questions: ${error.message}`);
       throw error;
     } finally {
-      // Release queryRunner / Giải phóng queryRunner
+      // Release the queryRunner
       await queryRunner.release();
     }
   }
@@ -580,7 +581,7 @@ export class CoursesService {
     try {
       const query = this.coursesRepository
         .createQueryBuilder('course')
-        .innerJoin('course.courseSessions', 'cs') // bắt buộc có ít nhất 1 session
+        .innerJoin('course.courseSessions', 'cs') // require at least one session
         .leftJoinAndSelect('course.organization', 'organization')
         .where('course.status = :status', { status: 'active' })
         .andWhere('course.deletedAt IS NULL')
@@ -630,10 +631,10 @@ export class CoursesService {
       const randomCourseIds = await this.coursesRepository
         .createQueryBuilder('course')
         .select('course.id')
-        .leftJoin('course.courseSessions', 'courseSessions') // join vào quan hệ
+        .leftJoin('course.courseSessions', 'courseSessions') // join the relation
         .where('course.status = :status', { status: 'active' })
         .andWhere('course.deletedAt IS NULL')
-        .andWhere('courseSessions.id IS NULL') // chỉ lấy course chưa có session nào
+        .andWhere('courseSessions.id IS NULL') // keep only courses with no session yet
         .orderBy('RANDOM()')
         .limit(limit)
         .getRawMany();
@@ -672,11 +673,11 @@ export class CoursesService {
     try {
       const randomCourseIdsRaw = await this.coursesRepository
         .createQueryBuilder('course')
-        .select('course.id', 'id') // chỉ lấy id
-        .innerJoin('course.courseSessions', 'cs') // bắt buộc có ít nhất 1 session
+        .select('course.id', 'id') // id only
+        .innerJoin('course.courseSessions', 'cs') // require at least one session
         .where('course.status = :status', { status: 'active' })
         .andWhere('course.deletedAt IS NULL')
-        .groupBy('course.id') // tránh duplicate thay cho DISTINCT
+        .groupBy('course.id') // avoids duplicates, in place of DISTINCT
         .orderBy('RANDOM()')
         .limit(limit)
         .getRawMany();
@@ -822,12 +823,13 @@ export class CoursesService {
       thumbnailImageUrl,
     } = updateCourse;
     const course = await this.getCourseById(id);
-    // categoryName là optional, nhưng với course "auto" việc đổi categoryName sẽ
-    // xoá toàn bộ course set rồi phân phối lại câu hỏi theo category. Nếu để
-    // trống ở đây sẽ xoá sạch câu hỏi mà không phân phối lại được -> chặn sớm.
+    // categoryName is optional in general, but on an "auto" course changing it
+    // wipes every course set and redistributes questions by the new category.
+    // Leaving it empty here would delete the questions with nothing to
+    // redistribute, so refuse up front.
     if (course.creationMode === 'auto' && !categoryName?.trim()) {
       throw new BadRequestException(
-        'categoryName là bắt buộc với course có creationMode = "auto"',
+        'categoryName is required for a course with creationMode = "auto"',
       );
     }
     course.name = name;
@@ -889,23 +891,23 @@ export class CoursesService {
           queryRunner,
           questionsPerSet,
         );
-        this.logger.log('Phân phối câu hỏi hoàn tất');
+        this.logger.log('Question distribution finished');
       }
       course.categoryName = categoryName;
 
       await queryRunner.manager.save(course);
-      // Commit transaction if everything is successful / Commit transaction nếu mọi thứ thành công
+      // Commit the transaction if everything succeeded
       await queryRunner.commitTransaction();
 
-      // Check the final result / Kiểm tra kết quả cuối cùng
+      // Check the final result
       return course;
     } catch (error) {
-      // Rollback if there is an error / Rollback nếu có lỗi
+      // Roll back on error
       await queryRunner.rollbackTransaction();
       this.logger.error(`Failed to update course: ${error.message}`);
       throw error;
     } finally {
-      // Release queryRunner / Giải phóng queryRunner
+      // Release the queryRunner
       await queryRunner.release();
     }
   }
@@ -923,7 +925,7 @@ export class CoursesService {
     }
   }
 
-  // Hàm insert theo batch
+  // Batched insert
   private async batchInsertQuestions(
     relations: Array<{ course_set_id: number; udemy_question_bank_id: number }>,
     queryRunner: QueryRunner,

@@ -103,8 +103,9 @@ export class OrganizationsAdminController {
     if (!file) {
       throw new BadRequestException('Provide a valid image');
     }
-    // main.ts serve thư mục uploads tại prefix '/uploads'. Trả path tương đối
-    // để client tự ghép với API base (tránh phụ thuộc proxy/host ở backend).
+    // main.ts serves the uploads directory under the '/uploads' prefix. Return a
+    // relative path and let the client join it with its own API base, so the
+    // backend does not depend on a particular proxy or host.
     return {
       filename: file.filename,
       path: `/uploads/organizations/${file.filename}`,

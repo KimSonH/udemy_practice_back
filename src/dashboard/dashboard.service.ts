@@ -72,8 +72,8 @@ export class DashboardService {
   }
 
   /**
-   * Số bản ghi MỚI được tạo mỗi ngày (theo created_at) trong N ngày gần nhất,
-   * fill 0 cho ngày không có dữ liệu để chart không bị đứt đoạn.
+   * Number of records created per day (by created_at) over the last N days,
+   * filling 0 for empty days so the chart has no gaps.
    */
   private async getDailyTrend(
     repository: Repository<any>,

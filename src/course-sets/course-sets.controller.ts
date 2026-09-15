@@ -105,9 +105,9 @@ export class CourseSetsController {
 
   @ApiOperation({
     summary:
-      'Import câu hỏi từ nhiều file CSV vào các Course Set của 1 course. Mỗi file tự map vào đúng set dựa theo số "Practice Test N" trong tên file <-> CourseSet.order. Import lại 1 set đã có câu hỏi sẽ THAY THẾ toàn bộ câu hỏi cũ của set đó.',
+      'Import questions from several CSV files into the course sets of one course. Each file maps to a set by the "Practice Test N" number in its filename <-> CourseSet.order. Re-importing a set that already has questions REPLACES all of its existing questions.',
   })
-  @ApiResponse({ status: 201, description: 'Kết quả import từng file' })
+  @ApiResponse({ status: 201, description: 'Per-file import result' })
   @ApiResponse({ status: 400, description: 'Bad request' })
   @ApiParam({ name: 'courseId', type: 'number' })
   @ApiConsumes('multipart/form-data')
@@ -124,9 +124,9 @@ export class CourseSetsController {
   })
   @ApiOperation({
     summary:
-      'Import 1 file CSV vào đúng 1 Course Set đã biết id (không cần suy luận từ tên file). THAY THẾ toàn bộ câu hỏi cũ của set.',
+      'Import one CSV file into a course set addressed by id, with no filename guessing. REPLACES all existing questions of that set.',
   })
-  @ApiResponse({ status: 201, description: 'Kết quả import' })
+  @ApiResponse({ status: 201, description: 'Import result' })
   @ApiResponse({ status: 400, description: 'Bad request' })
   @ApiParam({ name: 'id', type: 'number' })
   @ApiConsumes('multipart/form-data')
@@ -143,7 +143,10 @@ export class CourseSetsController {
       limits: { fileSize: 5 * 1024 * 1024 },
       fileFilter: (request, file, callback) => {
         if (!file.originalname.toLowerCase().endsWith('.csv')) {
-          return callback(new BadRequestException('Chỉ nhận file .csv'), false);
+          return callback(
+            new BadRequestException('Only .csv files are accepted'),
+            false,
+          );
         }
         callback(null, true);
       },
@@ -155,7 +158,7 @@ export class CourseSetsController {
   ) {
     const file = files?.[0];
     if (!file) {
-      throw new BadRequestException('Cần 1 file CSV');
+      throw new BadRequestException('A CSV file is required');
     }
     return this.courseSetsService.importSingleCsv(+id, {
       originalname: file.originalname,
@@ -170,7 +173,10 @@ export class CourseSetsController {
       limits: { fileSize: 5 * 1024 * 1024 },
       fileFilter: (request, file, callback) => {
         if (!file.originalname.toLowerCase().endsWith('.csv')) {
-          return callback(new BadRequestException('Chỉ nhận file .csv'), false);
+          return callback(
+            new BadRequestException('Only .csv files are accepted'),
+            false,
+          );
         }
         callback(null, true);
       },

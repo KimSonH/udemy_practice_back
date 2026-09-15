@@ -6,8 +6,9 @@ export class AddOrderInCourseSet1786500000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`ALTER TABLE "course_set" ADD "order" integer`);
 
-    // Backfill từ số ở cuối tên hiện có (ví dụ "Course Set 3" -> 3),
-    // fallback sang số thứ tự theo id trong cùng course nếu tên không có số ở cuối.
+    // Backfill from the number at the end of the existing name (e.g.
+    // "Course Set 3" -> 3), falling back to the position by id within the same
+    // course when the name has no trailing number.
     await queryRunner.query(`
       UPDATE "course_set" cs
       SET "order" = COALESCE(

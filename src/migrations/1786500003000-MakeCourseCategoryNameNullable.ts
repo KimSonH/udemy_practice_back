@@ -12,8 +12,8 @@ export class MakeCourseCategoryNameNullable1786500003000
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // Khôi phục NOT NULL: các bản ghi NULL được đưa về chuỗi rỗng trước, vì
-    // trước đây course không có category vẫn lưu '' (ví dụ video course).
+    // Restoring NOT NULL: NULL rows become an empty string first, because a
+    // course without a category used to be stored as '' (video courses, say).
     await queryRunner.query(
       `UPDATE "course" SET "category_name" = '' WHERE "category_name" IS NULL`,
     );

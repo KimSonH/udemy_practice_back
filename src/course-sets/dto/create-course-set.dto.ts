@@ -17,7 +17,7 @@ export class CreateCourseSetDto {
 
   @ApiProperty({
     description:
-      'Thứ tự của set trong course (dùng để map file CSV import theo số, ví dụ "Practice Test 3" -> order = 3)',
+      'Order of the set within the course, used to map imported CSV files by number, e.g. "Practice Test 3" -> order = 3',
   })
   @IsNumber()
   @IsNotEmpty()

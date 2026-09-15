@@ -21,7 +21,7 @@ export class CourseResourcesController {
   ) {}
 
   @ApiOperation({
-    summary: 'Danh sách resource hiển thị mà người dùng có quyền xem',
+    summary: 'List visible resources the caller is allowed to read',
   })
   @ApiResponse({ status: 200, type: [CourseResource] })
   @ApiParam({ name: 'courseId', type: 'number' })
@@ -36,7 +36,7 @@ export class CourseResourcesController {
     );
   }
 
-  @ApiOperation({ summary: 'Chi tiết resource theo slug (kèm HTML)' })
+  @ApiOperation({ summary: 'Get a resource by slug, including its HTML' })
   @ApiResponse({ status: 200, type: CourseResource })
   @ApiParam({ name: 'courseId', type: 'number' })
   @ApiParam({ name: 'slug', type: 'string' })
