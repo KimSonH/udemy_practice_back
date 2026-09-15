@@ -35,7 +35,9 @@ export class CourseResourcesAdminController {
     private readonly courseResourcesService: CourseResourcesService,
   ) {}
 
-  @ApiOperation({ summary: 'Danh sách resource của course (kể cả ẩn)' })
+  @ApiOperation({
+    summary: 'List the resources of a course, hidden ones included',
+  })
   @ApiResponse({ status: 200, type: [CourseResource] })
   @ApiParam({ name: 'courseId', type: 'number' })
   @Get()
@@ -43,7 +45,7 @@ export class CourseResourcesAdminController {
     return this.courseResourcesService.findAllByCourseForAdmin(courseId);
   }
 
-  @ApiOperation({ summary: 'Tạo resource mới cho course' })
+  @ApiOperation({ summary: 'Create a resource for a course' })
   @ApiResponse({ status: 201, type: CourseResource })
   @ApiParam({ name: 'courseId', type: 'number' })
   @ApiBody({ type: CreateCourseResourceDto })
@@ -55,7 +57,7 @@ export class CourseResourcesAdminController {
     return this.courseResourcesService.create(courseId, dto);
   }
 
-  @ApiOperation({ summary: 'Sắp xếp lại thứ tự resource' })
+  @ApiOperation({ summary: 'Reorder resources' })
   @ApiParam({ name: 'courseId', type: 'number' })
   @ApiBody({ type: ReorderCourseResourcesDto })
   @Patch('reorder')
@@ -66,7 +68,7 @@ export class CourseResourcesAdminController {
     return this.courseResourcesService.reorder(courseId, dto);
   }
 
-  @ApiOperation({ summary: 'Chi tiết 1 resource' })
+  @ApiOperation({ summary: 'Get a single resource' })
   @ApiResponse({ status: 200, type: CourseResource })
   @ApiParam({ name: 'courseId', type: 'number' })
   @ApiParam({ name: 'id', type: 'number' })
@@ -78,7 +80,7 @@ export class CourseResourcesAdminController {
     return this.courseResourcesService.findOneForAdmin(courseId, id);
   }
 
-  @ApiOperation({ summary: 'Cập nhật resource' })
+  @ApiOperation({ summary: 'Update a resource' })
   @ApiResponse({ status: 200, type: CourseResource })
   @ApiParam({ name: 'courseId', type: 'number' })
   @ApiParam({ name: 'id', type: 'number' })
@@ -92,7 +94,7 @@ export class CourseResourcesAdminController {
     return this.courseResourcesService.update(courseId, id, dto);
   }
 
-  @ApiOperation({ summary: 'Bật/tắt hiển thị resource' })
+  @ApiOperation({ summary: 'Toggle resource visibility' })
   @ApiResponse({ status: 200, type: CourseResource })
   @ApiParam({ name: 'courseId', type: 'number' })
   @ApiParam({ name: 'id', type: 'number' })
@@ -110,7 +112,7 @@ export class CourseResourcesAdminController {
     );
   }
 
-  @ApiOperation({ summary: 'Xóa mềm resource' })
+  @ApiOperation({ summary: 'Soft delete a resource' })
   @ApiParam({ name: 'courseId', type: 'number' })
   @ApiParam({ name: 'id', type: 'number' })
   @Delete(':id')

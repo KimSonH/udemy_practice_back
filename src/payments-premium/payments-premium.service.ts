@@ -192,7 +192,7 @@ export class PaymentsPremiumService {
         return payload;
       }
       throw new BadRequestException('Invalid session');
-    } catch (error) {
+    } catch {
       throw new BadRequestException('Invalid session');
     }
   }

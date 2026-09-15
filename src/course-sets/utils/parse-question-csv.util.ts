@@ -43,8 +43,9 @@ function emptyToUndefined(value: string | undefined): string | undefined {
 /**
  * Parse + validate 1 file CSV theo format "Practice Test" (Question, Question Type,
  * Answer Option 1..6, Explanation 1..6, Correct Answers, Overall Explanation, Domain).
- * Trả về TOÀN BỘ lỗi tìm được (không throw ở dòng đầu tiên) để hiển thị 1 lần cho admin,
- * và KHÔNG trả rows nếu có bất kỳ lỗi nào — import là all-or-nothing theo từng file.
+ * Returns EVERY error found rather than throwing on the first bad row, so the
+ * admin sees them all at once, and returns no rows if there is any error at all:
+ * an import is all-or-nothing per file.
  */
 export function parseQuestionCsv(buffer: Buffer): ParseQuestionCsvResult {
   const errors: string[] = [];
@@ -58,11 +59,11 @@ export function parseQuestionCsv(buffer: Buffer): ParseQuestionCsvResult {
       skip_empty_lines: true,
     });
   } catch (error) {
-    return { rows: [], errors: [`File CSV không hợp lệ: ${error.message}`] };
+    return { rows: [], errors: [`Invalid CSV file: ${error.message}`] };
   }
 
   if (records.length === 0) {
-    return { rows: [], errors: ['File CSV không có dữ liệu'] };
+    return { rows: [], errors: ['The CSV file has no data'] };
   }
 
   const headers = Object.keys(records[0]);
@@ -72,17 +73,19 @@ export function parseQuestionCsv(buffer: Buffer): ParseQuestionCsvResult {
   if (missingColumns.length > 0) {
     return {
       rows: [],
-      errors: [`File CSV thiếu cột bắt buộc: ${missingColumns.join(', ')}`],
+      errors: [
+        `The CSV file is missing required columns: ${missingColumns.join(', ')}`,
+      ],
     };
   }
 
   const rows: ParsedQuestionRow[] = [];
 
   records.forEach((record, index) => {
-    const rowNumber = index + 2; // +1 vì bắt đầu từ 0, +1 vì có dòng header
+    const rowNumber = index + 2; // +1 because the index is 0-based, +1 for the header row
     const question = emptyToUndefined(record['Question']);
     if (!question) {
-      errors.push(`Dòng ${rowNumber}: thiếu "Question"`);
+      errors.push(`Row ${rowNumber}: "Question" is missing`);
       return;
     }
 
@@ -99,7 +102,7 @@ export function parseQuestionCsv(buffer: Buffer): ParseQuestionCsvResult {
 
     if (!answerOptions[0] || !answerOptions[1]) {
       errors.push(
-        `Dòng ${rowNumber}: cần ít nhất "Answer Option 1" và "Answer Option 2"`,
+        `Row ${rowNumber}: "Answer Option 1" and "Answer Option 2" are both required`,
       );
       return;
     }
@@ -107,14 +110,14 @@ export function parseQuestionCsv(buffer: Buffer): ParseQuestionCsvResult {
     const correctAnswerRaw = emptyToUndefined(record['Correct Answers']);
     if (!correctAnswerRaw || !/^\d+$/.test(correctAnswerRaw)) {
       errors.push(
-        `Dòng ${rowNumber}: "Correct Answers" phải là 1 số nguyên (ví dụ "3"), giá trị hiện tại: "${record['Correct Answers']}"`,
+        `Row ${rowNumber}: "Correct Answers" must be an integer such as "3", got "${record['Correct Answers']}"`,
       );
       return;
     }
     const correctAnswerIndex = parseInt(correctAnswerRaw, 10);
     if (correctAnswerIndex < 1 || correctAnswerIndex > optionCount) {
       errors.push(
-        `Dòng ${rowNumber}: "Correct Answers" = ${correctAnswerIndex} nhưng chỉ có ${optionCount} đáp án`,
+        `Row ${rowNumber}: "Correct Answers" = ${correctAnswerIndex} but only ${optionCount} answer options are present`,
       );
       return;
     }
@@ -143,7 +146,7 @@ export function parseQuestionCsv(buffer: Buffer): ParseQuestionCsvResult {
   return { rows: errors.length > 0 ? [] : rows, errors };
 }
 
-/** Suy ra số thứ tự "Practice Test N" từ tên file, dùng để map vào CourseSet.order = N */
+/** Read the "Practice Test N" number out of a filename, to map it onto CourseSet.order = N */
 export function extractTestNumberFromFilename(filename: string): number | null {
   const match = filename.match(/practice[\s_-]?test[\s_-]?(\d+)/i);
   if (!match) return null;

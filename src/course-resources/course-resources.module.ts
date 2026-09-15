@@ -8,9 +8,7 @@ import { Course } from 'src/courses/entities/courses.entity';
 import { UserCourse } from 'src/user-courses/entities/user-course.entity';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([CourseResource, Course, UserCourse]),
-  ],
+  imports: [TypeOrmModule.forFeature([CourseResource, Course, UserCourse])],
   controllers: [CourseResourcesAdminController, CourseResourcesController],
   providers: [CourseResourcesService],
   exports: [CourseResourcesService],

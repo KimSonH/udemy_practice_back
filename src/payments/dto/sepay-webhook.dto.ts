@@ -42,4 +42,3 @@ export class SepayWebhookDto {
   @IsString()
   custom_data?: string;
 }
-

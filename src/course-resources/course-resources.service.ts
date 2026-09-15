@@ -61,8 +61,8 @@ export class CourseResourcesService {
     await this.ensureCourseExists(courseId);
     try {
       const slug = await this.resolveSlug(courseId, dto.title, dto.slug);
-      // Dùng max(order)+1 thay vì count() để tránh trùng order sau khi có bản
-      // ghi bị soft-delete (count bỏ qua bản đã xóa nên có thể tái dùng order).
+      // Use max(order)+1 rather than count(): count skips soft-deleted rows, so
+      // it would hand out an order value an existing row already uses.
       const last = await this.courseResourceRepository.findOne({
         where: { course: { id: courseId } },
         order: { order: 'DESC' },
@@ -139,7 +139,7 @@ export class CourseResourcesService {
     });
     if (resources.length !== ids.length) {
       throw new BadRequestException(
-        'Một số resource không thuộc course này hoặc không tồn tại',
+        'Some resources do not belong to this course, or do not exist',
       );
     }
     const orderById = new Map(dto.items.map((i) => [i.id, i.order]));
@@ -168,8 +168,8 @@ export class CourseResourcesService {
     return !!owned;
   }
 
-  // Quyết định quyền truy cập thuần (không I/O): `owns` là kết quả kiểm tra sở
-  // hữu đã tính sẵn, để caller chỉ query user_course tối đa 1 lần.
+  // Pure access decision, no I/O: `owns` is resolved by the caller beforehand so
+  // that user_course is queried at most once per request.
   private hasAccess(
     accessLevel: CourseResourceAccessLevel,
     userId: number | undefined,
@@ -192,20 +192,27 @@ export class CourseResourcesService {
     await this.ensureCourseExists(courseId);
     const resources = await this.courseResourceRepository.find({
       where: { course: { id: courseId }, isVisible: true },
+      // Skip html in the list: the column holds a whole HTML document and is only
+      // needed on the detail view. Excluding it here means the DB never reads it.
+      select: [
+        'id',
+        'title',
+        'slug',
+        'isVisible',
+        'accessLevel',
+        'order',
+        'createdAt',
+        'updatedAt',
+      ],
       order: { order: 'ASC', id: 'ASC' },
     });
 
-    // Kiểm tra sở hữu 1 lần cho cả danh sách (tránh N+1 khi có nhiều resource 'paid').
+    // Resolve ownership once for the whole list, instead of once per 'paid' row.
     const owns = resources.some((r) => r.accessLevel === 'paid')
       ? await this.userOwnsCourse(courseId, userId)
       : false;
 
-    return (
-      resources
-        .filter((r) => this.hasAccess(r.accessLevel, userId, owns))
-        // Không trả html trong danh sách để tiết kiệm payload
-        .map(({ html: _html, ...rest }) => rest)
-    );
+    return resources.filter((r) => this.hasAccess(r.accessLevel, userId, owns));
   }
 
   async findVisibleBySlug(courseId: number, slug: string, userId?: number) {
@@ -220,8 +227,8 @@ export class CourseResourcesService {
         ? await this.userOwnsCourse(courseId, userId)
         : false;
     if (!this.hasAccess(resource.accessLevel, userId, owns)) {
-      // 'private' là tài liệu chỉ dành cho admin: trả 404 để không lộ sự tồn
-      // tại và không gợi ý sai "đăng nhập/mua". Các mức khác trả 403.
+      // 'private' is admin-only: answer 404 so the resource's existence stays
+      // hidden and we do not wrongly hint at "sign in / buy". Other levels get 403.
       if (resource.accessLevel === 'private') {
         throw new NotFoundException('Course resource not found');
       }

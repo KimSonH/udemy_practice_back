@@ -1,16 +1,16 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 /**
- * Đồng bộ lại tất cả sequence của cột serial về max(id) + 1.
+ * Resync every serial column sequence to max(id) + 1.
  *
- * Bối cảnh: import CSV câu hỏi bị lỗi
+ * Context: importing questions from CSV failed with
  * `duplicate key value violates unique constraint "PK_b456e148c582d42a6a57c35c7a4"`
- * vì sequence của udemy_question_bank.id tụt lại sau max(id) — xảy ra khi dữ
- * liệu được seed/restore bằng id tường minh mà không setval lại sequence. Khi
- * đó nextval trả về id đã tồn tại.
+ * because the udemy_question_bank.id sequence had fallen behind max(id), which
+ * happens when data is seeded or restored with explicit ids and the sequence is
+ * never setval'd. nextval then returns an id that already exists.
  *
- * Migration này idempotent và an toàn: chỉ đặt sequence về max(id) + 1, không
- * thể đè lên id đang dùng (theo định nghĩa của max).
+ * This migration is idempotent and safe: it only moves a sequence to
+ * max(id) + 1, which by definition cannot collide with an id already in use.
  */
 export class ResyncIdentitySequences1786500004000
   implements MigrationInterface
@@ -46,6 +46,7 @@ export class ResyncIdentitySequences1786500004000
   }
 
   public async down(): Promise<void> {
-    // Không revert: đưa sequence về giá trị cũ (đang lệch) sẽ tái tạo đúng bug.
+    // No revert: moving the sequences back to their old, lagging values would
+    // simply recreate the bug.
   }
 }

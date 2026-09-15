@@ -12,7 +12,6 @@ import { RegisterDto } from './dto/register.dto';
 import { TokenPayload } from './tokenPayload.interface';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import { WithTransaction } from 'src/common/decorators/transaction.decorator';
 @Injectable()
 export class AuthenticationService {
   constructor(

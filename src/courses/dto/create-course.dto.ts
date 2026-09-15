@@ -53,7 +53,7 @@ export class CreateCourseDto {
 
   @ApiProperty({
     description:
-      'Category name của course. Không bắt buộc, nhưng BẮT BUỘC khi creationMode = "auto" vì dùng để phân phối câu hỏi.',
+      'Category name of the course. Optional in general, but REQUIRED when creationMode = "auto", because questions are distributed by it.',
     required: false,
   })
   @IsString()
@@ -76,7 +76,7 @@ export class CreateCourseDto {
 
   @ApiProperty({
     description:
-      'Cách tạo course set: "auto" (mặc định, random câu hỏi theo categoryName như trước) hoặc "manual" (chỉ tạo course set rỗng, câu hỏi được import riêng bằng CSV sau)',
+      'How course sets are created: "auto" (the default, random questions picked by categoryName) or "manual" (empty course sets only, questions imported from CSV afterwards)',
     enum: COURSE_CREATION_MODES,
     required: false,
     default: 'auto',
@@ -87,7 +87,7 @@ export class CreateCourseDto {
 
   @ApiProperty({
     description:
-      'Udemy question banks of the course (bắt buộc khi creationMode = "auto", không cần khi "manual")',
+      'Udemy question banks of the course (required when creationMode = "auto", unused when "manual")',
     required: false,
   })
   @IsNumber()

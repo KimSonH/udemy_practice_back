@@ -2,6 +2,8 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  HttpException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Like, Repository } from 'typeorm';
@@ -11,6 +13,8 @@ import { UpdateCategoryCourseDto } from './dto/update-category.course.admin.dto'
 
 @Injectable()
 export class CategoriesCourseAdminService {
+  private readonly logger = new Logger(CategoriesCourseAdminService.name);
+
   constructor(
     @InjectRepository(CategoryCourse)
     private categoryCourseRepository: Repository<CategoryCourse>,
@@ -41,6 +45,7 @@ export class CategoriesCourseAdminService {
         limit,
       };
     } catch (error) {
+      this.logger.error(error);
       throw new BadRequestException('Error getting categories');
     }
   }
@@ -66,6 +71,7 @@ export class CategoriesCourseAdminService {
         limit,
       };
     } catch (error) {
+      this.logger.error(error);
       throw new BadRequestException('Error getting categories');
     }
   }
@@ -82,6 +88,13 @@ export class CategoriesCourseAdminService {
 
       return category;
     } catch (error) {
+      // Let an intentional HTTP error through: without this the 404 thrown
+      // just above is caught here and re-thrown as a generic 400, so callers
+      // cannot tell "not found" from "bad request".
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      this.logger.error(error);
       throw new BadRequestException('Error getting category');
     }
   }
@@ -91,6 +104,10 @@ export class CategoriesCourseAdminService {
       await this.findOne(id);
       return this.categoryCourseRepository.update(id, updateCategoryCourseDto);
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      this.logger.error(error);
       throw new BadRequestException('Error updating category');
     }
   }
@@ -100,6 +117,10 @@ export class CategoriesCourseAdminService {
       await this.findOne(id);
       return this.categoryCourseRepository.softDelete(id);
     } catch (error) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      this.logger.error(error);
       throw new BadRequestException('Error deleting category');
     }
   }

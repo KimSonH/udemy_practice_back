@@ -47,7 +47,7 @@ export class CoursesAdminController {
   ) {}
 
   @ApiOperation({
-    summary: 'Tạo 1 course set rỗng cho course (quản lý riêng lẻ)',
+    summary: 'Create an empty course set for a course',
   })
   @ApiResponse({
     status: 201,
@@ -92,11 +92,11 @@ export class CoursesAdminController {
 
   @ApiOperation({
     summary:
-      'Upload thumbnail chưa gắn với course (dùng cho form Create, khi chưa có id)',
+      'Upload a thumbnail not yet tied to a course, for the Create form where no id exists yet',
   })
   @ApiResponse({
     status: 201,
-    description: 'Trả về filename và path tĩnh của ảnh',
+    description: 'Returns the filename and the static path of the image',
   })
   @ApiResponse({ status: 400, description: 'Invalid image' })
   @ApiConsumes('multipart/form-data')
@@ -134,8 +134,9 @@ export class CoursesAdminController {
     if (!file) {
       throw new BadRequestException('Provide a valid image');
     }
-    // main.ts serve thư mục uploads tại prefix '/uploads'. Trả path tương đối
-    // để client tự ghép với API base (tránh phụ thuộc proxy/host ở backend).
+    // main.ts serves the uploads directory under the '/uploads' prefix. Return a
+    // relative path and let the client join it with its own API base, so the
+    // backend does not depend on a particular proxy or host.
     return {
       filename: file.filename,
       path: `/uploads/courses/${file.filename}`,

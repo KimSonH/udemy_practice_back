@@ -32,7 +32,7 @@ import { Course } from 'src/courses/entities/courses.entity';
 @Controller('user-courses')
 @UseGuards(JwtAuthenticationGuard)
 export class UserCoursesController {
-  constructor(private readonly userCoursesService: UserCoursesService) { }
+  constructor(private readonly userCoursesService: UserCoursesService) {}
 
   @ApiOperation({ summary: 'Create a new user course' })
   @ApiResponse({
@@ -134,7 +134,11 @@ export class UserCoursesController {
   @Get(':id')
   @UseGuards(JwtAuthenticationGuard)
   findOne(@Req() req: RequestWithUser, @Param('id') id: string) {
-    return this.userCoursesService.findOneByCourseId(+id, req.user.id, 'completed');
+    return this.userCoursesService.findOneByCourseId(
+      +id,
+      req.user.id,
+      'completed',
+    );
   }
 
   @ApiOperation({ summary: 'Update user course' })

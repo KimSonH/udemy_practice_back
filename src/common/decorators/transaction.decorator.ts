@@ -1,5 +1,4 @@
 import { BadRequestException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
 
 export const WithTransaction = () => {
   return function (

@@ -1,6 +1,6 @@
 export interface QuestionDistributionOptions {
   allowAutoAdjust?: boolean;
-  maxQuestionPercentage?: number; // Ví dụ: 0.8 = 80%
+  maxQuestionPercentage?: number; // For example: 0.8 = 80%
 }
 
 // types.ts

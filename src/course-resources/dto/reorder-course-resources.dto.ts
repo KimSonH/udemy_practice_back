@@ -9,11 +9,11 @@ import {
 } from 'class-validator';
 
 export class ReorderItemDto {
-  @ApiProperty({ description: 'Id của resource' })
+  @ApiProperty({ description: 'Resource id' })
   @IsInt()
   id: number;
 
-  @ApiProperty({ description: 'Thứ tự mới' })
+  @ApiProperty({ description: 'New order' })
   @IsInt()
   @Min(0)
   order: number;

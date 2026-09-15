@@ -7,7 +7,7 @@ import {
 import { CreateUserCourseDto } from './dto/create-user-course.dto';
 import { UpdateUserCourseDto } from './dto/update-user-course.dto';
 import { UserCourse } from './entities/user-course.entity';
-import { Brackets, ILike, Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PaginationParams } from 'src/common/pagination.type';
 import { CoursesService } from 'src/courses/courses.service';
@@ -27,7 +27,7 @@ export class UserCoursesService {
     @InjectRepository(UserCourse)
     private readonly userCourseRepository: Repository<UserCourse>,
     private readonly coursesService: CoursesService,
-  ) { }
+  ) {}
 
   async create(createUserCourseDto: CreateUserCourseDto) {
     try {
@@ -53,7 +53,14 @@ export class UserCoursesService {
     try {
       const [userCourses, total] = await this.userCourseRepository.findAndCount(
         {
-          where: { user: { id: userId }, status: status ? status : undefined },
+          where: {
+            user: { id: userId },
+            status: status ? status : undefined,
+            // The endpoint accepted `search` but never filtered on it, so the
+            // search box silently returned everything. Match course name, the
+            // same field findAll() searches.
+            course: search ? { name: ILike(`%${search}%`) } : undefined,
+          },
           relations: this.relations,
           order: {
             createdAt: order[orderBy] || 'DESC',
@@ -105,7 +112,10 @@ export class UserCoursesService {
         .leftJoinAndSelect('userCourse.user', 'user')
         .leftJoinAndSelect('userCourse.course', 'course')
         .leftJoinAndSelect('course.courseSets', 'courseSets')
-        .leftJoinAndSelect('courseSets.udemyQuestionBanks', 'udemyQuestionBanks')
+        .leftJoinAndSelect(
+          'courseSets.udemyQuestionBanks',
+          'udemyQuestionBanks',
+        )
         .leftJoinAndSelect('course.organization', 'organization')
         .where('userCourse.userId = :userId', { userId })
         .andWhere('course.status = :courseStatus', { courseStatus: 'active' })
@@ -181,11 +191,15 @@ export class UserCoursesService {
     }
   }
 
-  async findOneByCourseId(courseId: number, userId: number, status?: 'completed' | 'failed' | 'pending') {
+  async findOneByCourseId(
+    courseId: number,
+    userId: number,
+    status?: 'completed' | 'failed' | 'pending',
+  ) {
     const userCourse = await this.userCourseRepository.findOne({
       where: { courseId, userId, status },
       relations: this.relations,
-    })
+    });
     if (!userCourse) {
       throw new BadRequestException('User course not found');
     }

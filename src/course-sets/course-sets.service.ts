@@ -15,8 +15,8 @@ import {
 } from './utils/parse-question-csv.util';
 
 /**
- * Namespace tuỳ ý cho advisory lock, để khoá của việc import CSV không đụng
- * với bất kỳ advisory lock nào khác dùng cùng id.
+ * Arbitrary namespace for the advisory lock, so the CSV import lock cannot
+ * collide with any other advisory lock that happens to use the same id.
  */
 const COURSE_SET_IMPORT_LOCK_NAMESPACE = 771001;
 
@@ -83,7 +83,7 @@ export class CourseSetsService {
       .getRepository(Course)
       .findOne({ where: { id: courseId } });
     if (!course) {
-      throw new BadRequestException(`Course id=${courseId} không tồn tại`);
+      throw new BadRequestException(`Course id=${courseId} does not exist`);
     }
     if (course.creationMode !== 'manual') {
       throw new BadRequestException(
@@ -93,7 +93,7 @@ export class CourseSetsService {
     return course;
   }
 
-  /** Tạo 1 course set rỗng cho course, dùng ở UI quản lý course set riêng lẻ (tab Practice Test). */
+  /** Create an empty course set, used by the Practice Test tab in the admin UI. */
   async createForCourse(courseId: number, dto: CreateCourseSetForCourseDto) {
     await this.assertManualMode(courseId);
     const existing = await this.courseSetsRepository.find({
@@ -115,7 +115,7 @@ export class CourseSetsService {
     return this.courseSetsRepository.save(courseSet);
   }
 
-  /** Import đúng 1 file CSV vào 1 course set đã biết id, không cần suy luận từ tên file. */
+  /** Import one CSV file into a course set addressed by id, with no filename guessing. */
   async importSingleCsv(
     courseSetId: number,
     file: ImportQuestionCsvFile,
@@ -126,7 +126,7 @@ export class CourseSetsService {
     });
     if (!courseSet) {
       throw new BadRequestException(
-        `Course Set id=${courseSetId} không tồn tại`,
+        `Course set id=${courseSetId} does not exist`,
       );
     }
     if (courseSet.course.creationMode !== 'manual') {
@@ -163,7 +163,7 @@ export class CourseSetsService {
       };
     } catch (error) {
       this.logger.error(
-        `Import CSV thất bại cho courseSetId=${courseSet.id}: ${error.message}`,
+        `CSV import failed for courseSetId=${courseSet.id}: ${error.message}`,
       );
       return {
         filename: file.originalname,
@@ -174,24 +174,26 @@ export class CourseSetsService {
         errors: [
           error instanceof BadRequestException
             ? error.message
-            : `Lỗi khi lưu vào DB: ${error.message}`,
+            : `Error saving to the database: ${error.message}`,
         ],
       };
     }
   }
 
   /**
-   * Import câu hỏi từ nhiều file CSV vào các CourseSet của 1 course, mỗi file map
-   * vào đúng 1 CourseSet dựa theo số "Practice Test N" trong tên file <-> CourseSet.order.
-   * Mỗi file là 1 transaction độc lập (all-or-nothing): file lỗi không ảnh hưởng file khác.
-   * Import lại 1 set đã có câu hỏi -> THAY THẾ toàn bộ câu hỏi cũ của set đó.
+   * Import questions from several CSV files into the course sets of one course.
+   * Each file maps to one course set by the "Practice Test N" number in its
+   * filename <-> CourseSet.order.
+   * Each file is its own transaction (all-or-nothing): a failing file does not
+   * affect the others.
+   * Re-importing a set that already has questions REPLACES all of them.
    */
   async importQuestionsFromCsv(
     courseId: number,
     files: ImportQuestionCsvFile[],
   ): Promise<ImportQuestionCsvFileResult[]> {
     if (!files || files.length === 0) {
-      throw new BadRequestException('Cần ít nhất 1 file CSV');
+      throw new BadRequestException('At least one CSV file is required');
     }
 
     const courseSets = await this.courseSetsRepository.find({
@@ -201,7 +203,7 @@ export class CourseSetsService {
 
     if (courseSets.length === 0) {
       throw new BadRequestException(
-        `Course id=${courseId} không tồn tại hoặc chưa có Course Set nào`,
+        `Course id=${courseId} does not exist, or has no course set yet`,
       );
     }
 
@@ -223,7 +225,7 @@ export class CourseSetsService {
           insertedCount: 0,
           success: false,
           errors: [
-            `Không tìm được số "Practice Test N" trong tên file "${file.originalname}"`,
+            `Could not find a "Practice Test N" number in the filename "${file.originalname}"`,
           ],
         });
         continue;
@@ -238,7 +240,7 @@ export class CourseSetsService {
           insertedCount: 0,
           success: false,
           errors: [
-            `Course id=${courseId} không có Course Set với order=${testNumber} (file "${file.originalname}" map vào Practice Test ${testNumber})`,
+            `Course id=${courseId} has no course set with order=${testNumber} (file "${file.originalname}" maps to Practice Test ${testNumber})`,
           ],
         });
         continue;
@@ -273,7 +275,7 @@ export class CourseSetsService {
         });
       } catch (error) {
         this.logger.error(
-          `Import CSV thất bại cho courseSetId=${courseSet.id}: ${error.message}`,
+          `CSV import failed for courseSetId=${courseSet.id}: ${error.message}`,
         );
         results.push({
           filename: file.originalname,
@@ -284,7 +286,7 @@ export class CourseSetsService {
           errors: [
             error instanceof BadRequestException
               ? error.message
-              : `Lỗi khi lưu vào DB: ${error.message}`,
+              : `Error saving to the database: ${error.message}`,
           ],
         });
       }
@@ -302,10 +304,11 @@ export class CourseSetsService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
-      // Import là thao tác "replace" (xoá hết câu hỏi cũ của set rồi chèn mới).
-      // Hai lần import đồng thời vào CÙNG 1 set sẽ đè lên nhau -> khoá theo
-      // course_set. Dùng advisory lock mức transaction: tự nhả khi commit hoặc
-      // rollback, nên request chết giữa chừng cũng không kẹt khoá.
+      // An import is a "replace": every existing question of the set is deleted
+      // before the new ones are inserted. Two concurrent imports into the SAME set
+      // would overwrite each other, so lock per course_set. The advisory lock is
+      // transaction-scoped: it is released on commit or rollback, so a request
+      // that dies midway cannot leave the lock held.
       const [{ locked }]: { locked: boolean }[] =
         await queryRunner.manager.query(
           `SELECT pg_try_advisory_xact_lock($1, $2) AS locked`,
@@ -313,8 +316,8 @@ export class CourseSetsService {
         );
       if (!locked) {
         throw new BadRequestException(
-          `Course Set id=${courseSetId} đang được import bởi một tiến trình khác. ` +
-            'Đợi lần import hiện tại xong rồi thử lại.',
+          `Course set id=${courseSetId} is already being imported by another ` +
+            'process. Wait for that import to finish and try again.',
         );
       }
 
@@ -384,21 +387,22 @@ export class CourseSetsService {
   }
 
   /**
-   * Dịch lỗi Postgres khó hiểu thành thông báo hành động được.
+   * Turn an opaque Postgres error into a message the admin can act on.
    *
-   * 23505 (unique_violation) trên khoá chính của udemy_question_bank gần như
-   * luôn có nghĩa là sequence id đã tụt sau max(id) — nextval sinh ra id đã
-   * tồn tại. Tên constraint do TypeORM sinh (PK_b456e1...) không nói lên điều
-   * gì, nên admin không thể tự xử lý nếu chỉ thấy message gốc.
+   * 23505 (unique_violation) on the udemy_question_bank primary key almost
+   * always means the id sequence has fallen behind max(id), so nextval returns
+   * an id that already exists. The TypeORM-generated constraint name
+   * (PK_b456e1...) says nothing, leaving the admin stuck with the raw message.
    */
   private explainDbError(error: unknown): unknown {
     const pgError = error as { code?: string; message?: string };
     if (pgError?.code === '23505') {
       return new Error(
-        'Trùng khoá chính khi thêm câu hỏi: sequence id của bảng ' +
-          'udemy_question_bank đang tụt lại sau max(id) nên sinh ra id đã tồn tại ' +
-          '(thường do dữ liệu được seed/restore bằng id tường minh mà không setval). ' +
-          "Khắc phục: SELECT setval('udemy_question_bank_id_seq', " +
+        'Primary key conflict while inserting questions: the id sequence of ' +
+          'udemy_question_bank has fallen behind max(id) and is producing ids that ' +
+          'already exist (usually after data was seeded or restored with explicit ' +
+          'ids and no setval). ' +
+          "Fix: SELECT setval('udemy_question_bank_id_seq', " +
           '(SELECT COALESCE(max(id), 0) + 1 FROM udemy_question_bank), false);',
       );
     }

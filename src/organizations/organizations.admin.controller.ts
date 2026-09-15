@@ -52,6 +52,66 @@ export class OrganizationsAdminController {
     return this.organizationsService.create(createOrganizationDto);
   }
 
+  @ApiOperation({
+    summary: 'Upload an organization thumbnail not yet tied to an organization',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Thumbnail successfully uploaded',
+    schema: {
+      type: 'object',
+      properties: {
+        filename: { type: 'string' },
+        path: { type: 'string' },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 400, description: 'Invalid image' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+    },
+  })
+  @Post('upload-thumbnail')
+  @UseInterceptors(
+    LocalFilesInterceptor({
+      fieldName: 'file',
+      path: '/organizations',
+      fileFilter: (request, file, callback) => {
+        if (!file.mimetype.includes('image')) {
+          return callback(
+            new BadRequestException('Provide a valid image'),
+            false,
+          );
+        }
+        callback(null, true);
+      },
+      limits: {
+        fileSize: Math.pow(1024, 5),
+      },
+    }),
+  )
+  uploadThumbnailFile(@UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('Provide a valid image');
+    }
+    // main.ts serves the uploads directory under the '/uploads' prefix. Return a
+    // relative path and let the client join it with its own API base, so the
+    // backend does not depend on a particular proxy or host.
+    return {
+      filename: file.filename,
+      path: `/uploads/organizations/${file.filename}`,
+    };
+  }
+
   @ApiOperation({ summary: 'Upload organization thumbnail' })
   @ApiResponse({
     status: 200,

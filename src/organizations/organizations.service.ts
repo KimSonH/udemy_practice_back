@@ -90,7 +90,7 @@ export class OrganizationsService {
   }
 
   async findAll(query: PaginationParams) {
-    const { page, limit, search, organizationId, organizationSlug } = query;
+    const { page, limit, search } = query;
     const offset = (page - 1) * limit;
     try {
       const [items, total] = await this.organizationRepository.findAndCount({
@@ -125,11 +125,12 @@ export class OrganizationsService {
         .addSelect('organization.slug', 'slug')
         .addSelect('organization.thumbnailImageUrl', 'thumbnailImageUrl')
         .addSelect('COUNT(course.id)', 'count')
-        // Chỉ đếm course thực sự hiển thị được ở trang organization
-        // (findAllByOrganization lọc status='active'). Nếu không, card báo
-        // "3 Courses" nhưng bấm vào chỉ thấy 1 vì các course inactive/đã xoá
-        // vẫn được đếm. Điều kiện đặt ở ON chứ không phải WHERE để organization
-        // chưa có course nào vẫn xuất hiện với count = 0.
+        // Only count courses the organization page can actually show
+        // (findAllByOrganization filters on status='active'). Otherwise the card
+        // claims "3 Courses" while the page lists one, because inactive and
+        // deleted courses were counted too. The condition belongs in the ON
+        // clause, not WHERE, so an organization with no course still appears
+        // with count = 0.
         .leftJoin(
           'organization.courses',
           'course',
