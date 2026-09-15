@@ -7,7 +7,7 @@ import {
 import { CreateUserCourseDto } from './dto/create-user-course.dto';
 import { UpdateUserCourseDto } from './dto/update-user-course.dto';
 import { UserCourse } from './entities/user-course.entity';
-import { Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PaginationParams } from 'src/common/pagination.type';
 import { CoursesService } from 'src/courses/courses.service';
@@ -44,9 +44,7 @@ export class UserCoursesService {
     query: PaginationParams,
     status?: 'completed' | 'failed' | 'pending',
   ) {
-    // NOTE: query.search chưa được dùng ở đây — endpoint nhận `search` nhưng
-    // không lọc theo nó. Bỏ khỏi destructure để lint sạch, chưa đụng hành vi.
-    const { page, limit, orderBy } = query;
+    const { page, limit, search, orderBy } = query;
     const offset = (page - 1) * limit;
     const order = {
       DESC: 'DESC',
@@ -55,7 +53,14 @@ export class UserCoursesService {
     try {
       const [userCourses, total] = await this.userCourseRepository.findAndCount(
         {
-          where: { user: { id: userId }, status: status ? status : undefined },
+          where: {
+            user: { id: userId },
+            status: status ? status : undefined,
+            // The endpoint accepted `search` but never filtered on it, so the
+            // search box silently returned everything. Match course name, the
+            // same field findAll() searches.
+            course: search ? { name: ILike(`%${search}%`) } : undefined,
+          },
           relations: this.relations,
           order: {
             createdAt: order[orderBy] || 'DESC',
