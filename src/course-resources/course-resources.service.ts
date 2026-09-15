@@ -192,6 +192,18 @@ export class CourseResourcesService {
     await this.ensureCourseExists(courseId);
     const resources = await this.courseResourceRepository.find({
       where: { course: { id: courseId }, isVisible: true },
+      // Không lấy html trong danh sách: cột này là cả file HTML, chỉ cần khi
+      // xem chi tiết. Loại ở tầng query nên DB cũng không phải đọc blob.
+      select: [
+        'id',
+        'title',
+        'slug',
+        'isVisible',
+        'accessLevel',
+        'order',
+        'createdAt',
+        'updatedAt',
+      ],
       order: { order: 'ASC', id: 'ASC' },
     });
 
@@ -200,12 +212,7 @@ export class CourseResourcesService {
       ? await this.userOwnsCourse(courseId, userId)
       : false;
 
-    return (
-      resources
-        .filter((r) => this.hasAccess(r.accessLevel, userId, owns))
-        // Không trả html trong danh sách để tiết kiệm payload
-        .map(({ html: _html, ...rest }) => rest)
-    );
+    return resources.filter((r) => this.hasAccess(r.accessLevel, userId, owns));
   }
 
   async findVisibleBySlug(courseId: number, slug: string, userId?: number) {
