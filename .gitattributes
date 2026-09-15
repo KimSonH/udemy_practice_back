@@ -1,0 +1,18 @@
+# Chuẩn hoá line ending về LF, cả trong repo lẫn trong working tree.
+#
+# `text=auto` một mình chỉ chuẩn hoá phía repo; lúc checkout trên Windows với
+# core.autocrlf=true thì file lại thành CRLF và prettier báo lỗi "Delete ␍" —
+# đúng cách mà payments-premium/ và user-premium/ bị commit với CRLF. `eol=lf`
+# ép LF ở cả hai đầu nên lint chạy giống nhau trên mọi máy.
+* text=auto eol=lf
+
+# Ảnh và font: nhị phân, không đụng vào.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
