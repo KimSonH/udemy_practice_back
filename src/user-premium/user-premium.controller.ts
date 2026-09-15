@@ -13,7 +13,6 @@ import {
 import {
   ConfirmVietQRDto,
   CreateUserPremiumDto,
-  GetSoldAccountDto,
 } from './dto/create-user-premium.dto';
 import { UpdateUserPremiumDto } from './dto/update-user-premium.dto';
 import { PaginationParams } from 'src/common/pagination.type';

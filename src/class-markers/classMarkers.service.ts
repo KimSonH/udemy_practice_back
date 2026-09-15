@@ -1,10 +1,12 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ClassMarker } from './classMarkers.entity';
 import { Like, Repository } from 'typeorm';
 
 @Injectable()
 export class ClassMarkersService {
+  private readonly logger = new Logger(ClassMarkersService.name);
+
   constructor(
     @InjectRepository(ClassMarker)
     private readonly classMarkersRepository: Repository<ClassMarker>,
@@ -64,6 +66,7 @@ export class ClassMarkersService {
 
       return groupedMarkers;
     } catch (error) {
+      this.logger.error(error);
       throw new BadRequestException(
         'Error grouping class markers by category name',
       );

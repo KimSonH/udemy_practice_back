@@ -152,7 +152,6 @@
 
 import {
   BadGatewayException,
-  HttpException,
   Injectable,
   InternalServerErrorException,
   Logger,

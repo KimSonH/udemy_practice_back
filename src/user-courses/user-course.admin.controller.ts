@@ -4,11 +4,9 @@ import {
   Get,
   Param,
   Patch,
-  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { UserCoursesService } from './user-courses.service';
 import { UserCoursePaginationParams } from './types/pagination.type';
 import JwtAdminAuthenticationGuard from 'src/authentication/guard/jwt-admin-authentication.guard';
 import {

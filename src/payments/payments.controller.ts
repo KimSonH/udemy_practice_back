@@ -3,16 +3,12 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
-  Delete,
   UseGuards,
   Req,
   Query,
 } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
-import { CreatePaymentDto } from './dto/create-payment.dto';
-import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { CreateOrderDto } from './dto/create-order.dto';
 import JwtAuthenticationGuard from 'src/authentication/guard/jwt-authentication.guard';
 import { RequestWithUser } from 'src/authentication/requestWithUser.interface';
@@ -45,7 +41,6 @@ export class PaymentsController {
   async captureOrder(
     @Param('orderID') orderID: string,
     @Body() { userCourseId }: { userCourseId: number },
-    @Req() request: RequestWithUser,
   ) {
     const res = await this.paymentsService.captureOrder(orderID, userCourseId);
     return res;

@@ -1,6 +1,4 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
-import { CreatePaymentDto } from './dto/create-payment.dto';
-import { UpdatePaymentDto } from './dto/update-payment.dto';
 import {
   Client,
   Environment,
@@ -9,8 +7,6 @@ import {
   PaymentsController,
   ApiError,
   CheckoutPaymentIntent,
-  OrderApplicationContextLandingPage,
-  OrderApplicationContextUserAction,
 } from '@paypal/paypal-server-sdk';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UserCoursesService } from 'src/user-courses/user-courses.service';
@@ -208,7 +204,7 @@ export class PaymentsService {
         return payload;
       }
       throw new BadRequestException('Invalid session');
-    } catch (error) {
+    } catch {
       throw new BadRequestException('Invalid session');
     }
   }
@@ -226,7 +222,7 @@ export class PaymentsService {
         return payload;
       }
       throw new BadRequestException('Invalid session');
-    } catch (error) {
+    } catch {
       throw new BadRequestException('Invalid session');
     }
   }
@@ -384,7 +380,7 @@ export class PaymentsService {
           await this.userCoursesService.findOneByOrderInvoiceNumber(
             invoiceNumber,
           );
-      } catch (error) {
+      } catch {
         // UserCourse doesn't exist, will create it below
         userCourse = null;
       }

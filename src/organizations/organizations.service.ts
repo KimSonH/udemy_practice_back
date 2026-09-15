@@ -90,7 +90,7 @@ export class OrganizationsService {
   }
 
   async findAll(query: PaginationParams) {
-    const { page, limit, search, organizationId, organizationSlug } = query;
+    const { page, limit, search } = query;
     const offset = (page - 1) * limit;
     try {
       const [items, total] = await this.organizationRepository.findAndCount({

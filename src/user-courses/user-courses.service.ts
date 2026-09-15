@@ -7,7 +7,7 @@ import {
 import { CreateUserCourseDto } from './dto/create-user-course.dto';
 import { UpdateUserCourseDto } from './dto/update-user-course.dto';
 import { UserCourse } from './entities/user-course.entity';
-import { Brackets, ILike, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PaginationParams } from 'src/common/pagination.type';
 import { CoursesService } from 'src/courses/courses.service';
@@ -44,7 +44,9 @@ export class UserCoursesService {
     query: PaginationParams,
     status?: 'completed' | 'failed' | 'pending',
   ) {
-    const { page, limit, search, orderBy } = query;
+    // NOTE: query.search chưa được dùng ở đây — endpoint nhận `search` nhưng
+    // không lọc theo nó. Bỏ khỏi destructure để lint sạch, chưa đụng hành vi.
+    const { page, limit, orderBy } = query;
     const offset = (page - 1) * limit;
     const order = {
       DESC: 'DESC',

@@ -6,21 +6,13 @@ import {
 } from '@nestjs/common';
 import { Course } from './entities/courses.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  Repository,
-  DataSource,
-  QueryRunner,
-  ILike,
-  In,
-  Brackets,
-} from 'typeorm';
+import { Repository, DataSource, QueryRunner, In, Brackets } from 'typeorm';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { UdemyQuestionBanksService } from 'src/udemy-question-banks/udemy-question-banks.service';
 import { CourseSetsService } from 'src/course-sets/course-sets.service';
 import { CourseSet } from 'src/course-sets/entities/course-set.entity';
 import { PaginationParams } from 'src/common/pagination.type';
-import { QuestionDistributionOptions } from './interface';
 import { normalize, join } from 'path';
 import * as fs from 'fs';
 import { Organization } from 'src/organizations/entities/organization.entity';
@@ -846,9 +838,6 @@ export class CoursesService {
     course.content = content;
     course.slug = await this.generateSlug(name);
     course.thumbnailImageUrl = thumbnailImageUrl;
-    // Minimum reasonable threshold when there are not enough questions / Ngưỡng tối thiểu hợp lý khi không đủ câu hỏi
-    const minQuestionsPerSet = 100;
-
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
