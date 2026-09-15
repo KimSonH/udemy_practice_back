@@ -150,7 +150,6 @@
 //   }
 // }
 
-
 import {
   BadGatewayException,
   HttpException,
@@ -172,7 +171,7 @@ export class MassCoursesService {
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   async getMassCourses(query: GetCoursesDto) {
     const { page = '1', limit = '12', search = '', category = '' } = query;
@@ -207,7 +206,6 @@ export class MassCoursesService {
       },
     };
   }
-
 
   async getEnrolledAccount(courseId: number) {
     const baseUrl = this.configService.get<string>('MASS_BASE_API_URL');

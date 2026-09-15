@@ -42,12 +42,8 @@ export class CreateCourseResource1786500002000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(
-      `DROP INDEX "IDX_course_resource_course_id"`,
-    );
-    await queryRunner.query(
-      `DROP INDEX "UQ_course_resource_course_slug"`,
-    );
+    await queryRunner.query(`DROP INDEX "IDX_course_resource_course_id"`);
+    await queryRunner.query(`DROP INDEX "UQ_course_resource_course_slug"`);
     await queryRunner.query(
       `ALTER TABLE "course_resource" DROP CONSTRAINT "FK_course_resource_course"`,
     );

@@ -6,7 +6,7 @@ import { GetCoursesDto } from './dto/createMassCourse';
 @ApiTags('Mass Courses')
 @Controller('mass-courses')
 export class MassCoursesController {
-  constructor(private readonly massCourseService: MassCoursesService) { }
+  constructor(private readonly massCourseService: MassCoursesService) {}
 
   @Get()
   @ApiOperation({ summary: 'Get Mass Courses' })
@@ -39,6 +39,4 @@ export class MassCoursesController {
 
     return this.massCourseService.getEnrolledAccount(id);
   }
-
-
 }

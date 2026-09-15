@@ -27,7 +27,7 @@ export class UserCoursesService {
     @InjectRepository(UserCourse)
     private readonly userCourseRepository: Repository<UserCourse>,
     private readonly coursesService: CoursesService,
-  ) { }
+  ) {}
 
   async create(createUserCourseDto: CreateUserCourseDto) {
     try {
@@ -105,7 +105,10 @@ export class UserCoursesService {
         .leftJoinAndSelect('userCourse.user', 'user')
         .leftJoinAndSelect('userCourse.course', 'course')
         .leftJoinAndSelect('course.courseSets', 'courseSets')
-        .leftJoinAndSelect('courseSets.udemyQuestionBanks', 'udemyQuestionBanks')
+        .leftJoinAndSelect(
+          'courseSets.udemyQuestionBanks',
+          'udemyQuestionBanks',
+        )
         .leftJoinAndSelect('course.organization', 'organization')
         .where('userCourse.userId = :userId', { userId })
         .andWhere('course.status = :courseStatus', { courseStatus: 'active' })
@@ -181,11 +184,15 @@ export class UserCoursesService {
     }
   }
 
-  async findOneByCourseId(courseId: number, userId: number, status?: 'completed' | 'failed' | 'pending') {
+  async findOneByCourseId(
+    courseId: number,
+    userId: number,
+    status?: 'completed' | 'failed' | 'pending',
+  ) {
     const userCourse = await this.userCourseRepository.findOne({
       where: { courseId, userId, status },
       relations: this.relations,
-    })
+    });
     if (!userCourse) {
       throw new BadRequestException('User course not found');
     }

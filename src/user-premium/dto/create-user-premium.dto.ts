@@ -53,9 +53,6 @@ export class GetSoldAccountDto {
   accountId: number;
 }
 
-
-
-
 export class ConfirmVietQRDto {
   @ApiProperty({ example: 1 })
   @IsNumber()

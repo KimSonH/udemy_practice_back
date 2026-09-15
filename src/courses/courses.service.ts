@@ -123,7 +123,7 @@ export class CoursesService {
     // Nếu thiếu, phân phối đều nhất có thể, sau đó mượn
     const baseQuestionsPerSet = Math.floor(totalQuestions / totalSets);
     const remainder = totalQuestions % totalSets;
-    let allRelations = [];
+    const allRelations = [];
     let questionIndex = 0;
     for (let i = 0; i < totalSets; i++) {
       const setQuestionCount = baseQuestionsPerSet + (i < remainder ? 1 : 0);
@@ -152,7 +152,7 @@ export class CoursesService {
         `SELECT COUNT(*) FROM course_set_udemy_question_bank WHERE "course_set_id" = $1`,
         [courseSets[i].id],
       );
-      let shortage = questionsPerSet - parseInt(currentCountRes[0].count);
+      const shortage = questionsPerSet - parseInt(currentCountRes[0].count);
       if (shortage <= 0) continue;
       // Mượn câu hỏi chưa có trong set này, ưu tiên câu hỏi ít xuất hiện nhất
       const availableQuestions = await queryRunner.manager.query(
