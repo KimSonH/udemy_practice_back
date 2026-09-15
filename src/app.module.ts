@@ -21,8 +21,6 @@ import { MassCoursesModule } from './mass-courses/mass-courses.module';
 import { MassAccountsModule } from './mass-account/mass-account.module';
 import { UserPremiumModule } from './user-premium/user-premium.module';
 import { PaymentsPremiumModule } from './payments-premium/payments-premium.module';
-import { CourseContentsModule } from './course-contents/course-contents.module';
-import { CourseSessionsModule } from './course-sessions/course-sessions.module';
 import { CourseResourcesModule } from './course-resources/course-resources.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 
@@ -73,8 +71,6 @@ import { DashboardModule } from './dashboard/dashboard.module';
     MassAccountsModule,
     UserPremiumModule,
     PaymentsPremiumModule,
-    CourseContentsModule,
-    CourseSessionsModule,
     CourseResourcesModule,
     DashboardModule,
   ],
