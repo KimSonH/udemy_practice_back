@@ -8,6 +8,20 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository } from 'typeorm';
 import { UserCourse } from './entities/user-course.entity';
 import { UserCoursePaginationParams } from './types/pagination.type';
+import { resolveSort, toOrderObject } from 'src/common/resolve-sort';
+
+/**
+ * Sort keys `GET /admin/user-courses` accepts. The dotted paths reach through
+ * the relations this query already joins.
+ */
+const USER_COURSE_SORT_COLUMNS = {
+  id: 'id',
+  status: 'status',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  'course.name': 'course.name',
+  'user.email': 'user.email',
+};
 
 @Injectable()
 export class UserCourseAdminService {
@@ -46,9 +60,13 @@ export class UserCourseAdminService {
           },
           status: status ? status : undefined,
         },
-        order: {
-          createdAt: order[orderBy] || 'DESC',
-        },
+        // The fallback keeps the legacy `orderBy` parameter working.
+        order: toOrderObject(
+          resolveSort(query.sortBy, query.sortDir, USER_COURSE_SORT_COLUMNS, {
+            column: 'createdAt',
+            direction: order[orderBy] || 'DESC',
+          }),
+        ),
         take: limit,
         skip: offset,
       });
@@ -74,6 +92,19 @@ export class UserCourseAdminService {
       throw new NotFoundException('User course not found');
     }
     return userCourse;
+  }
+
+  async remove(id: number) {
+    await this.findOne(id);
+    try {
+      // Soft delete, like the owner-facing route: the enrolment is part of the
+      // purchase history, so the row stays and is only hidden.
+      await this.userCourseRepository.softDelete(id);
+      return { message: 'User course deleted successfully' };
+    } catch (error) {
+      this.logger.error(`Error deleting user course: ${error.message}`);
+      throw new BadRequestException('Error deleting user course');
+    }
   }
 
   async changeStatus(id: number, status: 'pending' | 'completed' | 'failed') {

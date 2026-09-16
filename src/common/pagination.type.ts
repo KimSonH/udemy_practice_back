@@ -67,4 +67,24 @@ export class PaginationParams {
     example: 'free',
   })
   type?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty({
+    description:
+      'The column to sort by. Values outside the endpoint whitelist are ignored.',
+    example: 'name',
+    required: false,
+  })
+  sortBy?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty({
+    description:
+      'The sort direction. Anything other than ASC is treated as DESC.',
+    example: 'ASC',
+    required: false,
+  })
+  sortDir?: string;
 }

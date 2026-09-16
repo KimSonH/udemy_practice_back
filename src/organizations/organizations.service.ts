@@ -14,6 +14,19 @@ import { PaginationParams } from 'src/common/pagination.type';
 import { normalize, join } from 'path';
 import * as fs from 'fs';
 import { generateUniqueSlug } from 'src/utils/slug';
+import { resolveSort, toOrderObject } from 'src/common/resolve-sort';
+
+/**
+ * Sort keys `GET /admin/organizations` accepts. findAll is shared with the
+ * public route, which never sends sortBy and so keeps createdAt DESC.
+ */
+const ORGANIZATION_SORT_COLUMNS = {
+  id: 'id',
+  name: 'name',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+};
+
 @Injectable()
 export class OrganizationsService {
   private readonly logger = new Logger(OrganizationsService.name);
@@ -98,9 +111,14 @@ export class OrganizationsService {
           deletedAt: null,
           name: search ? Like(`%${search}%`) : undefined,
         },
-        order: {
-          createdAt: 'DESC',
-        },
+        // With no sortBy this resolves to { createdAt: 'DESC' }, which is what
+        // the public organizations route has always returned.
+        order: toOrderObject(
+          resolveSort(query.sortBy, query.sortDir, ORGANIZATION_SORT_COLUMNS, {
+            column: 'createdAt',
+            direction: 'DESC',
+          }),
+        ),
         skip: page === 9999 ? undefined : offset,
         take: page === 9999 ? undefined : limit,
       });
