@@ -99,8 +99,12 @@ export class CreateCourseDto {
   @IsNotEmpty()
   content: string;
 
-  @ApiProperty({ description: 'Thumbnail image url of the course' })
+  @ApiProperty({
+    description:
+      'Thumbnail image url of the course. Optional: the image is added on the edit page, so a course can be created without one.',
+    required: false,
+  })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  thumbnailImageUrl: string;
+  thumbnailImageUrl?: string;
 }
