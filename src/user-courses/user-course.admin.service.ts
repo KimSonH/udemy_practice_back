@@ -76,6 +76,19 @@ export class UserCourseAdminService {
     return userCourse;
   }
 
+  async remove(id: number) {
+    await this.findOne(id);
+    try {
+      // Soft delete, like the owner-facing route: the enrolment is part of the
+      // purchase history, so the row stays and is only hidden.
+      await this.userCourseRepository.softDelete(id);
+      return { message: 'User course deleted successfully' };
+    } catch (error) {
+      this.logger.error(`Error deleting user course: ${error.message}`);
+      throw new BadRequestException('Error deleting user course');
+    }
+  }
+
   async changeStatus(id: number, status: 'pending' | 'completed' | 'failed') {
     const userCourse = await this.findOne(id);
 

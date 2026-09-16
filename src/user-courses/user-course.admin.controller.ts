@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -13,6 +14,7 @@ import {
   ApiTags,
   ApiBearerAuth,
   ApiOperation,
+  ApiParam,
   ApiResponse,
 } from '@nestjs/swagger';
 import { UserCourse } from './entities/user-course.entity';
@@ -51,5 +53,20 @@ export class UserCourseAdminController {
     @Body() body: { status: 'pending' | 'completed' | 'failed' },
   ) {
     return this.userCourseAdminService.changeStatus(id, body.status);
+  }
+
+  @ApiTags('Admin User Courses')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a user course' })
+  @ApiResponse({
+    status: 200,
+    description: 'User course deleted successfully',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 404, description: 'User course not found' })
+  @ApiParam({ name: 'id', type: 'number' })
+  @Delete(':id')
+  remove(@Param('id') id: number) {
+    return this.userCourseAdminService.remove(id);
   }
 }
