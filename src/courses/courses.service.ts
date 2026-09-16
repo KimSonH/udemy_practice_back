@@ -13,6 +13,7 @@ import { UdemyQuestionBanksService } from 'src/udemy-question-banks/udemy-questi
 import { CourseSetsService } from 'src/course-sets/course-sets.service';
 import { CourseSet } from 'src/course-sets/entities/course-set.entity';
 import { PaginationParams } from 'src/common/pagination.type';
+import { resolveSort } from 'src/common/resolve-sort';
 import { normalize, join } from 'path';
 import * as fs from 'fs';
 import { Organization } from 'src/organizations/entities/organization.entity';
@@ -21,6 +22,19 @@ import { OrganizationsService } from 'src/organizations/organizations.service';
 import { VideoCourseDto } from './dto/create-video-course.dto';
 import { CourseSession } from 'src/course-sessions/entities/course-session.entity';
 import { CourseContent } from 'src/course-contents/entities/course-content.entity';
+
+/**
+ * Sort keys `GET /admin/courses` accepts, mapped to the column each one orders
+ * by. Only findAllByAdmin uses this; the public listings keep their fixed order.
+ */
+const COURSE_SORT_COLUMNS = {
+  id: 'course.id',
+  name: 'course.name',
+  status: 'course.status',
+  createdAt: 'course.createdAt',
+  updatedAt: 'course.updatedAt',
+};
+
 @Injectable()
 export class CoursesService {
   private logger = new Logger(CoursesService.name);
@@ -436,7 +450,12 @@ export class CoursesService {
       free: 'free',
       paid: 'paid',
     };
-    const orderByOrder = order[orderBy];
+    // The fallback keeps the legacy `orderBy` parameter working: a caller that
+    // sends only orderBy=ASC still gets course.createdAt ASC.
+    const sort = resolveSort(query.sortBy, query.sortDir, COURSE_SORT_COLUMNS, {
+      column: 'course.createdAt',
+      direction: order[orderBy] || 'DESC',
+    });
     try {
       const query = this.coursesRepository
         .createQueryBuilder('course')
@@ -471,7 +490,7 @@ export class CoursesService {
             }
           }),
         )
-        .orderBy('course.createdAt', orderByOrder || 'DESC')
+        .orderBy(sort.column, sort.direction)
         .skip(page === 9999 ? undefined : offset)
         .take(page === 9999 ? undefined : limit);
       const [items, total] = await query.getManyAndCount();

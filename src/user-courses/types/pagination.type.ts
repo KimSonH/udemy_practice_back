@@ -68,4 +68,24 @@ export class UserCoursePaginationParams {
     example: 'createdAt',
   })
   orderBy?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty({
+    description:
+      'The column to sort by. Values outside the endpoint whitelist are ignored.',
+    example: 'course.name',
+    required: false,
+  })
+  sortBy?: string;
+
+  @IsOptional()
+  @IsString()
+  @ApiProperty({
+    description:
+      'The sort direction. Anything other than ASC is treated as DESC.',
+    example: 'ASC',
+    required: false,
+  })
+  sortDir?: string;
 }
