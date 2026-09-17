@@ -293,18 +293,25 @@ describe('CoursesService', () => {
         expect(spy.conditions).toHaveLength(5);
       });
 
-      it('binds an undefined type when the type is not one it knows', async () => {
+      it('adds no type condition when the type is an empty string', async () => {
         const spy = arrange();
 
-        await service.findAllByAdmin(params({ type: 'gift' }));
+        await service.findAllByAdmin(params({ type: '' }));
 
-        // Documented, not endorsed: an unrecognised type still adds the
-        // condition, with nothing bound to it. The guard tests for a truthy
-        // `type` but then looks it up in a two-entry map.
-        expect(spy.conditions).toContainEqual({
-          sql: 'course.type = :type',
-          params: { type: undefined },
-        });
+        expect(spy.conditions).toHaveLength(1);
+      });
+
+      it('rejects a type that is neither free nor paid', async () => {
+        arrange();
+
+        // Binding an unrecognised type used to leave the parameter undefined,
+        // and the endpoint answered 200 with an empty list — which reads as
+        // "there are no courses" rather than "that is not a course type".
+        await expect(
+          service.findAllByAdmin(params({ type: 'gift' })),
+        ).rejects.toThrow(
+          new BadRequestException('"type" must be one of: free, paid'),
+        );
       });
     });
 

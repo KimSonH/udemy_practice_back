@@ -35,6 +35,29 @@ const COURSE_SORT_COLUMNS = {
   updatedAt: 'course.updatedAt',
 };
 
+/** The only course types a listing can filter by. */
+const COURSE_TYPES = ['free', 'paid'];
+
+/**
+ * Turn the `type` query parameter into a value safe to bind, or nothing.
+ *
+ * The three listings used to look this parameter up in a two-entry map and bind
+ * whatever came back, so `?type=gift` bound `undefined` and the database was
+ * asked for `course.type = NULL`. That answers 200 with an empty list, which
+ * reads as "there are no courses" rather than "that is not a course type".
+ * Call this before the try block — inside it, the catch would swallow the
+ * message and report "Error getting courses" instead.
+ */
+function resolveCourseTypeFilter(type: string | undefined): string | undefined {
+  if (!type) return undefined;
+  if (!COURSE_TYPES.includes(type)) {
+    throw new BadRequestException(
+      `"type" must be one of: ${COURSE_TYPES.join(', ')}`,
+    );
+  }
+  return type;
+}
+
 @Injectable()
 export class CoursesService {
   private logger = new Logger(CoursesService.name);
@@ -446,10 +469,7 @@ export class CoursesService {
       DESC: 'DESC',
       ASC: 'ASC',
     };
-    const typeWhere = {
-      free: 'free',
-      paid: 'paid',
-    };
+    const courseType = resolveCourseTypeFilter(type);
     // The fallback keeps the legacy `orderBy` parameter working: a caller that
     // sends only orderBy=ASC still gets course.createdAt ASC.
     const sort = resolveSort(query.sortBy, query.sortDir, COURSE_SORT_COLUMNS, {
@@ -475,8 +495,8 @@ export class CoursesService {
                 search: `%${search}%`,
               });
             }
-            if (type) {
-              qb.andWhere('course.type = :type', { type: typeWhere[type] });
+            if (courseType) {
+              qb.andWhere('course.type = :type', { type: courseType });
             }
             if (organizationId) {
               qb.andWhere('organization.id = :organizationId', {
@@ -521,10 +541,7 @@ export class CoursesService {
       DESC: 'DESC',
       ASC: 'ASC',
     };
-    const typeWhere = {
-      free: 'free',
-      paid: 'paid',
-    };
+    const courseType = resolveCourseTypeFilter(type);
     const orderByOrder = order[orderBy];
     try {
       const query = this.coursesRepository
@@ -546,8 +563,8 @@ export class CoursesService {
                 search: `%${search}%`,
               });
             }
-            if (type) {
-              qb.andWhere('course.type = :type', { type: typeWhere[type] });
+            if (courseType) {
+              qb.andWhere('course.type = :type', { type: courseType });
             }
             if (organizationId) {
               qb.andWhere('organization.id = :organizationId', {
@@ -592,10 +609,7 @@ export class CoursesService {
       DESC: 'DESC',
       ASC: 'ASC',
     };
-    const typeWhere = {
-      free: 'free',
-      paid: 'paid',
-    };
+    const courseType = resolveCourseTypeFilter(type);
     const orderByOrder = order[orderBy];
     try {
       const query = this.coursesRepository
@@ -612,8 +626,8 @@ export class CoursesService {
                 search: `%${search}%`,
               });
             }
-            if (type) {
-              qb.andWhere('course.type = :type', { type: typeWhere[type] });
+            if (courseType) {
+              qb.andWhere('course.type = :type', { type: courseType });
             }
             if (organizationId) {
               qb.andWhere('organization.id = :organizationId', {
