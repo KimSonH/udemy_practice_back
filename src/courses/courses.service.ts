@@ -259,6 +259,8 @@ export class CoursesService {
       udemyQuestionBanks: questionsPerSet,
       thumbnailImageUrl,
       creationMode = 'auto',
+      durationMinutes,
+      passingPercent,
     } = createCourse;
     if (creationMode === 'auto' && !questionsPerSet) {
       throw new BadRequestException(
@@ -283,6 +285,8 @@ export class CoursesService {
     course.slug = await this.generateSlug(name);
     course.thumbnailImageUrl = thumbnailImageUrl;
     course.creationMode = creationMode;
+    course.durationMinutes = durationMinutes;
+    course.passingPercent = passingPercent;
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -855,6 +859,12 @@ export class CoursesService {
       udemyQuestionBanks: questionsPerSet,
       thumbnailImageUrl,
     } = updateCourse;
+    // Assigned only when the payload mentions them, unlike the fields above.
+    // Those overwrite with undefined when omitted, which for an optional exam
+    // figure would mean any client that does not know about these two silently
+    // clears them. Sending null explicitly is still how you clear one.
+    const hasDuration = 'durationMinutes' in updateCourse;
+    const hasPassingPercent = 'passingPercent' in updateCourse;
     const course = await this.getCourseById(id);
     // categoryName is optional in general, but on an "auto" course changing it
     // wipes every course set and redistributes questions by the new category.
@@ -873,6 +883,8 @@ export class CoursesService {
     course.content = content;
     course.slug = await this.generateSlug(name);
     course.thumbnailImageUrl = thumbnailImageUrl;
+    if (hasDuration) course.durationMinutes = updateCourse.durationMinutes;
+    if (hasPassingPercent) course.passingPercent = updateCourse.passingPercent;
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();

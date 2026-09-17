@@ -68,9 +68,11 @@ function params(overrides: Partial<PaginationParams> = {}): PaginationParams {
 describe('CoursesService', () => {
   let service: CoursesService;
   let repository: ReturnType<typeof createMockRepository<Course>>;
+  let dataSource: ReturnType<typeof createMockDataSource>;
 
   beforeEach(async () => {
     repository = createMockRepository<Course>();
+    dataSource = createMockDataSource();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -79,7 +81,7 @@ describe('CoursesService', () => {
         { provide: CourseSetsService, useValue: {} },
         { provide: UdemyQuestionBanksService, useValue: {} },
         { provide: OrganizationsService, useValue: {} },
-        { provide: DataSource, useValue: createMockDataSource() },
+        { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
 
@@ -326,6 +328,139 @@ describe('CoursesService', () => {
           new BadRequestException('Error getting courses'),
         );
       });
+    });
+  });
+
+  describe('createCourse exam timing', () => {
+    it('stores the values it is given on a new course', async () => {
+      repository.findOne.mockResolvedValue(null); // slug is free
+
+      const saved: Course[] = [];
+      const insertChain = {
+        insert: jest.fn(() => insertChain),
+        into: jest.fn(() => insertChain),
+        values: jest.fn(() => insertChain),
+        execute: jest.fn(async () => ({ raw: [{ id: 10 }] })),
+      };
+      dataSource.createQueryRunner.mockReturnValue({
+        connect: jest.fn(),
+        startTransaction: jest.fn(),
+        commitTransaction: jest.fn(),
+        rollbackTransaction: jest.fn(),
+        release: jest.fn(),
+        manager: {
+          getRepository: jest.fn(() => ({
+            findOne: jest.fn(async () => ({ id: 2 })),
+          })),
+          createQueryBuilder: jest.fn(() => insertChain),
+          save: jest.fn(async (entity: Course) => {
+            saved.push(entity);
+            return entity;
+          }),
+        },
+      } as never);
+
+      await service.createCourse({
+        name: 'AI-102',
+        price: 24.99,
+        status: 'active',
+        type: 'paid',
+        organizationId: '2',
+        courseSets: 1,
+        creationMode: 'manual',
+        content: '<p>x</p>',
+        durationMinutes: 100,
+        passingPercent: 70,
+      } as never);
+
+      expect(saved[0].durationMinutes).toBe(100);
+      expect(saved[0].passingPercent).toBe(70);
+    });
+  });
+
+  describe('updateCourse exam timing', () => {
+    /**
+     * The update path needs a stored course, a slug lookup and a transaction.
+     * Everything here exists so the two assignments under test can be observed
+     * on the entity that gets saved.
+     */
+    function arrange(stored: Partial<Course>) {
+      const course = {
+        id: 1,
+        creationMode: 'manual',
+        categoryName: null,
+        courseSets: [],
+        ...stored,
+      } as unknown as Course;
+
+      repository.findOne.mockImplementation(
+        async ({ where }: { where: Record<string, unknown> }) =>
+          // The slug lookup asks by slug and must find nothing, or it appends a
+          // suffix forever; the course lookup asks by id.
+          'slug' in where ? null : course,
+      );
+
+      const saved: Course[] = [];
+      const runner = {
+        connect: jest.fn(),
+        startTransaction: jest.fn(),
+        commitTransaction: jest.fn(),
+        rollbackTransaction: jest.fn(),
+        release: jest.fn(),
+        manager: {
+          getRepository: jest.fn(() => ({ findOne: jest.fn() })),
+          save: jest.fn(async (entity: Course) => {
+            saved.push(entity);
+            return entity;
+          }),
+          query: jest.fn(),
+        },
+      };
+      dataSource.createQueryRunner.mockReturnValue(runner as never);
+
+      return { course, saved };
+    }
+
+    const base = { name: 'AI-102', price: 1, status: 'active', type: 'paid' };
+
+    it('stores the values it is given', async () => {
+      const { saved } = arrange({
+        durationMinutes: null,
+        passingPercent: null,
+      });
+
+      await service.updateCourse(1, {
+        ...base,
+        durationMinutes: 100,
+        passingPercent: 70,
+      } as never);
+
+      expect(saved[0].durationMinutes).toBe(100);
+      expect(saved[0].passingPercent).toBe(70);
+    });
+
+    it('leaves the stored values alone when the payload omits them', async () => {
+      const { saved } = arrange({ durationMinutes: 100, passingPercent: 70 });
+
+      await service.updateCourse(1, { ...base } as never);
+
+      // Unlike the fields beside them, which overwrite with undefined: a client
+      // that knows nothing about exam timing must not silently erase it.
+      expect(saved[0].durationMinutes).toBe(100);
+      expect(saved[0].passingPercent).toBe(70);
+    });
+
+    it('clears a value when the payload sends null for it', async () => {
+      const { saved } = arrange({ durationMinutes: 100, passingPercent: 70 });
+
+      await service.updateCourse(1, {
+        ...base,
+        durationMinutes: null,
+      } as never);
+
+      expect(saved[0].durationMinutes).toBeNull();
+      // Untouched, because the payload said nothing about it.
+      expect(saved[0].passingPercent).toBe(70);
     });
   });
 });
