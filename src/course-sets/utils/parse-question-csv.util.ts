@@ -98,8 +98,6 @@ export function parseQuestionCsv(buffer: Buffer): ParseQuestionCsvResult {
     const explanations = ANSWER_INDEXES.map((i) =>
       emptyToUndefined(record[`Explanation ${i}`]),
     );
-    const optionCount = answerOptions.filter(Boolean).length;
-
     if (!answerOptions[0] || !answerOptions[1]) {
       errors.push(
         `Row ${rowNumber}: "Answer Option 1" and "Answer Option 2" are both required`,
@@ -115,9 +113,20 @@ export function parseQuestionCsv(buffer: Buffer): ParseQuestionCsvResult {
       return;
     }
     const correctAnswerIndex = parseInt(correctAnswerRaw, 10);
-    if (correctAnswerIndex < 1 || correctAnswerIndex > optionCount) {
+    if (correctAnswerIndex < 1 || correctAnswerIndex > ANSWER_INDEXES.length) {
       errors.push(
-        `Row ${rowNumber}: "Correct Answers" = ${correctAnswerIndex} but only ${optionCount} answer options are present`,
+        `Row ${rowNumber}: "Correct Answers" = ${correctAnswerIndex} is outside 1-${ANSWER_INDEXES.length}`,
+      );
+      return;
+    }
+    // The index has to land on an option that actually has text. Comparing it
+    // against the *count* of filled options is a different question, and it
+    // answered both of these wrong: a row filling options 1, 2 and 4 had a
+    // correct answer of 4 refused, while a correct answer of 3 was accepted
+    // even though option 3 is blank — a question nobody could ever get right.
+    if (!answerOptions[correctAnswerIndex - 1]) {
+      errors.push(
+        `Row ${rowNumber}: "Correct Answers" = ${correctAnswerIndex} but "Answer Option ${correctAnswerIndex}" is empty`,
       );
       return;
     }

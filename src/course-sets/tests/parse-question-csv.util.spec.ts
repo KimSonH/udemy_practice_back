@@ -202,7 +202,7 @@ describe('parseQuestionCsv', () => {
       );
 
       expect(result.errors).toEqual([
-        'Row 2: "Correct Answers" = 3 but only 2 answer options are present',
+        'Row 2: "Correct Answers" = 3 but "Answer Option 3" is empty',
       ]);
     });
 
@@ -210,7 +210,7 @@ describe('parseQuestionCsv', () => {
       const result = parseQuestionCsv(csv(row({ 'Correct Answers': '0' })));
 
       expect(result.errors).toEqual([
-        'Row 2: "Correct Answers" = 0 but only 4 answer options are present',
+        'Row 2: "Correct Answers" = 0 is outside 1-6',
       ]);
     });
   });
@@ -257,32 +257,37 @@ describe('parseQuestionCsv', () => {
     });
   });
 
-  describe('a gap in the current validation', () => {
-    // `optionCount` counts how many option cells are filled, not the highest
-    // position that is filled, so a row with a hole in it is judged against the
-    // wrong number. Both cases below are wrong; these tests pin today's
-    // behaviour so that changing it has to be a deliberate act.
-    it('rejects an answer that points at a real option when an earlier one is blank', () => {
+  describe('rows with a hole in the answer options', () => {
+    // The index has to land on an option that actually has text. Counting how
+    // many options are filled is a different question, and answering that one
+    // got both of these cases wrong.
+    it('accepts an answer pointing at a real option when an earlier one is blank', () => {
       const result = parseQuestionCsv(
         csv(row({ 'Answer Option 3': '', 'Correct Answers': '4' })),
       );
 
-      // Option 4 exists and holds "Six", yet the row is refused.
-      expect(result.errors).toEqual([
-        'Row 2: "Correct Answers" = 4 but only 3 answer options are present',
-      ]);
+      expect(result.errors).toEqual([]);
+      expect(result.rows[0].correctAnswer).toBe('4');
+      expect(result.rows[0].answerOption4).toBe('Six');
     });
 
-    it('accepts an answer that points at a blank option', () => {
+    it('rejects an answer pointing at a blank option', () => {
       const result = parseQuestionCsv(
         csv(row({ 'Answer Option 3': '', 'Correct Answers': '3' })),
       );
 
-      // Imported without complaint, and answerOption3 is undefined — the
-      // question can never be answered correctly downstream.
-      expect(result.errors).toEqual([]);
-      expect(result.rows[0].correctAnswer).toBe('3');
-      expect(result.rows[0].answerOption3).toBeUndefined();
+      expect(result.rows).toEqual([]);
+      expect(result.errors).toEqual([
+        'Row 2: "Correct Answers" = 3 but "Answer Option 3" is empty',
+      ]);
+    });
+
+    it('rejects an index beyond the six columns the format allows', () => {
+      const result = parseQuestionCsv(csv(row({ 'Correct Answers': '7' })));
+
+      expect(result.errors).toEqual([
+        'Row 2: "Correct Answers" = 7 is outside 1-6',
+      ]);
     });
   });
 });
