@@ -1,24 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { CoursesService } from '../courses.service';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
+import { CoursesService } from '../courses.service';
 import { Course } from '../entities/courses.entity';
-import { ClassMarkersService } from 'src/class-markers/classMarkers.service';
+import { CourseSetsService } from 'src/course-sets/course-sets.service';
+import { UdemyQuestionBanksService } from 'src/udemy-question-banks/udemy-question-banks.service';
+import { OrganizationsService } from 'src/organizations/organizations.service';
+import {
+  createMockDataSource,
+  createMockRepository,
+} from 'src/common/test/mocks';
 
 describe('CoursesService', () => {
   let service: CoursesService;
-
-  const mockCourseRepository = {
-    find: jest.fn(),
-    findOne: jest.fn(),
-    create: jest.fn(),
-    save: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-  };
-
-  const mockClassMarkersService = {
-    // Add mock methods for ClassMarkersService as needed
-  };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -26,12 +20,12 @@ describe('CoursesService', () => {
         CoursesService,
         {
           provide: getRepositoryToken(Course),
-          useValue: mockCourseRepository,
+          useValue: createMockRepository<Course>(),
         },
-        {
-          provide: ClassMarkersService,
-          useValue: mockClassMarkersService,
-        },
+        { provide: CourseSetsService, useValue: {} },
+        { provide: UdemyQuestionBanksService, useValue: {} },
+        { provide: OrganizationsService, useValue: {} },
+        { provide: DataSource, useValue: createMockDataSource() },
       ],
     }).compile();
 
