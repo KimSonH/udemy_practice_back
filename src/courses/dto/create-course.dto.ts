@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import {
   IsString,
   IsNumber,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsIn,
@@ -10,6 +11,8 @@ import {
 } from 'class-validator';
 
 export const MAX_COURSE_SETS = 6;
+/** Ten hours. A practice test longer than a working day is a typo, not a plan. */
+export const MAX_DURATION_MINUTES = 600;
 export const COURSE_CREATION_MODES = ['auto', 'manual'] as const;
 export type CourseCreationMode = (typeof COURSE_CREATION_MODES)[number];
 
@@ -93,6 +96,32 @@ export class CreateCourseDto {
   @IsNumber()
   @IsOptional()
   udemyQuestionBanks?: number;
+
+  @ApiProperty({
+    description:
+      'How long one practice test may take, in minutes. Omit to let the client derive it from the number of questions.',
+    required: false,
+    minimum: 1,
+    maximum: MAX_DURATION_MINUTES,
+  })
+  @IsInt()
+  @Min(1)
+  @Max(MAX_DURATION_MINUTES)
+  @IsOptional()
+  durationMinutes?: number;
+
+  @ApiProperty({
+    description:
+      'The percentage needed to pass — not a number of questions. Omit to let the client use its default.',
+    required: false,
+    minimum: 1,
+    maximum: 100,
+  })
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  @IsOptional()
+  passingPercent?: number;
 
   @ApiProperty({ description: 'Content of the course' })
   @IsString()

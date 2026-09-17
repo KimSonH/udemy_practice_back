@@ -56,6 +56,22 @@ export class Course {
   @Column({ name: 'slug', unique: true })
   public slug: string;
 
+  /**
+   * How long one of this course's practice tests is allowed to take. Null means
+   * the client works it out from the number of questions: real exams are not
+   * a fixed number of minutes per question — AI-102 allows 100 minutes for
+   * roughly 40 to 60 — so a course that knows its own figure says so.
+   */
+  @Column({ name: 'duration_minutes', type: 'int', nullable: true })
+  public durationMinutes?: number;
+
+  /**
+   * The percentage needed to pass, not a number of questions. Null means the
+   * client falls back to its own default.
+   */
+  @Column({ name: 'passing_percent', type: 'int', nullable: true })
+  public passingPercent?: number;
+
   @CreateDateColumn({ name: 'created_at' })
   public createdAt!: Date;
 
