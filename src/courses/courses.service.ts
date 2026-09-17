@@ -49,13 +49,19 @@ const COURSE_TYPES = ['free', 'paid'];
  * message and report "Error getting courses" instead.
  */
 function resolveCourseTypeFilter(type: string | undefined): string | undefined {
-  if (!type) return undefined;
-  if (!COURSE_TYPES.includes(type)) {
+  // Trimmed and lowercased first. The stored values are lowercase, so "Free"
+  // is a spelling of a real type rather than a different one, and rejecting it
+  // only pushes callers into guessing the casing. The normalised value is what
+  // gets bound, so the query still matches what is in the column.
+  const normalized = (type ?? '').trim().toLowerCase();
+  if (!normalized) return undefined;
+
+  if (!COURSE_TYPES.includes(normalized)) {
     throw new BadRequestException(
       `"type" must be one of: ${COURSE_TYPES.join(', ')}`,
     );
   }
-  return type;
+  return normalized;
 }
 
 @Injectable()

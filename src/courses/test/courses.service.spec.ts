@@ -303,6 +303,32 @@ describe('CoursesService', () => {
         expect(spy.conditions).toHaveLength(1);
       });
 
+      it.each([
+        ['Free', 'free'],
+        ['PAID', 'paid'],
+        ['  free  ', 'free'],
+        ['Paid', 'paid'],
+      ])('normalises %s to %s before binding it', async (given, expected) => {
+        const spy = arrange();
+
+        await service.findAllByAdmin(params({ type: given }));
+
+        // The normalised value is what reaches the query, or it would be
+        // compared against a column that only ever holds lowercase.
+        expect(spy.conditions).toContainEqual({
+          sql: 'course.type = :type',
+          params: { type: expected },
+        });
+      });
+
+      it('treats a whitespace-only type as no filter at all', async () => {
+        const spy = arrange();
+
+        await service.findAllByAdmin(params({ type: '   ' }));
+
+        expect(spy.conditions).toHaveLength(1);
+      });
+
       it('rejects a type that is neither free nor paid', async () => {
         arrange();
 
