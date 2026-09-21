@@ -62,6 +62,16 @@ export class TestAttemptsController {
     return this.testAttemptsService.submit(req.user.id, id, dto);
   }
 
+  @ApiOperation({
+    summary: 'Every course this learner has touched, most recent first',
+  })
+  // Declared before the query route so 'progress' is never read as a value
+  // of one.
+  @Get('progress')
+  progress(@Req() req: RequestWithUser) {
+    return this.testAttemptsService.progress(req.user.id);
+  }
+
   @ApiOperation({ summary: "This learner's attempts at one course" })
   @Get()
   findByCourse(

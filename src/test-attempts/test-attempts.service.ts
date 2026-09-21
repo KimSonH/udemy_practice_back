@@ -24,6 +24,12 @@ import {
   scorePercent,
 } from './exam-timing';
 import { DomainScore, gradeQuestion, summarizeByDomain } from './grading';
+import {
+  CourseProgress,
+  ProgressRow,
+  answeredCount,
+  summarizeProgress,
+} from './progress';
 
 export type SubmitResult = {
   id: number;
@@ -84,6 +90,12 @@ export class TestAttemptsService {
       revealed: [],
       revision: 0,
       startedAt: now,
+      // Known from the moment the questions are dealt, and recorded now
+      // rather than at submit: the progress screen needs "41 of 60" for an
+      // attempt still running, and counting a set's questions per attempt
+      // per page load is a query nobody should pay for. Submit recomputes
+      // it, since a question deleted meanwhile drops out.
+      totalCount: questions.length,
       // Practice mode is untimed. The deadline is set here and never accepted
       // from the client: a client that supplies its own can decline to expire.
       deadline:
@@ -164,8 +176,12 @@ export class TestAttemptsService {
     attempt.correctCount = correctCount;
     attempt.totalCount = totalCount;
     attempt.domainScores = summarizeByDomain(graded);
-    // Decided against the server's clock, not the browser's.
-    attempt.timedOut = !!attempt.deadline && now > attempt.deadline;
+    // Decided against the server's clock, not the browser's. Reaching the
+    // deadline is time up, not one millisecond short of it: the runner's own
+    // countdown submits at `remaining <= 0`, and progress calls the same
+    // instant expired. Three places disagreeing on one boundary is how an
+    // attempt ends up timed out on one screen and not on another.
+    attempt.timedOut = !!attempt.deadline && now >= attempt.deadline;
     attempt.revision += 1;
 
     const saved = await this.attemptRepository.save(attempt);
@@ -183,6 +199,56 @@ export class TestAttemptsService {
       finishedAt: saved.finishedAt as Date,
       domainScores: saved.domainScores ?? [],
     };
+  }
+
+  /** Every course this learner has touched, most recently active first. */
+  async progress(
+    userId: number,
+    now: Date = new Date(),
+  ): Promise<CourseProgress[]> {
+    const attempts = await this.attemptRepository.find({
+      where: { user: { id: userId } },
+      relations: ['course', 'courseSet'],
+      order: { startedAt: 'DESC' },
+    });
+    if (attempts.length === 0) return [];
+
+    // One count per course, not per attempt: a learner with twenty attempts
+    // at one course would otherwise ask the same question twenty times.
+    const courseIds = [
+      ...new Set(attempts.map((attempt) => attempt.course.id)),
+    ];
+    const setsTotal = new Map<number, number>();
+    await Promise.all(
+      courseIds.map(async (id) =>
+        setsTotal.set(
+          id,
+          await this.courseSetRepository.count({
+            where: { course: { id } },
+          }),
+        ),
+      ),
+    );
+
+    const rows: ProgressRow[] = attempts.map((attempt) => ({
+      courseId: attempt.course.id,
+      courseName: attempt.course.name,
+      setsTotal: setsTotal.get(attempt.course.id) ?? 0,
+      attemptId: attempt.id,
+      courseSetId: attempt.courseSet?.id ?? null,
+      courseSetName: attempt.courseSet?.name ?? null,
+      mode: attempt.mode,
+      status: attempt.status,
+      answered: answeredCount(attempt.answers),
+      // Attempts started before totalCount was recorded fall back to their
+      // own question list, and to zero when they have neither.
+      questionCount: attempt.totalCount ?? attempt.questionIds?.length ?? 0,
+      correctCount: attempt.correctCount ?? null,
+      startedAt: attempt.startedAt,
+      deadline: attempt.deadline ?? null,
+    }));
+
+    return summarizeProgress(rows, now);
   }
 
   findByCourse(userId: number, courseId: number): Promise<TestAttempt[]> {

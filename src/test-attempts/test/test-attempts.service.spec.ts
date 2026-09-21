@@ -403,13 +403,33 @@ describe('TestAttemptsService', () => {
       expect(result.timedOut).toBe(true);
     });
 
-    it('does not time out an attempt handed in on the deadline', async () => {
+    it('times out an attempt handed in exactly on the deadline', async () => {
       const deadline = new Date('2026-09-21T10:00:00.000Z');
       attempts.findOne.mockResolvedValue(running({ deadline }));
       withQuestions(question(1, '1'));
       courses.findOne.mockResolvedValue(course() as never);
 
       const result = await service.submit(USER, 91, {}, deadline);
+
+      // The boundary is shared with two other places: the runner's countdown
+      // fires at `remaining <= 0`, and progress calls this instant expired.
+      // Reaching the deadline is time up in all three.
+      expect(result.timedOut).toBe(true);
+    });
+
+    it('does not time out an attempt handed in a second early', async () => {
+      attempts.findOne.mockResolvedValue(
+        running({ deadline: new Date('2026-09-21T10:00:00.000Z') }),
+      );
+      withQuestions(question(1, '1'));
+      courses.findOne.mockResolvedValue(course() as never);
+
+      const result = await service.submit(
+        USER,
+        91,
+        {},
+        new Date('2026-09-21T09:59:59.000Z'),
+      );
 
       expect(result.timedOut).toBe(false);
     });
