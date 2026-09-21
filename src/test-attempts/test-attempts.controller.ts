@@ -72,6 +72,20 @@ export class TestAttemptsController {
     return this.testAttemptsService.progress(req.user.id);
   }
 
+  @ApiOperation({
+    summary: 'Graded sittings across every course, newest first',
+  })
+  @Get('recent')
+  recent(@Req() req: RequestWithUser, @Query('limit') limit?: string) {
+    const asked = Number(limit);
+    // Clamped rather than trusted: this drives a chart, and a client asking
+    // for a million rows should get a page, not the table.
+    const size = Number.isInteger(asked)
+      ? Math.min(Math.max(asked, 1), 100)
+      : 20;
+    return this.testAttemptsService.recent(req.user.id, size);
+  }
+
   @ApiOperation({ summary: "This learner's attempts at one course" })
   @Get()
   findByCourse(

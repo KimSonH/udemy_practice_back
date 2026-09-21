@@ -1,5 +1,5 @@
 import { AttemptStatus, TestMode } from './test-attempt.constants';
-import { scorePercent } from './exam-timing';
+import { hasPassed, scorePercent } from './exam-timing';
 
 /**
  * One attempt, flattened for summarising. The service does the loading; this
@@ -22,7 +22,23 @@ export type ProgressRow = {
   questionCount: number;
   correctCount: number | null;
   startedAt: Date;
+  finishedAt: Date | null;
   deadline: Date | null;
+  /** The course's own pass mark, or null to fall back to the default. */
+  passingPercent: number | null;
+};
+
+/** One graded sitting, for the progress history on the dashboard. */
+export type RecentResult = {
+  attemptId: number;
+  courseId: number;
+  courseName: string;
+  courseSetName: string | null;
+  correctCount: number;
+  totalCount: number;
+  percent: number;
+  passed: boolean;
+  finishedAt: string;
 };
 
 export type InProgressSummary = {
@@ -139,6 +155,42 @@ export function summarizeProgress(
 }
 
 /** Questions with at least one option picked. */
+/**
+ * The graded sittings, newest first — the line a progress chart is drawn
+ * from.
+ *
+ * Only submitted attempts appear. One still being taken has no score, and
+ * plotting it as zero would draw a collapse that never happened.
+ */
+export function recentResults(
+  rows: ProgressRow[],
+  limit: number,
+): RecentResult[] {
+  return rows
+    .filter(
+      (row): row is ProgressRow & { finishedAt: Date } =>
+        row.status === 'submitted' && row.finishedAt !== null,
+    )
+    .sort((a, b) => b.finishedAt.getTime() - a.finishedAt.getTime())
+    .slice(0, Math.max(0, limit))
+    .map((row) => {
+      const correct = row.correctCount ?? 0;
+      return {
+        attemptId: row.attemptId,
+        courseId: row.courseId,
+        courseName: row.courseName,
+        courseSetName: row.courseSetName,
+        correctCount: correct,
+        totalCount: row.questionCount,
+        percent: scorePercent(correct, row.questionCount),
+        passed: hasPassed(correct, row.questionCount, {
+          passingPercent: row.passingPercent,
+        }),
+        finishedAt: row.finishedAt.toISOString(),
+      };
+    });
+}
+
 export function answeredCount(answers: Record<string, string[]>): number {
   return Object.values(answers ?? {}).filter((picked) => picked?.length > 0)
     .length;

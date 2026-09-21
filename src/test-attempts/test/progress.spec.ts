@@ -1,4 +1,9 @@
-import { ProgressRow, answeredCount, summarizeProgress } from '../progress';
+import {
+  ProgressRow,
+  answeredCount,
+  recentResults,
+  summarizeProgress,
+} from '../progress';
 
 const NOW = new Date('2026-09-21T12:00:00.000Z');
 const at = (iso: string) => new Date(iso);
@@ -17,7 +22,9 @@ function row(overrides: Partial<ProgressRow> = {}): ProgressRow {
     questionCount: 100,
     correctCount: 50,
     startedAt: at('2026-09-20T10:00:00.000Z'),
+    finishedAt: at('2026-09-20T11:00:00.000Z'),
     deadline: null,
+    passingPercent: null,
     ...overrides,
   };
 }
@@ -31,6 +38,95 @@ describe('answeredCount', () => {
     expect(
       answeredCount(undefined as unknown as Record<string, string[]>),
     ).toBe(0);
+  });
+});
+
+describe('recentResults', () => {
+  it('returns nothing when nothing has been graded', () => {
+    expect(
+      recentResults([row({ status: 'in_progress', finishedAt: null })], 10),
+    ).toEqual([]);
+  });
+
+  it('leaves out an attempt still being taken', () => {
+    const results = recentResults(
+      [
+        row({ attemptId: 1 }),
+        row({ attemptId: 2, status: 'in_progress', finishedAt: null }),
+      ],
+      10,
+    );
+
+    // Plotting an ungraded attempt as zero would draw a collapse that never
+    // happened.
+    expect(results.map((r) => r.attemptId)).toEqual([1]);
+  });
+
+  it('puts the newest result first', () => {
+    const results = recentResults(
+      [
+        row({ attemptId: 1, finishedAt: at('2026-09-18T10:00:00.000Z') }),
+        row({ attemptId: 2, finishedAt: at('2026-09-20T10:00:00.000Z') }),
+      ],
+      10,
+    );
+
+    expect(results.map((r) => r.attemptId)).toEqual([2, 1]);
+  });
+
+  it('orders by when it was handed in, not when it was begun', () => {
+    const results = recentResults(
+      [
+        row({
+          attemptId: 1,
+          startedAt: at('2026-09-01T10:00:00.000Z'),
+          finishedAt: at('2026-09-20T10:00:00.000Z'),
+        }),
+        row({
+          attemptId: 2,
+          startedAt: at('2026-09-19T10:00:00.000Z'),
+          finishedAt: at('2026-09-19T11:00:00.000Z'),
+        }),
+      ],
+      10,
+    );
+
+    // An attempt left open for a fortnight and handed in today is the most
+    // recent result, whatever day it was opened.
+    expect(results.map((r) => r.attemptId)).toEqual([1, 2]);
+  });
+
+  it('honours the limit', () => {
+    const results = recentResults(
+      [row({ attemptId: 1 }), row({ attemptId: 2 }), row({ attemptId: 3 })],
+      2,
+    );
+
+    expect(results).toHaveLength(2);
+  });
+
+  it('returns nothing for a limit of zero', () => {
+    expect(recentResults([row()], 0)).toEqual([]);
+  });
+
+  it('judges a pass against the default mark', () => {
+    const results = recentResults(
+      [row({ correctCount: 70, questionCount: 100 })],
+      10,
+    );
+
+    expect(results[0]).toMatchObject({ percent: 70, passed: true });
+  });
+
+  it("judges a pass against the course's own mark when it has one", () => {
+    const results = recentResults(
+      [row({ correctCount: 70, questionCount: 100, passingPercent: 80 })],
+      10,
+    );
+
+    // 70% passes by default and fails this course. Reporting the default
+    // would tell a learner they passed something they did not.
+    expect(results[0]).toMatchObject({ percent: 70, passed: false });
   });
 });
 

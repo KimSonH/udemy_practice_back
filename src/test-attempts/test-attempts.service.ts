@@ -27,7 +27,9 @@ import { DomainScore, gradeQuestion, summarizeByDomain } from './grading';
 import {
   CourseProgress,
   ProgressRow,
+  RecentResult,
   answeredCount,
+  recentResults,
   summarizeProgress,
 } from './progress';
 
@@ -245,10 +247,49 @@ export class TestAttemptsService {
       questionCount: attempt.totalCount ?? attempt.questionIds?.length ?? 0,
       correctCount: attempt.correctCount ?? null,
       startedAt: attempt.startedAt,
+      finishedAt: attempt.finishedAt ?? null,
       deadline: attempt.deadline ?? null,
+      passingPercent: attempt.course.passingPercent ?? null,
     }));
 
     return summarizeProgress(rows, now);
+  }
+
+  /**
+   * The learner's graded sittings, newest first.
+   *
+   * Its own endpoint rather than a field on progress: the course list needs
+   * the summary and nothing else, and the dashboard is the only screen that
+   * draws the history.
+   */
+  async recent(userId: number, limit = 20): Promise<RecentResult[]> {
+    const attempts = await this.attemptRepository.find({
+      where: { user: { id: userId }, status: 'submitted' },
+      relations: ['course', 'courseSet'],
+      order: { finishedAt: 'DESC' },
+      take: limit,
+    });
+
+    return recentResults(
+      attempts.map((attempt) => ({
+        courseId: attempt.course.id,
+        courseName: attempt.course.name,
+        setsTotal: 0,
+        attemptId: attempt.id,
+        courseSetId: attempt.courseSet?.id ?? null,
+        courseSetName: attempt.courseSet?.name ?? null,
+        mode: attempt.mode,
+        status: attempt.status,
+        answered: answeredCount(attempt.answers),
+        questionCount: attempt.totalCount ?? attempt.questionIds?.length ?? 0,
+        correctCount: attempt.correctCount ?? null,
+        startedAt: attempt.startedAt,
+        finishedAt: attempt.finishedAt ?? null,
+        deadline: attempt.deadline ?? null,
+        passingPercent: attempt.course.passingPercent ?? null,
+      })),
+      limit,
+    );
   }
 
   findByCourse(userId: number, courseId: number): Promise<TestAttempt[]> {
