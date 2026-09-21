@@ -303,6 +303,99 @@ describe('TestAttemptsService', () => {
     });
   });
 
+  describe('prune', () => {
+    const NOW = new Date('2026-09-21T12:00:00.000Z');
+
+    beforeEach(() => {
+      attempts.update.mockResolvedValue({ affected: 2 } as never);
+      attempts.softDelete.mockResolvedValue({ affected: 3 } as never);
+    });
+
+    it('clears the answers of attempts submitted long ago', async () => {
+      await service.prune(NOW);
+
+      const [where, patch] = attempts.update.mock.calls[0];
+      expect(where).toMatchObject({ status: 'submitted' });
+      expect(patch).toMatchObject({
+        answers: {},
+        flagged: [],
+        revealed: [],
+        questionIds: null,
+        optionOrder: null,
+        prunedAt: NOW,
+      });
+    });
+
+    it('leaves the result untouched', async () => {
+      await service.prune(NOW);
+
+      // The whole policy rests on this: "best score" is a permanent claim,
+      // and a housekeeping job must never be able to lower it.
+      const [, patch] = attempts.update.mock.calls[0];
+      expect(patch).not.toHaveProperty('correctCount');
+      expect(patch).not.toHaveProperty('totalCount');
+      expect(patch).not.toHaveProperty('domainScores');
+      expect(patch).not.toHaveProperty('finishedAt');
+    });
+
+    it('measures the answer cutoff from when the attempt was handed in', async () => {
+      await service.prune(NOW);
+
+      const [where] = attempts.update.mock.calls[0];
+      const cutoff = (where as { finishedAt: { value: Date } }).finishedAt
+        .value;
+      expect(cutoff).toEqual(new Date('2026-03-25T12:00:00.000Z'));
+    });
+
+    it('skips attempts already pruned', async () => {
+      await service.prune(NOW);
+
+      // Without this a second run rewrites every old attempt it has already
+      // done, moving prunedAt each time.
+      const [where] = attempts.update.mock.calls[0];
+      expect(where).toHaveProperty('prunedAt');
+    });
+
+    it('removes attempts abandoned part-way', async () => {
+      await service.prune(NOW);
+
+      const [where] = attempts.softDelete.mock.calls[0] as [
+        { status: string; updatedAt: { value: Date } },
+      ];
+      expect(where.status).toBe('in_progress');
+      expect(where.updatedAt.value).toEqual(
+        new Date('2026-08-22T12:00:00.000Z'),
+      );
+    });
+
+    it('never removes a submitted attempt', async () => {
+      await service.prune(NOW);
+
+      // A finished sitting is the record. Only the unfinished are swept.
+      const [where] = attempts.softDelete.mock.calls[0] as [{ status: string }];
+      expect(where.status).not.toBe('submitted');
+      expect(attempts.delete).not.toHaveBeenCalled();
+      expect(attempts.remove).not.toHaveBeenCalled();
+    });
+
+    it('reports what it did', async () => {
+      await expect(service.prune(NOW)).resolves.toEqual({
+        detailsCleared: 2,
+        abandonedRemoved: 3,
+      });
+    });
+
+    it('reports zero rather than undefined when nothing matched', async () => {
+      attempts.update.mockResolvedValue({} as never);
+      attempts.softDelete.mockResolvedValue({} as never);
+
+      await expect(service.prune(NOW)).resolves.toEqual({
+        detailsCleared: 0,
+        abandonedRemoved: 0,
+      });
+    });
+  });
+
   describe('submit', () => {
     const running = (overrides: Partial<TestAttempt> = {}) =>
       ({

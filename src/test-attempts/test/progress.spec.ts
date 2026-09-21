@@ -22,6 +22,7 @@ function row(overrides: Partial<ProgressRow> = {}): ProgressRow {
     questionCount: 100,
     correctCount: 50,
     startedAt: at('2026-09-20T10:00:00.000Z'),
+    updatedAt: at('2026-09-20T11:00:00.000Z'),
     finishedAt: at('2026-09-20T11:00:00.000Z'),
     deadline: null,
     passingPercent: null,
@@ -234,6 +235,86 @@ describe('summarizeProgress', () => {
 
     // Older ones are abandoned. A choice of half-finished sittings is not help.
     expect(result[0].inProgress?.attemptId).toBe(2);
+  });
+
+  it('stops offering an attempt nobody has touched for a month', () => {
+    const result = summarizeProgress(
+      [
+        row({
+          status: 'in_progress',
+          mode: 'practice',
+          correctCount: null,
+          deadline: null,
+          updatedAt: at('2026-08-01T10:00:00.000Z'),
+        }),
+      ],
+      NOW,
+    );
+
+    // Practice is untimed, so nothing ever marks it expired. Without a
+    // cutoff, an attempt abandoned last year is offered as "carry on where
+    // you left off" forever.
+    expect(result[0].inProgress).toBeNull();
+  });
+
+  it('still offers one touched inside the window', () => {
+    const result = summarizeProgress(
+      [
+        row({
+          status: 'in_progress',
+          correctCount: null,
+          updatedAt: at('2026-09-20T10:00:00.000Z'),
+        }),
+      ],
+      NOW,
+    );
+
+    expect(result[0].inProgress).not.toBeNull();
+  });
+
+  it('judges abandonment on the last touch, not on when it was opened', () => {
+    const result = summarizeProgress(
+      [
+        row({
+          status: 'in_progress',
+          correctCount: null,
+          startedAt: at('2026-06-01T10:00:00.000Z'),
+          updatedAt: at('2026-09-21T09:00:00.000Z'),
+        }),
+      ],
+      NOW,
+    );
+
+    // Opened in June, answered this morning. That is a live attempt.
+    expect(result[0].inProgress).not.toBeNull();
+  });
+
+  it('falls back to the next live attempt when the newest is abandoned', () => {
+    const result = summarizeProgress(
+      [
+        row({
+          attemptId: 1,
+          status: 'in_progress',
+          correctCount: null,
+          courseSetId: 7,
+          startedAt: at('2026-09-19T10:00:00.000Z'),
+          updatedAt: at('2026-09-19T10:00:00.000Z'),
+        }),
+        row({
+          attemptId: 2,
+          status: 'in_progress',
+          correctCount: null,
+          courseSetId: 8,
+          startedAt: at('2026-09-20T10:00:00.000Z'),
+          updatedAt: at('2026-07-01T10:00:00.000Z'),
+        }),
+      ],
+      NOW,
+    );
+
+    // The newer one was left months ago. Dropping it must not drop the one
+    // the learner is actually in the middle of.
+    expect(result[0].inProgress?.attemptId).toBe(1);
   });
 
   it('marks an attempt whose clock has run out', () => {

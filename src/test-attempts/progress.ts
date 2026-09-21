@@ -1,5 +1,6 @@
 import { AttemptStatus, TestMode } from './test-attempt.constants';
 import { hasPassed, scorePercent } from './exam-timing';
+import { retentionCutoffs } from './test-attempt.constants';
 
 /**
  * One attempt, flattened for summarising. The service does the loading; this
@@ -22,6 +23,8 @@ export type ProgressRow = {
   questionCount: number;
   correctCount: number | null;
   startedAt: Date;
+  /** Last touched. What decides whether an unfinished attempt was abandoned. */
+  updatedAt: Date;
   finishedAt: Date | null;
   deadline: Date | null;
   /** The course's own pass mark, or null to fall back to the default. */
@@ -108,10 +111,19 @@ export function summarizeProgress(
         .map((attempt) => attempt.courseSetId),
     ).size;
 
-    // The newest unfinished attempt. Older ones are abandoned; offering the
-    // learner a choice of half-finished sittings is not help.
+    // The newest unfinished attempt, and only if it was touched recently.
+    // Older ones are abandoned: offering a choice of half-finished sittings
+    // is not help, and an untimed practice attempt is never marked expired,
+    // so without the cutoff one left last year is offered as "carry on"
+    // forever. Judged on when it was last touched, not when it was opened —
+    // an attempt begun a month ago and answered this morning is live.
+    const { abandonedBefore } = retentionCutoffs(now);
     const running = attempts
-      .filter((attempt) => attempt.status === 'in_progress')
+      .filter(
+        (attempt) =>
+          attempt.status === 'in_progress' &&
+          attempt.updatedAt > abandonedBefore,
+      )
       .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())[0];
 
     const first = attempts[0];

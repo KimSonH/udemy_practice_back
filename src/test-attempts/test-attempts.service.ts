@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, IsNull, LessThan, Repository } from 'typeorm';
 
 import { Course } from 'src/courses/entities/courses.entity';
 import { CourseSet } from 'src/course-sets/entities/course-set.entity';
@@ -17,6 +17,7 @@ import { CreateTestAttemptDto } from './dto/create-test-attempt.dto';
 import { SubmitTestAttemptDto } from './dto/submit-test-attempt.dto';
 import { UpdateTestAttemptDto } from './dto/update-test-attempt.dto';
 import { TestAttempt } from './entities/test-attempt.entity';
+import { retentionCutoffs } from './test-attempt.constants';
 import {
   deadlineFrom,
   hasPassed,
@@ -247,6 +248,7 @@ export class TestAttemptsService {
       questionCount: attempt.totalCount ?? attempt.questionIds?.length ?? 0,
       correctCount: attempt.correctCount ?? null,
       startedAt: attempt.startedAt,
+      updatedAt: attempt.updatedAt,
       finishedAt: attempt.finishedAt ?? null,
       deadline: attempt.deadline ?? null,
       passingPercent: attempt.course.passingPercent ?? null,
@@ -284,12 +286,59 @@ export class TestAttemptsService {
         questionCount: attempt.totalCount ?? attempt.questionIds?.length ?? 0,
         correctCount: attempt.correctCount ?? null,
         startedAt: attempt.startedAt,
+        updatedAt: attempt.updatedAt,
         finishedAt: attempt.finishedAt ?? null,
         deadline: attempt.deadline ?? null,
         passingPercent: attempt.course.passingPercent ?? null,
       })),
       limit,
     );
+  }
+
+  /**
+   * Housekeeping, run from a script rather than a timer inside the app:
+   * deploys run several PM2 instances, and an in-process schedule would run
+   * this once per instance.
+   *
+   * Two different things, deliberately. A submitted attempt loses its
+   * answers and keeps its result for good, because "best score" is a
+   * permanent claim and expiring it would quietly lower someone's best. An
+   * abandoned attempt is removed outright: it is a record of nothing, and
+   * while it exists the course list keeps inviting the learner back into it.
+   */
+  async prune(now: Date = new Date()): Promise<{
+    detailsCleared: number;
+    abandonedRemoved: number;
+  }> {
+    const { detailsBefore, abandonedBefore } = retentionCutoffs(now);
+
+    const cleared = await this.attemptRepository.update(
+      {
+        status: 'submitted',
+        finishedAt: LessThan(detailsBefore),
+        // Already pruned rows are skipped, so a second run is a no-op
+        // rather than a rewrite of every old attempt.
+        prunedAt: IsNull(),
+      },
+      {
+        answers: {},
+        flagged: [],
+        revealed: [],
+        questionIds: null,
+        optionOrder: null,
+        prunedAt: now,
+      },
+    );
+
+    const removed = await this.attemptRepository.softDelete({
+      status: 'in_progress',
+      updatedAt: LessThan(abandonedBefore),
+    });
+
+    return {
+      detailsCleared: cleared.affected ?? 0,
+      abandonedRemoved: removed.affected ?? 0,
+    };
   }
 
   findByCourse(userId: number, courseId: number): Promise<TestAttempt[]> {

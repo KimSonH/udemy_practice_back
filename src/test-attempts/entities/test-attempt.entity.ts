@@ -103,6 +103,13 @@ export class TestAttempt {
   @Column({ name: 'domain_scores', type: 'jsonb', nullable: true })
   public domainScores?: DomainScore[];
 
+  /**
+   * When the answers were cleared, leaving only the result. Null while the
+   * attempt still has them, which is every attempt until it ages out.
+   */
+  @Column({ name: 'pruned_at', type: 'timestamptz', nullable: true })
+  public prunedAt?: Date;
+
   @CreateDateColumn({ name: 'created_at' })
   public createdAt!: Date;
 
