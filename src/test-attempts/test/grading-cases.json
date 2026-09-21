@@ -1,0 +1,95 @@
+{
+  "note": "Shared grading contract. This file is byte-identical in udemy_practice_back and udemy_practice_front, and a test in each repo asserts its sha256. Changing a rule means changing both copies; changing one alone turns the other repo red.",
+  "cases": [
+    {
+      "name": "single correct answer picked",
+      "correctAnswer": "4",
+      "selected": ["4"],
+      "expected": "correct"
+    },
+    {
+      "name": "single correct answer, wrong option picked",
+      "correctAnswer": "4",
+      "selected": ["2"],
+      "expected": "incorrect"
+    },
+    {
+      "name": "nothing picked is skipped, not incorrect",
+      "correctAnswer": "4",
+      "selected": [],
+      "expected": "skipped"
+    },
+    {
+      "name": "multiple response, both picked",
+      "correctAnswer": "1,3",
+      "selected": ["1", "3"],
+      "expected": "correct"
+    },
+    {
+      "name": "multiple response, order does not matter",
+      "correctAnswer": "1,3",
+      "selected": ["3", "1"],
+      "expected": "correct"
+    },
+    {
+      "name": "multiple response, one of two missing",
+      "correctAnswer": "1,3",
+      "selected": ["1"],
+      "expected": "incorrect"
+    },
+    {
+      "name": "multiple response, one extra picked",
+      "correctAnswer": "1,3",
+      "selected": ["1", "3", "5"],
+      "expected": "incorrect"
+    },
+    {
+      "name": "a repeated pick counts once",
+      "correctAnswer": "2",
+      "selected": ["2", "2"],
+      "expected": "correct"
+    },
+    {
+      "name": "whitespace around indexes is trimmed",
+      "correctAnswer": " 1 , 3 ",
+      "selected": ["1", "3"],
+      "expected": "correct"
+    },
+    {
+      "name": "a repeated correct index counts once",
+      "correctAnswer": "2,2",
+      "selected": ["2"],
+      "expected": "correct"
+    },
+    {
+      "name": "question with no recorded answer cannot be passed",
+      "correctAnswer": "",
+      "selected": ["1"],
+      "expected": "incorrect"
+    },
+    {
+      "name": "null correctAnswer cannot be passed either",
+      "correctAnswer": null,
+      "selected": ["1"],
+      "expected": "incorrect"
+    },
+    {
+      "name": "non-numeric correctAnswer is corrupt, not a letter to decode",
+      "correctAnswer": "B",
+      "selected": ["2"],
+      "expected": "incorrect"
+    },
+    {
+      "name": "corrupt entries are dropped, the numeric ones still count",
+      "correctAnswer": "1,B,3",
+      "selected": ["1", "3"],
+      "expected": "correct"
+    },
+    {
+      "name": "skipped wins over a corrupt answer key",
+      "correctAnswer": "B",
+      "selected": [],
+      "expected": "skipped"
+    }
+  ]
+}
