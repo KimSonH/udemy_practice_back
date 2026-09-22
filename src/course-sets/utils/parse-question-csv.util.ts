@@ -105,28 +105,56 @@ export function parseQuestionCsv(buffer: Buffer): ParseQuestionCsvResult {
       return;
     }
 
+    // "Correct Answers" holds one 1-based index for a single-answer question
+    // and several, comma separated, for a multiple-response one: "3" or "1,3".
+    // grading.ts has read it that way from the start; this parser accepted only
+    // a bare integer, so every multiple-response row was refused — and because
+    // an import is all-or-nothing, one such row failed the whole file.
+    //
+    // Blank parts are dropped rather than refused: a trailing comma says
+    // nothing ambiguous, and failing a file over punctuation costs more than it
+    // catches. At least one index has to survive, and every part that is there
+    // must be an integer.
     const correctAnswerRaw = emptyToUndefined(record['Correct Answers']);
-    if (!correctAnswerRaw || !/^\d+$/.test(correctAnswerRaw)) {
+    const answerParts = (correctAnswerRaw ?? '')
+      .split(',')
+      .map((part) => part.trim())
+      .filter((part) => part !== '');
+    if (
+      answerParts.length === 0 ||
+      answerParts.some((part) => !/^\d+$/.test(part))
+    ) {
       errors.push(
-        `Row ${rowNumber}: "Correct Answers" must be an integer such as "3", got "${record['Correct Answers']}"`,
+        `Row ${rowNumber}: "Correct Answers" must be one or more 1-based option indexes, comma separated, such as "3" or "1,3", got "${record['Correct Answers']}"`,
       );
       return;
     }
-    const correctAnswerIndex = parseInt(correctAnswerRaw, 10);
-    if (correctAnswerIndex < 1 || correctAnswerIndex > ANSWER_INDEXES.length) {
+
+    const correctAnswerIndexes = [
+      ...new Set(answerParts.map((part) => parseInt(part, 10))),
+    ].sort((a, b) => a - b);
+
+    const outOfRange = correctAnswerIndexes.find(
+      (index) => index < 1 || index > ANSWER_INDEXES.length,
+    );
+    if (outOfRange !== undefined) {
       errors.push(
-        `Row ${rowNumber}: "Correct Answers" = ${correctAnswerIndex} is outside 1-${ANSWER_INDEXES.length}`,
+        `Row ${rowNumber}: "Correct Answers" = ${outOfRange} is outside 1-${ANSWER_INDEXES.length}`,
       );
       return;
     }
-    // The index has to land on an option that actually has text. Comparing it
+
+    // Every index has to land on an option that actually has text. Comparing it
     // against the *count* of filled options is a different question, and it
     // answered both of these wrong: a row filling options 1, 2 and 4 had a
     // correct answer of 4 refused, while a correct answer of 3 was accepted
     // even though option 3 is blank — a question nobody could ever get right.
-    if (!answerOptions[correctAnswerIndex - 1]) {
+    const blankIndex = correctAnswerIndexes.find(
+      (index) => !answerOptions[index - 1],
+    );
+    if (blankIndex !== undefined) {
       errors.push(
-        `Row ${rowNumber}: "Correct Answers" = ${correctAnswerIndex} but "Answer Option ${correctAnswerIndex}" is empty`,
+        `Row ${rowNumber}: "Correct Answers" = ${blankIndex} but "Answer Option ${blankIndex}" is empty`,
       );
       return;
     }
@@ -146,7 +174,9 @@ export function parseQuestionCsv(buffer: Buffer): ParseQuestionCsvResult {
       explanation5: explanations[4],
       answerOption6: answerOptions[5],
       explanation6: explanations[5],
-      correctAnswer: correctAnswerRaw,
+      // Stored canonically — sorted and de-duplicated — so the review screen
+      // and the expected-answer count cannot disagree about the same row.
+      correctAnswer: correctAnswerIndexes.join(','),
       overallExplanation: emptyToUndefined(record['Overall Explanation']),
       domain: emptyToUndefined(record['Domain']),
     });

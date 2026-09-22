@@ -38,8 +38,11 @@ function row(parts: Partial<Record<string, string>> = {}): string {
     ...parts,
   };
 
+  // Every cell is quoted: "Correct Answers" holds a comma on a
+  // multiple-response row, and an unquoted one would silently become an extra
+  // column rather than the value under test.
   return HEADER.split(',')
-    .map((column) => cells[column] ?? '')
+    .map((column) => `"${(cells[column] ?? '').replace(/"/g, '""')}"`)
     .join(',');
 }
 
@@ -170,7 +173,7 @@ describe('parseQuestionCsv', () => {
       const result = parseQuestionCsv(csv(row({ 'Correct Answers': 'C' })));
 
       expect(result.errors).toEqual([
-        'Row 2: "Correct Answers" must be an integer such as "3", got "C"',
+        'Row 2: "Correct Answers" must be one or more 1-based option indexes, comma separated, such as "3" or "1,3", got "C"',
       ]);
     });
 
@@ -178,7 +181,7 @@ describe('parseQuestionCsv', () => {
       const result = parseQuestionCsv(csv(row({ 'Correct Answers': '2.5' })));
 
       expect(result.errors).toEqual([
-        'Row 2: "Correct Answers" must be an integer such as "3", got "2.5"',
+        'Row 2: "Correct Answers" must be one or more 1-based option indexes, comma separated, such as "3" or "1,3", got "2.5"',
       ]);
     });
 
@@ -186,7 +189,7 @@ describe('parseQuestionCsv', () => {
       const result = parseQuestionCsv(csv(row({ 'Correct Answers': '' })));
 
       expect(result.errors).toEqual([
-        'Row 2: "Correct Answers" must be an integer such as "3", got ""',
+        'Row 2: "Correct Answers" must be one or more 1-based option indexes, comma separated, such as "3" or "1,3", got ""',
       ]);
     });
 
@@ -215,6 +218,84 @@ describe('parseQuestionCsv', () => {
     });
   });
 
+  describe('multiple-response rows', () => {
+    // "Correct Answers" carries one index for a single-answer question and
+    // several, comma separated, for a multiple-response one. grading.ts has
+    // documented that contract from the start; only this parser refused it,
+    // and because an import is all-or-nothing one such row failed the file.
+    it('accepts several comma-separated indexes', () => {
+      const result = parseQuestionCsv(csv(row({ 'Correct Answers': '1,3' })));
+
+      expect(result.errors).toEqual([]);
+      expect(result.rows[0].correctAnswer).toBe('1,3');
+    });
+
+    it('does not fail a file because one row has several answers', () => {
+      const result = parseQuestionCsv(
+        csv(
+          row({ 'Correct Answers': '2' }),
+          row({ 'Correct Answers': '1,3' }),
+          row({ 'Correct Answers': '4' }),
+        ),
+      );
+
+      expect(result.errors).toEqual([]);
+      expect(result.rows).toHaveLength(3);
+    });
+
+    it('ignores spaces around each index', () => {
+      const result = parseQuestionCsv(csv(row({ 'Correct Answers': '1, 3' })));
+
+      expect(result.errors).toEqual([]);
+      expect(result.rows[0].correctAnswer).toBe('1,3');
+    });
+
+    it('sorts and de-duplicates the indexes it stores', () => {
+      const result = parseQuestionCsv(csv(row({ 'Correct Answers': '3,1,3' })));
+
+      expect(result.errors).toEqual([]);
+      // Grading sorts before comparing, so order never decided correctness.
+      // Storing them canonically keeps the review screen and the answer count
+      // from disagreeing with each other.
+      expect(result.rows[0].correctAnswer).toBe('1,3');
+    });
+
+    it('tolerates a trailing comma', () => {
+      const result = parseQuestionCsv(csv(row({ 'Correct Answers': '1,3,' })));
+
+      // Unambiguous, and refusing it would fail a whole file over punctuation.
+      expect(result.errors).toEqual([]);
+      expect(result.rows[0].correctAnswer).toBe('1,3');
+    });
+
+    it('checks every index in the list, not just the first', () => {
+      const result = parseQuestionCsv(csv(row({ 'Correct Answers': '1,7' })));
+
+      expect(result.rows).toEqual([]);
+      expect(result.errors).toEqual([
+        'Row 2: "Correct Answers" = 7 is outside 1-6',
+      ]);
+    });
+
+    it('rejects a list pointing at a blank option', () => {
+      const result = parseQuestionCsv(
+        csv(row({ 'Answer Option 3': '', 'Correct Answers': '1,3' })),
+      );
+
+      expect(result.rows).toEqual([]);
+      expect(result.errors).toEqual([
+        'Row 2: "Correct Answers" = 3 but "Answer Option 3" is empty',
+      ]);
+    });
+
+    it('rejects a list with a non-integer part', () => {
+      const result = parseQuestionCsv(csv(row({ 'Correct Answers': '1,C' })));
+
+      expect(result.rows).toEqual([]);
+      expect(result.errors[0]).toMatch(/^Row 2: "Correct Answers" must be/);
+    });
+  });
+
   describe('all-or-nothing', () => {
     it('returns no rows at all when any row fails', () => {
       const result = parseQuestionCsv(
@@ -238,7 +319,7 @@ describe('parseQuestionCsv', () => {
 
       expect(result.errors).toEqual([
         'Row 2: "Question" is missing',
-        'Row 3: "Correct Answers" must be an integer such as "3", got "C"',
+        'Row 3: "Correct Answers" must be one or more 1-based option indexes, comma separated, such as "3" or "1,3", got "C"',
         'Row 4: "Answer Option 1" and "Answer Option 2" are both required',
       ]);
     });
