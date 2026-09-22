@@ -85,6 +85,51 @@ export class CoursesService {
    * grouped query instead. It also stops the answer key being handed to
    * anyone browsing the catalogue.
    */
+  /**
+   * Every course column a list needs, which is all of them but `content`.
+   *
+   * `content` is the course's full marketing HTML — the body of its detail
+   * page. A catalogue row shows a name, a price and a thumbnail and never
+   * reads it, so on a page of twelve courses it is the largest thing fetched
+   * and sent for nothing. Listed by name rather than excluded, because
+   * TypeORM has no "everything but this" and a silent extra column is how
+   * this grew in the first place.
+   */
+  private static readonly LIST_COLUMNS = [
+    'course.id',
+    'course.name',
+    'course.description',
+    'course.thumbnailImageUrl',
+    'course.status',
+    'course.price',
+    'course.type',
+    'course.creationMode',
+    'course.categoryName',
+    'course.slug',
+    'course.durationMinutes',
+    'course.passingPercent',
+    'course.createdAt',
+    'course.updatedAt',
+  ];
+
+  /** The same set, for the `find` calls that cannot take a column list. */
+  private listSelect = {
+    id: true,
+    name: true,
+    description: true,
+    thumbnailImageUrl: true,
+    status: true,
+    price: true,
+    type: true,
+    creationMode: true,
+    categoryName: true,
+    slug: true,
+    durationMinutes: true,
+    passingPercent: true,
+    createdAt: true,
+    updatedAt: true,
+  } as const;
+
   private listRelations = ['courseSets', 'organization'];
   private randomRelations = ['courseSets', 'organization'];
   private randomVideoRelations = [
@@ -445,6 +490,7 @@ export class CoursesService {
     try {
       const [items, total] = await this.coursesRepository.findAndCount({
         relations: this.listRelations,
+        select: this.listSelect,
         where: {
           organization: {
             id: organizationId ? +organizationId : undefined,
@@ -497,6 +543,7 @@ export class CoursesService {
     try {
       const query = this.coursesRepository
         .createQueryBuilder('course')
+        .select(CoursesService.LIST_COLUMNS)
         .leftJoinAndSelect('course.courseSessions', 'courseSessions')
         .leftJoinAndSelect('course.organization', 'organization')
         // No questions here either. The admin table shows id, name, status,
@@ -591,6 +638,7 @@ export class CoursesService {
     try {
       const query = this.coursesRepository
         .createQueryBuilder('course')
+        .select(CoursesService.LIST_COLUMNS)
         .leftJoin('course.courseSessions', 'courseSessions')
         .leftJoinAndSelect('course.organization', 'organization')
         .leftJoinAndSelect('course.courseSets', 'courseSets')
@@ -727,6 +775,7 @@ export class CoursesService {
       const [items, total] = await this.coursesRepository.findAndCount({
         where: { id: In(ids) },
         relations: this.randomRelations,
+        select: this.listSelect,
         order: { createdAt: 'DESC' },
       });
       await this.attachQuestionCounts(items);

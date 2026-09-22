@@ -31,7 +31,13 @@ function createQueryBuilderSpy(items: unknown[] = [], total = 0) {
     conditions.push({ sql, params });
   };
 
+  const selected: string[] = [];
+
   const builder = {
+    select: jest.fn((columns: string[]) => {
+      selected.push(...columns);
+      return builder;
+    }),
     leftJoinAndSelect: jest.fn(() => builder),
     andWhere: jest.fn(
       (clause: string | Brackets, params?: Record<string, unknown>) => {
@@ -58,7 +64,7 @@ function createQueryBuilderSpy(items: unknown[] = [], total = 0) {
     getManyAndCount: jest.fn(async () => [items, total]),
   };
 
-  return { builder, conditions, orderBy, skip, take };
+  return { builder, conditions, orderBy, skip, take, selected };
 }
 
 function params(overrides: Partial<PaginationParams> = {}): PaginationParams {
@@ -140,6 +146,23 @@ describe('CoursesService', () => {
           page: 2,
           limit: 20,
         });
+      });
+    });
+
+    describe('columns', () => {
+      it('never asks the database for the course body', async () => {
+        const spy = createQueryBuilderSpy();
+        repository.createQueryBuilder.mockReturnValue(spy.builder as never);
+
+        await service.findAllByAdmin(params());
+
+        // `content` is the whole detail page as HTML. No list renders it,
+        // and on a page of twelve courses it was the largest thing read and
+        // sent. Naming the columns is what keeps it out, so this is the
+        // check that a later "just add one more" does not put it back.
+        expect(spy.selected).not.toContain('course.content');
+        expect(spy.selected).toContain('course.name');
+        expect(spy.selected).toContain('course.price');
       });
     });
 
