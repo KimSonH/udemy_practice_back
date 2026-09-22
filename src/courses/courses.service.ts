@@ -605,10 +605,15 @@ export class CoursesService {
 
     const rows: { course_set_id: number; count: string }[] =
       await this.dataSource.query(
-        `SELECT course_set_id, count(*) AS count
-         FROM course_set_udemy_question_bank
-         WHERE course_set_id = ANY($1)
-         GROUP BY course_set_id`,
+        // The join row outlives the question: soft-deleting a question leaves
+        // its link in place, so counting the link table alone would promise a
+        // set of 250 and then serve 249, because the relation TypeORM loads for
+        // the exam drops soft-deleted rows. Count what the exam will hand out.
+        `SELECT j.course_set_id, count(*) AS count
+         FROM course_set_udemy_question_bank j
+         JOIN udemy_question_bank q ON q.id = j.udemy_question_bank_id
+         WHERE j.course_set_id = ANY($1) AND q.deleted_at IS NULL
+         GROUP BY j.course_set_id`,
         [setIds],
       );
 

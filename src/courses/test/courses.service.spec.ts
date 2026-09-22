@@ -432,6 +432,74 @@ describe('CoursesService', () => {
     });
   });
 
+  describe('attachQuestionCounts', () => {
+    function arrangeWithSets(setIds: number[], total = 1) {
+      const course = {
+        id: 1,
+        courseSets: setIds.map((id) => ({ id })),
+      } as unknown as Course;
+      const spy = createQueryBuilderSpy([course], total);
+      repository.createQueryBuilder.mockReturnValue(spy.builder as never);
+      return { spy, course };
+    }
+
+    it('counts only questions that are not soft-deleted', async () => {
+      const { course } = arrangeWithSets([7, 8]);
+      dataSource.query.mockResolvedValue([
+        { course_set_id: 7, count: '249' },
+        { course_set_id: 8, count: '250' },
+      ]);
+
+      await service.findAll(params());
+
+      const [sql] = dataSource.query.mock.calls[0] as unknown as [
+        string,
+        unknown[],
+      ];
+      // A soft-deleted question keeps its row in the link table, and the
+      // relation the exam loads drops it. Counting the link table alone would
+      // advertise a set of 250 and then serve 249.
+      expect(sql).toMatch(/JOIN\s+udemy_question_bank/i);
+      expect(sql).toMatch(/deleted_at IS NULL/i);
+      expect(course.courseSets.map((set) => set.questionCount)).toEqual([
+        249, 250,
+      ]);
+    });
+
+    it('passes the set ids it was asked about', async () => {
+      arrangeWithSets([7, 8]);
+      dataSource.query.mockResolvedValue([]);
+
+      await service.findAll(params());
+
+      const [, bindings] = dataSource.query.mock.calls[0] as unknown as [
+        string,
+        unknown[],
+      ];
+      expect(bindings).toEqual([[7, 8]]);
+    });
+
+    it('reports a set the query said nothing about as zero', async () => {
+      const { course } = arrangeWithSets([7, 8]);
+      dataSource.query.mockResolvedValue([{ course_set_id: 7, count: '3' }]);
+
+      await service.findAll(params());
+
+      // GROUP BY returns no row for a set whose questions are all deleted.
+      expect(course.courseSets.map((set) => set.questionCount)).toEqual([3, 0]);
+    });
+
+    it('does not query at all when no course has a set', async () => {
+      const course = { id: 1, courseSets: [] } as unknown as Course;
+      const spy = createQueryBuilderSpy([course], 1);
+      repository.createQueryBuilder.mockReturnValue(spy.builder as never);
+
+      await service.findAll(params());
+
+      expect(dataSource.query).not.toHaveBeenCalled();
+    });
+  });
+
   describe('findAllVideoCourses', () => {
     function arrange(items: unknown[] = [], total = 0) {
       const spy = createQueryBuilderSpy(items, total);
