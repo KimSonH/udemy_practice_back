@@ -1,10 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import {
-  IsNotEmpty,
-  IsString,
-  IsOptional,
-  IsNumberString,
-} from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, Matches } from 'class-validator';
 
 export class CreateUdemyQuestionBankDto {
   @IsNotEmpty()
@@ -119,10 +114,17 @@ export class CreateUdemyQuestionBankDto {
   explanation6?: string;
 
   @IsNotEmpty()
-  @IsNumberString()
+  // One 1-based option index for a single-answer question, or several comma
+  // separated for a multiple-response one. `IsNumberString` allowed only the
+  // first shape, so a multiple-response question could not be created or
+  // edited through the API even though grading has always read both.
+  @Matches(/^\d+(,\d+)*$/, {
+    message:
+      'correctAnswer must be one or more 1-based option indexes, comma separated, such as "3" or "1,3"',
+  })
   @ApiProperty({
     description:
-      'Index of the correct answer, 1-based, e.g. "3" means answerOption3 is correct',
+      'Indexes of the correct answers, 1-based and comma separated. "3" means answerOption3 is correct; "1,3" is a multiple-response question.',
     example: '3',
   })
   correctAnswer: string;
