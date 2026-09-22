@@ -296,6 +296,95 @@ describe('parseQuestionCsv', () => {
     });
   });
 
+  describe('a file with more options than the schema holds', () => {
+    // The six option columns are the whole schema. A source export with seven
+    // used to import "successfully" with the seventh dropped, which is how
+    // questions ended up easier than written, with no sign anything was lost.
+    // Only a key pointing past six ever revealed it.
+    const WIDE = [
+      'Question',
+      'Question Type',
+      'Answer Option 1',
+      'Answer Option 2',
+      'Answer Option 3',
+      'Answer Option 4',
+      'Answer Option 5',
+      'Answer Option 6',
+      'Answer Option 7',
+      'Correct Answers',
+    ].join(',');
+
+    function wideCsv(option7: string, key = '2'): Buffer {
+      const cells = [
+        'Q with seven options',
+        'multiple-choice',
+        'o1',
+        'o2',
+        'o3',
+        'o4',
+        'o5',
+        'o6',
+        option7,
+        key,
+      ].map((cell) => `"${cell}"`);
+      return Buffer.from([WIDE, cells.join(',')].join('\n'), 'utf8');
+    }
+
+    it('refuses a row that would lose an option', () => {
+      const result = parseQuestionCsv(wideCsv('o7'));
+
+      expect(result.rows).toEqual([]);
+      expect(result.errors).toEqual([
+        'Row 2: "Answer Option 7" has content but only 6 options are supported, so importing this row would drop it',
+      ]);
+    });
+
+    it('names every column that would be lost, not just the first', () => {
+      const header = WIDE + ',Answer Option 8';
+      const row = [
+        'Q',
+        'multiple-choice',
+        'o1',
+        'o2',
+        'o3',
+        'o4',
+        'o5',
+        'o6',
+        'o7',
+        '2',
+        'o8',
+      ]
+        .map((cell) => `"${cell}"`)
+        .join(',');
+      const result = parseQuestionCsv(
+        Buffer.from([header, row].join('\n'), 'utf8'),
+      );
+
+      expect(result.errors).toHaveLength(2);
+      expect(result.errors[0]).toContain('"Answer Option 7"');
+      expect(result.errors[1]).toContain('"Answer Option 8"');
+    });
+
+    it('accepts the row when the extra column is empty', () => {
+      // A trailing empty column is what a spreadsheet leaves behind. Nothing
+      // is lost, so nothing is refused.
+      const result = parseQuestionCsv(wideCsv(''));
+
+      expect(result.errors).toEqual([]);
+      expect(result.rows).toHaveLength(1);
+    });
+
+    it('still reports the out-of-range key on top', () => {
+      const result = parseQuestionCsv(wideCsv('o7', '7'));
+
+      expect(result.rows).toEqual([]);
+      expect(result.errors).toEqual([
+        'Row 2: "Answer Option 7" has content but only 6 options are supported, so importing this row would drop it',
+        'Row 2: "Correct Answers" = 7 is outside 1-6',
+      ]);
+    });
+  });
+
   describe('all-or-nothing', () => {
     it('returns no rows at all when any row fails', () => {
       const result = parseQuestionCsv(
