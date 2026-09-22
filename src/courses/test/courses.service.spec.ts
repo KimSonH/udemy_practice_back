@@ -33,13 +33,32 @@ function createQueryBuilderSpy(items: unknown[] = [], total = 0) {
   };
 
   const selected: string[] = [];
+  // The order matters for `select`, which replaces the column list rather than
+  // adding to it, so the sequence of calls is recorded too.
+  const calls: string[] = [];
 
   const builder = {
     select: jest.fn((columns: string[]) => {
+      calls.push('select');
       selected.push(...columns);
       return builder;
     }),
-    leftJoinAndSelect: jest.fn(() => builder),
+    leftJoinAndSelect: jest.fn(() => {
+      calls.push('leftJoinAndSelect');
+      return builder;
+    }),
+    innerJoin: jest.fn(() => {
+      calls.push('innerJoin');
+      return builder;
+    }),
+    leftJoin: jest.fn(() => {
+      calls.push('leftJoin');
+      return builder;
+    }),
+    where: jest.fn((clause: string, params?: Record<string, unknown>) => {
+      record(clause, params);
+      return builder;
+    }),
     andWhere: jest.fn(
       (clause: string | Brackets, params?: Record<string, unknown>) => {
         if (clause instanceof Brackets) {
@@ -71,7 +90,7 @@ function createQueryBuilderSpy(items: unknown[] = [], total = 0) {
     getManyAndCount: jest.fn(async () => [items, total]),
   };
 
-  return { builder, conditions, orderBy, thenBy, skip, take, selected };
+  return { builder, conditions, orderBy, thenBy, skip, take, selected, calls };
 }
 
 function params(overrides: Partial<PaginationParams> = {}): PaginationParams {
@@ -409,6 +428,69 @@ describe('CoursesService', () => {
         await expect(service.findAllByAdmin(params())).rejects.toThrow(
           new BadRequestException('Error getting courses'),
         );
+      });
+    });
+  });
+
+  describe('findAllVideoCourses', () => {
+    function arrange(items: unknown[] = [], total = 0) {
+      const spy = createQueryBuilderSpy(items, total);
+      repository.createQueryBuilder.mockReturnValue(spy.builder as never);
+      return spy;
+    }
+
+    describe('columns', () => {
+      it('never asks the database for the course body', async () => {
+        const spy = arrange();
+
+        await service.findAllVideoCourses(params());
+
+        // This listing was the one route still reading `content`: on
+        // production the single video course carried 4,875 bytes of it, more
+        // than two thirds of the response, for a card that renders none of it.
+        //
+        // The length check is what gives the next line its meaning: with no
+        // column list at all the query reads every column, `selected` is
+        // empty, and `not.toContain` would pass while the body came back.
+        expect(spy.selected.length).toBeGreaterThan(0);
+        expect(spy.selected).not.toContain('course.content');
+      });
+
+      it('still asks for what the course card renders', async () => {
+        const spy = arrange();
+
+        await service.findAllVideoCourses(params());
+
+        expect(spy.selected).toContain('course.id');
+        expect(spy.selected).toContain('course.name');
+        expect(spy.selected).toContain('course.slug');
+        expect(spy.selected).toContain('course.price');
+        expect(spy.selected).toContain('course.type');
+        expect(spy.selected).toContain('course.thumbnailImageUrl');
+      });
+
+      it('names the columns before joining the organization', async () => {
+        const spy = arrange();
+
+        await service.findAllVideoCourses(params());
+
+        // `select` replaces the column list. Called after leftJoinAndSelect it
+        // would throw the organization columns away, and the card's link to
+        // the organization would quietly disappear.
+        expect(spy.calls.indexOf('select')).toBeLessThan(
+          spy.calls.indexOf('leftJoinAndSelect'),
+        );
+      });
+    });
+
+    describe('tie breaking', () => {
+      it('ends the ordering with a stable key', async () => {
+        const spy = arrange();
+
+        await service.findAllVideoCourses(params());
+
+        expect(spy.orderBy).toEqual([['course.createdAt', 'DESC']]);
+        expect(spy.thenBy).toEqual([['course.id', 'DESC']]);
       });
     });
   });
