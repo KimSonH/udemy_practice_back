@@ -75,11 +75,18 @@ export class CoursesService {
     'courseSessions',
     'courseSessions.courseContents',
   ];
-  private randomRelations = [
-    'courseSets',
-    'courseSets.udemyQuestionBanks',
-    'organization',
-  ];
+  /**
+   * For lists. Deliberately without `courseSets.udemyQuestionBanks`.
+   *
+   * A catalogue row shows a question count, and joining every question of
+   * every course on the page to produce it is what took the public course
+   * list down: the rows multiply per question and the page has to be cut
+   * back out of that. `attachQuestionCounts` fetches the number in one
+   * grouped query instead. It also stops the answer key being handed to
+   * anyone browsing the catalogue.
+   */
+  private listRelations = ['courseSets', 'organization'];
+  private randomRelations = ['courseSets', 'organization'];
   private randomVideoRelations = [
     'organization',
     'courseSessions',
@@ -437,7 +444,7 @@ export class CoursesService {
     const offset = (page - 1) * limit;
     try {
       const [items, total] = await this.coursesRepository.findAndCount({
-        relations: this.relations,
+        relations: this.listRelations,
         where: {
           organization: {
             id: organizationId ? +organizationId : undefined,
@@ -451,6 +458,7 @@ export class CoursesService {
         take: page === 9999 ? undefined : limit,
         skip: page === 9999 ? undefined : offset,
       });
+      await this.attachQuestionCounts(items);
 
       return {
         items,
@@ -536,6 +544,32 @@ export class CoursesService {
     }
   }
 
+  /** Fills `questionCount` on every set of the given courses, in one query. */
+  private async attachQuestionCounts(courses: Course[]): Promise<void> {
+    const setIds = courses.flatMap((course) =>
+      (course.courseSets ?? []).map((set) => set.id),
+    );
+    if (setIds.length === 0) return;
+
+    const rows: { course_set_id: number; count: string }[] =
+      await this.dataSource.query(
+        `SELECT course_set_id, count(*) AS count
+         FROM course_set_udemy_question_bank
+         WHERE course_set_id = ANY($1)
+         GROUP BY course_set_id`,
+        [setIds],
+      );
+
+    const bySet = new Map(rows.map((row) => [row.course_set_id, +row.count]));
+    for (const course of courses) {
+      for (const set of course.courseSets ?? []) {
+        // Zero rather than undefined: a set with no questions is a fact, and
+        // a client should not have to tell that apart from a missing field.
+        set.questionCount = bySet.get(set.id) ?? 0;
+      }
+    }
+  }
+
   async findAll(query: PaginationParams) {
     const {
       page,
@@ -559,10 +593,6 @@ export class CoursesService {
         .leftJoin('course.courseSessions', 'courseSessions')
         .leftJoinAndSelect('course.organization', 'organization')
         .leftJoinAndSelect('course.courseSets', 'courseSets')
-        .leftJoinAndSelect(
-          'courseSets.udemyQuestionBanks',
-          'udemyQuestionBanks',
-        )
         .where('course.status = :status', { status: 'active' })
         .andWhere('course.deletedAt IS NULL')
         .andWhere('courseSessions.id IS NULL')
@@ -592,6 +622,7 @@ export class CoursesService {
         .skip(page === 9999 ? undefined : offset)
         .take(page === 9999 ? undefined : limit);
       const [items, total] = await query.getManyAndCount();
+      await this.attachQuestionCounts(items);
       return {
         items,
         total,
@@ -697,6 +728,7 @@ export class CoursesService {
         relations: this.randomRelations,
         order: { createdAt: 'DESC' },
       });
+      await this.attachQuestionCounts(items);
 
       return {
         items,

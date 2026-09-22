@@ -49,4 +49,13 @@ export class CourseSet {
     },
   })
   public udemyQuestionBanks: UdemyQuestionBank[];
+
+  /**
+   * How many questions this set holds, filled by the list queries.
+   *
+   * Not a column. The catalogue needs the number and nothing else, and
+   * loading every question to count them is what took the public course
+   * list down.
+   */
+  public questionCount?: number;
 }
