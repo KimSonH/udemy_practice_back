@@ -50,6 +50,8 @@ export function createMockDataSource() {
       release: jest.fn(),
       manager: { save: jest.fn(), find: jest.fn(), delete: jest.fn() },
     })),
+    // Raw reads, e.g. the grouped question count the course lists attach.
+    query: jest.fn(async () => []),
     transaction: jest.fn(),
     getRepository: jest.fn(),
   };
