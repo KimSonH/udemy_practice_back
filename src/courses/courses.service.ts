@@ -711,6 +711,10 @@ export class CoursesService {
     try {
       const query = this.coursesRepository
         .createQueryBuilder('course')
+        // Before the joins: `select` replaces the column list, so putting it
+        // after leftJoinAndSelect would drop the organization columns the
+        // course card links to.
+        .select(CoursesService.LIST_COLUMNS)
         .innerJoin('course.courseSessions', 'cs') // require at least one session
         .leftJoinAndSelect('course.organization', 'organization')
         .where('course.status = :status', { status: 'active' })
