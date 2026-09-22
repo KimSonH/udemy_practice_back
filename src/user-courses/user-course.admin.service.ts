@@ -66,6 +66,7 @@ export class UserCourseAdminService {
             column: 'createdAt',
             direction: order[orderBy] || 'DESC',
           }),
+          'id',
         ),
         take: limit,
         skip: offset,
