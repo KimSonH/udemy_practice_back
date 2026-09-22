@@ -35,9 +35,29 @@ const REQUIRED_COLUMNS = [
 
 const ANSWER_INDEXES = [1, 2, 3, 4, 5, 6];
 
+/** `Answer Option 7`, `Answer Option 12` — anything past the six columns. */
+const ANSWER_OPTION_COLUMN = /^Answer Option (\d+)$/;
+
 function emptyToUndefined(value: string | undefined): string | undefined {
   const trimmed = (value ?? '').trim();
   return trimmed === '' ? undefined : trimmed;
+}
+
+/**
+ * Option columns the file has and the schema has nowhere to put.
+ *
+ * A source export with seven options used to import with the seventh quietly
+ * dropped, leaving a question easier than it was written and no trace that
+ * anything was lost. It only came to light when the answer key pointed at the
+ * missing option; when the key happened to stay within the first six, the row
+ * looked perfectly good. 948 questions sit at the six-option ceiling and only
+ * 32 of them ever revealed themselves that way.
+ */
+function unsupportedOptionColumns(headers: string[]): string[] {
+  return headers.filter((header) => {
+    const match = ANSWER_OPTION_COLUMN.exec(header);
+    return match ? +match[1] > ANSWER_INDEXES.length : false;
+  });
 }
 
 /**
@@ -80,6 +100,7 @@ export function parseQuestionCsv(buffer: Buffer): ParseQuestionCsvResult {
   }
 
   const rows: ParsedQuestionRow[] = [];
+  const extraOptionColumns = unsupportedOptionColumns(headers);
 
   records.forEach((record, index) => {
     const rowNumber = index + 2; // +1 because the index is 0-based, +1 for the header row
@@ -103,6 +124,19 @@ export function parseQuestionCsv(buffer: Buffer): ParseQuestionCsvResult {
         `Row ${rowNumber}: "Answer Option 1" and "Answer Option 2" are both required`,
       );
       return;
+    }
+
+    // Refuse rather than truncate. This does not `return`, so the row's other
+    // problems are reported in the same pass and the file only has to be fixed
+    // once. Recording the error is enough to keep the row out: an import is
+    // all-or-nothing, so no row survives a file with any error in it.
+    const loses = extraOptionColumns.filter(
+      (column) => emptyToUndefined(record[column]) !== undefined,
+    );
+    for (const column of loses) {
+      errors.push(
+        `Row ${rowNumber}: "${column}" has content but only ${ANSWER_INDEXES.length} options are supported, so importing this row would drop it`,
+      );
     }
 
     // "Correct Answers" holds one 1-based index for a single-answer question
