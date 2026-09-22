@@ -575,6 +575,10 @@ export class CoursesService {
           }),
         )
         .orderBy(sort.column, sort.direction)
+        // Last resort, so a page of rows the sort cannot separate is the same
+        // page next time. Every course is status "Active", which makes a
+        // sort by status a table-wide tie.
+        .addOrderBy('course.id', 'DESC')
         .skip(page === 9999 ? undefined : offset)
         .take(page === 9999 ? undefined : limit);
       const [items, total] = await query.getManyAndCount();
@@ -668,6 +672,9 @@ export class CoursesService {
           }),
         )
         .orderBy('course.createdAt', orderByOrder || 'DESC')
+        // Courses imported together share a createdAt, so this decides the
+        // order within a batch instead of leaving it to the planner.
+        .addOrderBy('course.id', 'DESC')
         .skip(page === 9999 ? undefined : offset)
         .take(page === 9999 ? undefined : limit);
       const [items, total] = await query.getManyAndCount();
@@ -732,6 +739,9 @@ export class CoursesService {
           }),
         )
         .orderBy('course.createdAt', orderByOrder || 'DESC')
+        // Courses imported together share a createdAt, so this decides the
+        // order within a batch instead of leaving it to the planner.
+        .addOrderBy('course.id', 'DESC')
         .skip(page === 9999 ? undefined : offset)
         .take(page === 9999 ? undefined : limit);
       const [items, total] = await query.getManyAndCount();

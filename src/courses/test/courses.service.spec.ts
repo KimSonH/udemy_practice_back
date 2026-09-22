@@ -24,6 +24,7 @@ type Condition = { sql: string; params?: Record<string, unknown> };
 function createQueryBuilderSpy(items: unknown[] = [], total = 0) {
   const conditions: Condition[] = [];
   const orderBy: Array<[string, string]> = [];
+  const thenBy: Array<[string, string]> = [];
   const skip: unknown[] = [];
   const take: unknown[] = [];
 
@@ -53,6 +54,12 @@ function createQueryBuilderSpy(items: unknown[] = [], total = 0) {
       orderBy.push([column, direction]);
       return builder;
     }),
+    // Kept apart from orderBy so a test about the chosen sort stays about
+    // that, and the tie breaker has its own assertion.
+    addOrderBy: jest.fn((column: string, direction: string) => {
+      thenBy.push([column, direction]);
+      return builder;
+    }),
     skip: jest.fn((value: unknown) => {
       skip.push(value);
       return builder;
@@ -64,7 +71,7 @@ function createQueryBuilderSpy(items: unknown[] = [], total = 0) {
     getManyAndCount: jest.fn(async () => [items, total]),
   };
 
-  return { builder, conditions, orderBy, skip, take, selected };
+  return { builder, conditions, orderBy, thenBy, skip, take, selected };
 }
 
 function params(overrides: Partial<PaginationParams> = {}): PaginationParams {
@@ -146,6 +153,32 @@ describe('CoursesService', () => {
           page: 2,
           limit: 20,
         });
+      });
+    });
+
+    describe('tie breaking', () => {
+      it('always ends the ordering with a stable key', async () => {
+        const spy = createQueryBuilderSpy();
+        repository.createQueryBuilder.mockReturnValue(spy.builder as never);
+
+        await service.findAllByAdmin(params({ sortBy: 'status' }));
+
+        // Every course has status "Active", so sorting by it ties across the
+        // whole table and the database is free to return any ten of those
+        // rows for a page. Without a last key a row can show up on two pages
+        // or on none.
+        expect(spy.orderBy).toEqual([['course.status', 'DESC']]);
+        expect(spy.thenBy).toEqual([['course.id', 'DESC']]);
+      });
+
+      it('adds it even when no sort was asked for', async () => {
+        const spy = createQueryBuilderSpy();
+        repository.createQueryBuilder.mockReturnValue(spy.builder as never);
+
+        await service.findAllByAdmin(params());
+
+        // The default is createdAt, and courses imported together share one.
+        expect(spy.thenBy).toEqual([['course.id', 'DESC']]);
       });
     });
 

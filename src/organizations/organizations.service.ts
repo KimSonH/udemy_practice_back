@@ -118,6 +118,7 @@ export class OrganizationsService {
             column: 'createdAt',
             direction: 'DESC',
           }),
+          'id',
         ),
         skip: page === 9999 ? undefined : offset,
         take: page === 9999 ? undefined : limit,

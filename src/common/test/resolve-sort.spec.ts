@@ -79,3 +79,42 @@ describe('toOrderObject', () => {
     });
   });
 });
+
+describe('toOrderObject tie breaker', () => {
+  it('adds nothing when none is asked for', () => {
+    expect(toOrderObject({ column: 'name', direction: 'ASC' })).toEqual({
+      name: 'ASC',
+    });
+  });
+
+  it('appends the tie breaker after the chosen column', () => {
+    // Key order is the SQL order: the sort decides, the tie breaker only
+    // separates rows it could not.
+    expect(toOrderObject({ column: 'status', direction: 'ASC' }, 'id')).toEqual(
+      { status: 'ASC', id: 'DESC' },
+    );
+    expect(
+      Object.keys(toOrderObject({ column: 'status', direction: 'ASC' }, 'id')),
+    ).toEqual(['status', 'id']);
+  });
+
+  it('leaves it out when it is already the sort column', () => {
+    // Otherwise "sort by id ascending" would be followed by id descending.
+    expect(toOrderObject({ column: 'id', direction: 'ASC' }, 'id')).toEqual({
+      id: 'ASC',
+    });
+  });
+
+  it('keeps a relation sort and merges the tie breaker beside it', () => {
+    expect(
+      toOrderObject({ column: 'user.firstName', direction: 'ASC' }, 'id'),
+    ).toEqual({ user: { firstName: 'ASC' }, id: 'DESC' });
+  });
+
+  it('does not let a tie breaker under the same relation replace the sort', () => {
+    // A naive spread would drop { user: { firstName } } for { user: { id } }.
+    expect(
+      toOrderObject({ column: 'user.firstName', direction: 'ASC' }, 'user.id'),
+    ).toEqual({ user: { firstName: 'ASC', id: 'DESC' } });
+  });
+});
