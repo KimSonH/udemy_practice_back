@@ -499,11 +499,10 @@ export class CoursesService {
         .createQueryBuilder('course')
         .leftJoinAndSelect('course.courseSessions', 'courseSessions')
         .leftJoinAndSelect('course.organization', 'organization')
+        // No questions here either. The admin table shows id, name, status,
+        // type and the two dates — it has never displayed a question count,
+        // so every one of those rows was fetched to be thrown away.
         .leftJoinAndSelect('course.courseSets', 'courseSets')
-        .leftJoinAndSelect(
-          'courseSets.udemyQuestionBanks',
-          'udemyQuestionBanks',
-        )
         .leftJoinAndSelect('courseSessions.courseContents', 'courseContents')
         .andWhere('course.deletedAt IS NULL')
         .andWhere(
@@ -532,6 +531,8 @@ export class CoursesService {
         .skip(page === 9999 ? undefined : offset)
         .take(page === 9999 ? undefined : limit);
       const [items, total] = await query.getManyAndCount();
+      // Cheap, and keeps the shape the same as the public lists.
+      await this.attachQuestionCounts(items);
       return {
         items,
         total,
