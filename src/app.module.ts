@@ -22,6 +22,7 @@ import { MassAccountsModule } from './mass-account/mass-account.module';
 import { UserPremiumModule } from './user-premium/user-premium.module';
 import { PaymentsPremiumModule } from './payments-premium/payments-premium.module';
 import { CourseResourcesModule } from './course-resources/course-resources.module';
+import { TestAttemptsModule } from './test-attempts/test-attempts.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
@@ -72,6 +73,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     UserPremiumModule,
     PaymentsPremiumModule,
     CourseResourcesModule,
+    TestAttemptsModule,
     DashboardModule,
   ],
   controllers: [],
