@@ -1,10 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
+import { DataSource } from 'typeorm';
 
 import { User } from '../entities/user.entity';
 import { UsersService } from '../users.service';
-import { createMockRepository } from 'src/common/test/mocks';
+import {
+  createMockDataSource,
+  createMockRepository,
+} from 'src/common/test/mocks';
 
 describe('UsersService.create', () => {
   let service: UsersService;
@@ -16,6 +20,7 @@ describe('UsersService.create', () => {
       providers: [
         UsersService,
         { provide: getRepositoryToken(User), useValue: repository },
+        { provide: DataSource, useValue: createMockDataSource() },
       ],
     }).compile();
     service = module.get(UsersService);
