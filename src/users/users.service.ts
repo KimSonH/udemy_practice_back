@@ -40,9 +40,8 @@ export class UsersService {
   async create(body: createUserDto): Promise<User> {
     const user = new User();
     user.email = body.email;
-    // Was assigned straight from the body, so the public POST /users route
-    // wrote plaintext passwords into the table. Ten rounds, the same as
-    // authentication.service.register.
+    // Callers pass the plaintext password; hashing happens here, not at the
+    // call site. Hashing before calling create would store a double hash.
     user.password = await bcrypt.hash(body.password, 10);
     user.firstName = body.firstName;
     user.lastName = body.lastName;

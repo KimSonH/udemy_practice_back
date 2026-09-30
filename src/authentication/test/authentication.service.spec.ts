@@ -80,3 +80,46 @@ describe('AuthenticationService.getAuthenticatedUser', () => {
     ).rejects.toThrow(BadRequestException);
   });
 });
+
+describe('AuthenticationService.register', () => {
+  let service: AuthenticationService;
+  let usersService: { create: jest.Mock };
+
+  beforeEach(async () => {
+    usersService = { create: jest.fn() };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        AuthenticationService,
+        { provide: UsersService, useValue: usersService },
+        { provide: JwtService, useValue: {} },
+        { provide: ConfigService, useValue: { get: jest.fn() } },
+      ],
+    }).compile();
+
+    service = module.get(AuthenticationService);
+  });
+
+  it('hands the plaintext password to UsersService.create, which hashes it', async () => {
+    // UsersService.create owns hashing. A register that hashes first makes
+    // the stored value hash(hash(pw)), and the account can never log in.
+    // Asserting on the argument create received, not on register's result,
+    // is what catches that: register would still resolve either way.
+    usersService.create.mockImplementation(async (data) => ({ ...data }));
+
+    await service.register({
+      email: 'a@b.c',
+      password: 'plain-text-secret',
+      firstName: 'A',
+      lastName: 'B',
+    });
+
+    expect(usersService.create).toHaveBeenCalledTimes(1);
+    expect(usersService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: 'a@b.c',
+        password: 'plain-text-secret',
+      }),
+    );
+  });
+});
