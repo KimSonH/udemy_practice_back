@@ -40,11 +40,13 @@ export class UsersService {
   async create(body: createUserDto): Promise<User> {
     const user = new User();
     user.email = body.email;
-    user.password = body.password;
+    // Was assigned straight from the body, so the public POST /users route
+    // wrote plaintext passwords into the table. Ten rounds, the same as
+    // authentication.service.register.
+    user.password = await bcrypt.hash(body.password, 10);
     user.firstName = body.firstName;
     user.lastName = body.lastName;
-    const newUser = await this.usersRepository.save(user);
-    return newUser;
+    return this.usersRepository.save(user);
   }
 
   async getById(id: number): Promise<User> {
