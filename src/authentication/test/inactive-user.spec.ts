@@ -1,4 +1,4 @@
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import { JwtStrategy } from '../strategy/jwt.strategy';
@@ -59,5 +59,24 @@ describe('a locked account', () => {
         { userId: 7 } as never,
       ),
     ).resolves.toEqual(OPEN);
+  });
+
+  it('answers 401, not a crash, when the refresh token does not match', async () => {
+    // getUserIfRefreshTokenMatches falls off the end and yields undefined on a
+    // mismatch. Reading .status off that would be a TypeError and surface as a
+    // 500 for every stale token. The type is asserted because a bare toThrow()
+    // would also pass on a TypeError.
+    const strategy = new JwtRefreshTokenStrategy(
+      config,
+      usersServiceReturning(undefined) as never,
+    );
+
+    const attempt = strategy.validate(
+      { cookies: { Refresh: 'stale' } } as never,
+      { userId: 7 } as never,
+    );
+
+    await expect(attempt).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(attempt).rejects.not.toBeInstanceOf(TypeError);
   });
 });

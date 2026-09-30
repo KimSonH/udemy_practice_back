@@ -1,6 +1,6 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import { UsersService } from 'src/users/users.service';
@@ -28,6 +28,11 @@ export class JwtRefreshTokenStrategy extends PassportStrategy(
       request.cookies?.Refresh,
       payload.userId,
     );
+    // getUserIfRefreshTokenMatches yields undefined when the token does not
+    // match. Keep that a 401, as passport produced before the lock check.
+    if (!user) {
+      throw new UnauthorizedException();
+    }
     assertUserActive(user);
     return user;
   }
