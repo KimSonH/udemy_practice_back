@@ -11,6 +11,7 @@ import {
 import { ApiProperty } from '@nestjs/swagger';
 import { UserCourse } from 'src/user-courses/entities/user-course.entity';
 import { UserPremium } from 'src/user-premium/entities/user-premium.entity';
+import { USER_STATUS_ACTIVE, UserStatus } from '../user-status';
 
 @Entity()
 export class User {
@@ -32,6 +33,13 @@ export class User {
   @Column({ name: 'password' })
   @Exclude()
   public password: string;
+
+  @ApiProperty({
+    description: 'Whether the account may sign in',
+    example: 'active',
+  })
+  @Column({ name: 'status', default: USER_STATUS_ACTIVE })
+  public status: UserStatus;
 
   @Column({
     name: 'current_hashed_refresh_token',
@@ -55,4 +63,7 @@ export class User {
 
   @OneToMany(() => UserPremium, (premium) => premium.user)
   public userPremiums: UserPremium[];
+
+  /** Filled in by the admin listing; not stored. */
+  public courseCount?: number;
 }
