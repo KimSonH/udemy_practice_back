@@ -127,10 +127,11 @@ export class UsersService {
    * How many courses each user on this page actually owns.
    *
    * One grouped query rather than a relation on the paginated find, which
-   * would multiply rows. The join to `course` with `deleted_at IS NULL` is the
-   * part that matters: an enrolment row outlives the course it points at, so
-   * counting `user_course` alone would advertise a course the learner can no
-   * longer open.
+   * would multiply rows. Both halves of the join are filtered on their own
+   * soft-delete flag. `c.deleted_at`: an enrolment row outlives the course it
+   * points at, so counting `user_course` alone would advertise a course the
+   * learner can no longer open. `uc.deleted_at`: revoking an enrolment
+   * soft-deletes the row, and a raw query does not apply that filter for us.
    */
   private async attachCourseCounts(users: User[]): Promise<void> {
     if (users.length === 0) return;
@@ -141,7 +142,9 @@ export class UsersService {
         `SELECT uc.user_id, count(*) AS count
          FROM user_course uc
          JOIN course c ON c.id = uc.course_id
-         WHERE uc.user_id = ANY($1) AND c.deleted_at IS NULL
+         WHERE uc.user_id = ANY($1)
+           AND uc.deleted_at IS NULL
+           AND c.deleted_at IS NULL
          GROUP BY uc.user_id`,
         [ids],
       );
@@ -160,6 +163,13 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
+    // TypeORM filters soft-deleted rows out of a joined entity by nulling it,
+    // so a live enrolment whose course was deleted arrives with `course: null`.
+    // The admin page cannot render such a row and would crash on
+    // `course.name`; it is dropped here so the contract stays `course: Course`.
+    user.userCourses = (user.userCourses ?? []).filter(
+      (userCourse) => userCourse.course,
+    );
     return user;
   }
 }

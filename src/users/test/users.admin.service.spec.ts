@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
+import { NotFoundException } from '@nestjs/common';
+
 import { User } from '../entities/user.entity';
 import { UsersService } from '../users.service';
 import {
@@ -73,7 +75,10 @@ describe('UsersService.findAllForAdmin', () => {
     const [options] = repository.findAndCount.mock.calls[0];
     // TypeORM expresses OR as an array of where objects.
     expect(Array.isArray(options.where)).toBe(true);
-    expect(options.where).toHaveLength(3);
+    const keys = (options.where as Record<string, unknown>[]).map((clause) =>
+      Object.keys(clause),
+    );
+    expect(keys).toEqual([['firstName'], ['lastName'], ['email']]);
   });
 
   it('adds no where clause when nothing is searched for', async () => {
@@ -103,7 +108,12 @@ describe('UsersService.findAllForAdmin', () => {
       unknown[],
     ];
     expect(sql).toMatch(/JOIN\s+course/i);
-    expect(sql).toMatch(/deleted_at IS NULL/i);
+    // Both halves of the join carry their own soft-delete flag: the course
+    // (a removed course) and the enrolment row (a revoked enrolment). Each
+    // must be filtered; matching a bare `deleted_at IS NULL` would accept
+    // either alias alone.
+    expect(sql).toMatch(/\bc\.deleted_at IS NULL/i);
+    expect(sql).toMatch(/\buc\.deleted_at IS NULL/i);
     expect(bindings).toEqual([[4, 9]]);
   });
 
@@ -113,5 +123,59 @@ describe('UsersService.findAllForAdmin', () => {
     await service.findAllForAdmin(params());
 
     expect(dataSource.query).not.toHaveBeenCalled();
+  });
+});
+
+describe('UsersService.findOneForAdmin', () => {
+  let service: UsersService;
+  let repository: ReturnType<typeof createMockRepository<User>>;
+
+  beforeEach(async () => {
+    repository = createMockRepository<User>();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UsersService,
+        { provide: getRepositoryToken(User), useValue: repository },
+        { provide: DataSource, useValue: createMockDataSource() },
+      ],
+    }).compile();
+    service = module.get(UsersService);
+  });
+
+  it('loads the user with the courses they bought', async () => {
+    repository.findOne.mockResolvedValue({ id: 7, userCourses: [] } as User);
+
+    await service.findOneForAdmin(7);
+
+    expect(repository.findOne).toHaveBeenCalledWith({
+      where: { id: 7 },
+      relations: ['userCourses', 'userCourses.course'],
+    });
+  });
+
+  it('drops enrolments whose course was soft deleted', async () => {
+    // TypeORM applies the soft-delete filter to the joined course, so a live
+    // enrolment pointing at a deleted course comes back with `course: null`.
+    // The admin page cannot render that row and would crash on `.course.name`.
+    repository.findOne.mockResolvedValue({
+      id: 7,
+      userCourses: [
+        { id: 1, course: { id: 10, name: 'Live course' } },
+        { id: 2, course: null },
+      ],
+    } as unknown as User);
+
+    const user = await service.findOneForAdmin(7);
+
+    expect(user.userCourses.map((uc) => uc.id)).toEqual([1]);
+    expect(user.userCourses.every((uc) => uc.course)).toBeTruthy();
+  });
+
+  it('throws NotFoundException when the user does not exist', async () => {
+    repository.findOne.mockResolvedValue(null);
+
+    await expect(service.findOneForAdmin(999)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 });
