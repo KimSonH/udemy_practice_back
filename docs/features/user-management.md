@@ -72,6 +72,14 @@ không tốn thêm truy vấn nào:
 | Refresh token | `getUserIfRefreshTokenMatches` | như trên |
 | Đăng nhập | `getAuthenticatedUser` → `getByEmail` | như trên, lỗi riêng |
 
+**Có một đường thứ tư**, tìm ra ở review toàn nhánh:
+`JwtOptionalAuthenticationGuard` cũng chạy `JwtStrategy`, nên cũng gọi
+`assertUserActive` — nhưng `handleRequest` của nó nuốt mọi lỗi và trả
+`undefined`. Người bị khoá gọi `GET /courses/:courseId/resources` vì thế thành
+**khách vãng lai**, không phải bị từ chối. Hướng này an toàn (họ mất quyền xem
+tài liệu dành cho người đã mua), nên không phải lỗ hổng — nhưng route nào đặt
+sau guard đó về sau sẽ thừa hưởng việc *hạ quyền âm thầm* thay vì từ chối.
+
 Dùng một helper chung, gọi từ ba nơi. **Không** nhét kiểm tra vào
 `UsersService.getById` / `getByEmail`: admin phải đọc được cả user inactive để
 hiển thị và mở khoá. Chặn ở tầng auth, không chặn ở tầng đọc.
@@ -176,6 +184,38 @@ Mutation test cho mọi nhánh mới, theo thông lệ đang dùng trong repo.
   `user`), nên khoá một user không thể tự khoá phiên admin. Không cần chống.
 - **Gỡ `UsersController`** — đã kiểm không client nào gọi, nhưng nếu có script
   ngoài repo dùng thì sẽ gãy.
+
+### Việc đã hoãn có chủ đích khi triển khai
+
+Ghi lại ở đây vì ledger của lần triển khai nằm trong thư mục không được track.
+Không cái nào chặn merge; xếp theo mức đáng làm trước.
+
+- **`ValidationPipe` toàn cục không có `whitelist`** — key thừa trong body sống
+  sót vào DTO. Sáu call site truyền DTO thô vào `update()`. Endpoint user tự vệ
+  bằng cách destructure, nhưng đây là món đáng giá nhất trong danh sách.
+- **`PaginationParams` có `@Min(0)` trên `page`** trong khi mọi service tính
+  `(page - 1) * limit`, nên `?page=0` sinh OFFSET âm. Có sẵn ở bốn endpoint; sửa
+  một lần trong `pagination.type.ts`.
+- **`limit` không có trần** — một request có thể xin toàn bộ user.
+- **`ILike('%'+search+'%')` không escape `%`/`_`** — tìm `%` khớp tất cả. Có
+  bind nên không phải injection.
+- **`assertUserActive` chỉ chặn đúng chuỗi `'inactive'`** — cố ý fail-open cho
+  lần deploy nửa vời. Xem lại ngay khi có giá trị status thứ ba.
+- **Thẻ chi tiết ghi "chưa mua khoá nào"** trong khi guard xoá đếm cả enrolment
+  đã thu hồi, nên một user có thể trông như chưa mua gì mà vẫn không xoá được.
+  Đây là mục duy nhất người dùng sẽ thực sự gặp.
+- **Admin giờ có hai idiom server action** — `action/user.ts` nhận object có
+  kiểu và trả `{success|message|errors}`; `course.ts`/`organization.ts` nhận
+  `(state, formData)`. Bản mới tốt hơn và nhất quán nội bộ; nên hội tụ dần về
+  nó, đừng quay lại bản cũ.
+- **`@ApiProperty` trên `status` thiếu `enum: USER_STATUSES`** — Swagger mô tả
+  nó là string trần.
+- Regex che log bỏ sót `cookie`, `x-api-key`, `pwd`, `jwt`; `url` vẫn log thô.
+  Chưa caller nào gửi những thứ đó.
+
+Một mục đã được review toàn nhánh **giải quyết, không cần làm**: `PATCH {}`
+rỗng không gây 500 — TypeORM loại giá trị `undefined` rồi luôn nối thêm
+`@UpdateDateColumn`, nên tập giá trị không bao giờ rỗng. Đó là 200 no-op.
 
 ## Câu hỏi còn treo
 
