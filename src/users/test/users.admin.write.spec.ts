@@ -170,12 +170,36 @@ describe('UsersService admin writes', () => {
   });
 
   describe('removeForAdmin', () => {
+    type Row = { id: number; deletedAt?: Date };
+
+    /**
+     * Makes `findOne` behave the way TypeORM does for this lookup: a relation
+     * comes back only when it was listed in `relations`, and a soft-deleted row
+     * only when the query says `withDeleted`. A guard that forgets either
+     * option therefore sees an empty relation, as it would in production,
+     * rather than a double that hands back the rows regardless.
+     */
+    function givenStoredUser(stored: { courses?: Row[]; premiums?: Row[] }) {
+      repository.findOne.mockImplementation(async (options) => {
+        const { relations, withDeleted } = options as FindOneOptions<User>;
+        const requested = (relations ?? []) as string[];
+        const visible = (rows: Row[] = []) =>
+          rows.filter((row) => withDeleted || !row.deletedAt);
+        const user: Record<string, unknown> = { id: 7 };
+        if (requested.includes('userCourses')) {
+          user.userCourses = visible(stored.courses);
+        }
+        if (requested.includes('userPremiums')) {
+          user.userPremiums = visible(stored.premiums);
+        }
+        return user as unknown as User;
+      });
+    }
+
+    const revoked = () => ({ id: 1, deletedAt: new Date() });
+
     it('refuses a user who bought a course', async () => {
-      repository.findOne.mockResolvedValue({
-        id: 7,
-        userCourses: [{ id: 1 }],
-        userPremiums: [],
-      } as unknown as User);
+      givenStoredUser({ courses: [{ id: 1 }] });
 
       await expect(service.removeForAdmin(7)).rejects.toThrow(
         BadRequestException,
@@ -186,11 +210,7 @@ describe('UsersService admin writes', () => {
     it('refuses a user with a premium record but no course', async () => {
       // user_premium.user_id is NO ACTION too. Hiding the user would strand a
       // paid record pointing at someone the admin can no longer see.
-      repository.findOne.mockResolvedValue({
-        id: 7,
-        userCourses: [],
-        userPremiums: [{ id: 2 }],
-      } as unknown as User);
+      givenStoredUser({ premiums: [{ id: 2 }] });
 
       await expect(service.removeForAdmin(7)).rejects.toThrow(
         BadRequestException,
@@ -199,41 +219,17 @@ describe('UsersService admin writes', () => {
     });
 
     it('refuses a user whose only enrolment was revoked (soft deleted)', async () => {
-      // A revoked enrolment is still the record of a purchase. TypeORM leaves
-      // soft-deleted rows out of a relation unless the query says otherwise, so
-      // this double behaves the same way: the revoked row only shows up when
-      // the lookup asks for deleted rows.
-      const revoked = { id: 1, deletedAt: new Date() };
-      repository.findOne.mockImplementation(async (options) => {
-        const withDeleted = (options as FindOneOptions<User>).withDeleted;
-        return {
-          id: 7,
-          userCourses: withDeleted ? [revoked] : [],
-          userPremiums: [],
-        } as unknown as User;
-      });
+      // A revoked enrolment is still the record of a purchase.
+      givenStoredUser({ courses: [revoked()] });
 
       await expect(service.removeForAdmin(7)).rejects.toThrow(
         BadRequestException,
       );
       expect(repository.softDelete).not.toHaveBeenCalled();
-
-      const [options] = repository.findOne.mock.calls[0];
-      expect(options).toMatchObject({
-        where: { id: 7 },
-        withDeleted: true,
-      });
     });
 
     it('refuses a user whose only premium record was soft deleted', async () => {
-      repository.findOne.mockImplementation(async (options) => {
-        const withDeleted = (options as FindOneOptions<User>).withDeleted;
-        return {
-          id: 7,
-          userCourses: [],
-          userPremiums: withDeleted ? [{ id: 2, deletedAt: new Date() }] : [],
-        } as unknown as User;
-      });
+      givenStoredUser({ premiums: [revoked()] });
 
       await expect(service.removeForAdmin(7)).rejects.toThrow(
         BadRequestException,
@@ -241,12 +237,23 @@ describe('UsersService admin writes', () => {
       expect(repository.softDelete).not.toHaveBeenCalled();
     });
 
+    it('asks for both purchase relations and for deleted rows', async () => {
+      givenStoredUser({});
+
+      await service.removeForAdmin(7);
+
+      const [options] = repository.findOne.mock.calls[0];
+      // Belt and braces next to the behavioural doubles above: a lookup that
+      // drops a relation or `withDeleted` reads as "owns nothing".
+      expect(options).toMatchObject({
+        where: { id: 7 },
+        withDeleted: true,
+        relations: expect.arrayContaining(['userCourses', 'userPremiums']),
+      });
+    });
+
     it('soft deletes a user who bought nothing', async () => {
-      repository.findOne.mockResolvedValue({
-        id: 7,
-        userCourses: [],
-        userPremiums: [],
-      } as unknown as User);
+      givenStoredUser({});
 
       await service.removeForAdmin(7);
 
