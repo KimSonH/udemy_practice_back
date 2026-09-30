@@ -3,6 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { UsersService } from 'src/users/users.service';
+import { assertUserActive } from 'src/users/user-status';
 import { TokenPayload } from '../tokenPayload.interface';
 
 @Injectable()
@@ -19,6 +20,10 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   async validate(payload: TokenPayload) {
-    return this.userService.getById(payload.userId);
+    const user = await this.userService.getById(payload.userId);
+    // Every authenticated request lands here and the row is already read, so
+    // a lock costs no extra query and bites on the very next call.
+    assertUserActive(user);
+    return user;
   }
 }

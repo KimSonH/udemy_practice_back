@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
 import { UsersService } from 'src/users/users.service';
+import { assertUserActive } from 'src/users/user-status';
 import { TokenPayload } from '../tokenPayload.interface';
 
 @Injectable()
@@ -23,10 +24,11 @@ export class JwtRefreshTokenStrategy extends PassportStrategy(
   }
 
   async validate(request: Request, payload: TokenPayload) {
-    const refreshToken = request.cookies?.Refresh;
-    return this.userService.getUserIfRefreshTokenMatches(
-      refreshToken,
+    const user = await this.userService.getUserIfRefreshTokenMatches(
+      request.cookies?.Refresh,
       payload.userId,
     );
+    assertUserActive(user);
+    return user;
   }
 }
