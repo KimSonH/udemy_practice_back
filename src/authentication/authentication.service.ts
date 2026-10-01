@@ -12,6 +12,8 @@ import { RegisterDto } from './dto/register.dto';
 import { TokenPayload } from './tokenPayload.interface';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { User } from 'src/users/entities/user.entity';
+import { assertUserActive } from 'src/users/user-status';
 @Injectable()
 export class AuthenticationService {
   constructor(
@@ -76,12 +78,8 @@ export class AuthenticationService {
   }
 
   public async register(registrationData: RegisterDto) {
-    const hashedPassword = await bcrypt.hash(registrationData.password, 10);
     try {
-      const createdUser = await this.userService.create({
-        ...registrationData,
-        password: hashedPassword,
-      });
+      const createdUser = await this.userService.create(registrationData);
       createdUser.password = undefined;
       return createdUser;
     } catch (error) {
@@ -93,13 +91,18 @@ export class AuthenticationService {
   }
 
   public async getAuthenticatedUser(email: string, hashedPassword: string) {
+    let user: User;
     try {
-      const user = await this.userService.getByEmail(email);
+      user = await this.userService.getByEmail(email);
       await this.verifyPassword(hashedPassword, user.password);
-      user.password = undefined;
-      return user;
     } catch {
       throw new BadRequestException('Wrong credentials provided');
     }
+    // Outside the catch on purpose: a locked account has to say it is locked
+    // rather than claim the password was wrong, or the admin cannot tell the
+    // two apart when a learner complains.
+    assertUserActive(user);
+    user.password = undefined;
+    return user;
   }
 }

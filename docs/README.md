@@ -35,6 +35,7 @@ Nếu chỉ có 5 phút: đọc `open-questions.md`.
 |---|---|
 | [`features/course-resources.md`](./features/course-resources.md) | Tài liệu HTML đính theo course; có phần admin và phần front |
 | [`features/test-attempts.md`](./features/test-attempts.md) | Lưu bài làm trên server + màn tiến độ; phần front ở `udemy_practice_front` |
+| [`features/user-management.md`](./features/user-management.md) | Quản lý người học từ admin: khoá tài khoản, CRUD; giao diện ở `udemy_practice_admin` |
 
 ## ADR
 
