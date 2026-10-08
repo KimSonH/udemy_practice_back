@@ -1,7 +1,7 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ClassMarker } from './classMarkers.entity';
-import { Like, Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 
 @Injectable()
 export class ClassMarkersService {
@@ -39,7 +39,7 @@ export class ClassMarkersService {
     const offset = (page - 1) * limit;
 
     const [items, total] = await this.classMarkersRepository.findAndCount({
-      where: { question: Like(`%${search}%`) },
+      where: { question: ILike(`%${search}%`) },
       order: {
         createdAt: 'DESC',
       },

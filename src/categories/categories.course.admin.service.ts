@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Like, Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import { CategoryCourse } from './entities/categories.course.entity';
 import { CreateCategoryCourseDto } from './dto/create-category.course.admin.dto';
 import { UpdateCategoryCourseDto } from './dto/update-category.course.admin.dto';
@@ -55,7 +55,7 @@ export class CategoriesCourseAdminService {
       const offset = (page - 1) * limit;
       const [items, total] = await this.categoryCourseRepository.findAndCount({
         where: {
-          name: Like(`%${search}%`),
+          name: ILike(`%${search}%`),
         },
         order: {
           id: 'DESC',

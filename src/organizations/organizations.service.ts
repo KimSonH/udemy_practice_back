@@ -9,7 +9,7 @@ import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { Organization } from './entities/organization.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Like, Repository } from 'typeorm';
+import { ILike, Repository } from 'typeorm';
 import { PaginationParams } from 'src/common/pagination.type';
 import { normalize, join } from 'path';
 import * as fs from 'fs';
@@ -109,7 +109,7 @@ export class OrganizationsService {
       const [items, total] = await this.organizationRepository.findAndCount({
         where: {
           deletedAt: null,
-          name: search ? Like(`%${search}%`) : undefined,
+          name: search ? ILike(`%${search}%`) : undefined,
         },
         // With no sortBy this resolves to { createdAt: 'DESC' }, which is what
         // the public organizations route has always returned.

@@ -178,11 +178,15 @@ export class MassCoursesService {
     const baseUrl = this.configService.get<string>('MASS_BASE_API_URL');
     const privateKey = this.configService.get<string>('MASS_PRIVATE_KEY');
 
-    const url = `${baseUrl}/course-service/mass-courses?page=${page}&limit=${limit}&search=${search}&category=${category}`;
+    const url = `${baseUrl}/course-service/mass-courses`;
 
     const response = await firstValueFrom(
       this.httpService
         .get<PaginatedResponse<Course>>(url, {
+          // `params`, not a hand-built query string: axios encodes them, so a
+          // search such as "C#" or "C++" or "a&b" reaches the service intact
+          // instead of being cut off or splitting into extra parameters.
+          params: { page, limit, search, category },
           headers: {
             'Content-Type': 'application/json',
             'x-Private-key': privateKey,

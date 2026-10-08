@@ -7,6 +7,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { ResponseInterceptor } from './interceptors/response.interceptor';
+import { TrimSearchPipe } from './common/trim-search.pipe';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
@@ -15,6 +16,7 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   app.useGlobalPipes(
+    new TrimSearchPipe(),
     new ValidationPipe({
       exceptionFactory: (errors) => {
         const result = errors.map((error) => ({
