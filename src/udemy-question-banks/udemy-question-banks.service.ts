@@ -8,7 +8,7 @@ import { CreateUdemyQuestionBankDto } from './dto/create-udemy-question-bank.dto
 import { UpdateUdemyQuestionBankDto } from './dto/update-udemy-question-bank.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UdemyQuestionBank } from './entities/udemy-question-bank.entity';
-import { Like, Repository } from 'typeorm';
+import { ILike, Like, Repository } from 'typeorm';
 
 @Injectable()
 export class UdemyQuestionBanksService {
@@ -56,7 +56,7 @@ export class UdemyQuestionBanksService {
       const [items, total] =
         await this.udemyQuestionBanksRepository.findAndCount({
           where: {
-            question: Like(`%${search}%`),
+            question: ILike(`%${search}%`),
             deletedAt: null,
           },
           take: limit,
