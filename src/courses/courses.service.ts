@@ -14,6 +14,7 @@ import {
   In,
   Brackets,
   Not,
+  IsNull,
 } from 'typeorm';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
@@ -1239,6 +1240,42 @@ export class CoursesService {
     });
     if (!course) throw new NotFoundException('Course set not found');
     return course.id;
+  }
+
+  /**
+   * Learner courses changed since an admin last looked at them, oldest change
+   * first. Each comes with its creator's name and email, which the course row
+   * itself never carries.
+   */
+  async findReviewQueue() {
+    const courses = await this.coursesRepository.find({
+      where: { ownerUserId: Not(IsNull()), reviewedAt: IsNull() },
+      order: { updatedAt: 'ASC' },
+    });
+    const ownerIds = [...new Set(courses.map((c) => c.ownerUserId))];
+    const owners: { id: number; email: string; name: string }[] =
+      ownerIds.length
+        ? await this.dataSource.query(
+            `SELECT id, email, concat_ws(' ', first_name, last_name) AS name
+             FROM "user" WHERE id = ANY($1)`,
+            [ownerIds],
+          )
+        : [];
+    const byId = new Map(owners.map((o) => [o.id, o]));
+    return courses.map((course) => ({
+      ...course,
+      owner: byId.get(course.ownerUserId) ?? null,
+    }));
+  }
+
+  async markReviewed(courseId: number) {
+    const result = await this.coursesRepository.update(
+      { id: courseId, ownerUserId: Not(IsNull()) },
+      { reviewedAt: new Date() },
+    );
+    if (!result.affected) {
+      throw new NotFoundException('Learner course not found');
+    }
   }
 
   /** A learner edit: the admin has to look at the course again. */

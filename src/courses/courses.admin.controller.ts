@@ -11,6 +11,7 @@ import {
   BadRequestException,
   UseInterceptors,
   UploadedFile,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { CoursesService } from './courses.service';
 import { PaginationParams } from 'src/common/pagination.type';
@@ -209,6 +210,23 @@ export class CoursesAdminController {
   @Get()
   getCourses(@Query() query: PaginationParams) {
     return this.coursesService.findAllByAdmin(query);
+  }
+
+  // Before GET ':id', or Express hands "review-queue" to it as an id.
+  @ApiOperation({
+    summary:
+      'Learner courses changed since an admin last reviewed them. They are already public.',
+  })
+  @Get('review-queue')
+  getReviewQueue() {
+    return this.coursesService.findReviewQueue();
+  }
+
+  @ApiOperation({ summary: 'Mark a learner course as reviewed' })
+  @ApiResponse({ status: 404, description: 'Not a learner course' })
+  @Put(':id/reviewed')
+  markReviewed(@Param('id', ParseIntPipe) id: number) {
+    return this.coursesService.markReviewed(id);
   }
 
   @ApiOperation({ summary: 'Get course by ID' })
