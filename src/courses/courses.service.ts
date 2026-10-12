@@ -304,7 +304,7 @@ export class CoursesService {
     }
   }
 
-  async createCourse(createCourse: CreateCourseDto) {
+  async createCourse(createCourse: CreateCourseDto, ownerUserId?: number) {
     const {
       categoryName,
       content,
@@ -346,16 +346,19 @@ export class CoursesService {
     course.creationMode = creationMode;
     course.durationMinutes = durationMinutes;
     course.passingPercent = passingPercent;
+    course.ownerUserId = ownerUserId ?? null;
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
-      course.organization = await queryRunner.manager
-        .getRepository(Organization)
-        .findOne({
-          where: { id: Number(organizationId) },
-        });
+      // Learner courses have no organization; Number(undefined) is NaN,
+      // which Postgres rejects as an id.
+      course.organization = organizationId
+        ? await queryRunner.manager
+            .getRepository(Organization)
+            .findOne({ where: { id: Number(organizationId) } })
+        : null;
 
       const courseSets: CourseSet[] = [];
       for (let i = 0; i < totalSets; i++) {
@@ -998,11 +1001,13 @@ export class CoursesService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
-      course.organization = await queryRunner.manager
-        .getRepository(Organization)
-        .findOne({
-          where: { id: Number(organizationId) },
-        });
+      // Learner courses have no organization; Number(undefined) is NaN,
+      // which Postgres rejects as an id.
+      course.organization = organizationId
+        ? await queryRunner.manager
+            .getRepository(Organization)
+            .findOne({ where: { id: Number(organizationId) } })
+        : null;
       if (
         course.creationMode === 'auto' &&
         (course.categoryName !== categoryName ||
@@ -1180,8 +1185,9 @@ export class CoursesService {
     }
   }
 
-  async createVideoCourse(createCourse: VideoCourseDto) {
+  async createVideoCourse(createCourse: VideoCourseDto, ownerUserId?: number) {
     const courseEntity = new Course();
+    courseEntity.ownerUserId = ownerUserId ?? null;
     const course = await this.batchInsertVideoCourse(
       courseEntity,
       createCourse,
@@ -1197,6 +1203,30 @@ export class CoursesService {
       updateCourse,
     );
     return course;
+  }
+
+  /**
+   * The one ownership check for learner-facing endpoints. 404 rather than 403,
+   * so probing ids does not reveal which courses exist.
+   */
+  async assertOwnedBy(courseId: number, userId: number) {
+    const owned = await this.coursesRepository.exists({
+      where: { id: courseId, ownerUserId: userId },
+    });
+    if (!owned) throw new NotFoundException('Course not found');
+  }
+
+  /** A learner edit: the admin has to look at the course again. */
+  async markUnreviewed(courseId: number) {
+    await this.coursesRepository.update(courseId, { reviewedAt: null });
+  }
+
+  async findAllByOwner(userId: number) {
+    return this.coursesRepository.find({
+      where: { ownerUserId: userId },
+      relations: ['courseSessions'],
+      order: { createdAt: 'DESC' },
+    });
   }
 
   async updateManyStatus(ids: string[], status: string) {

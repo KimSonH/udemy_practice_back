@@ -72,6 +72,20 @@ export class Course {
   @Column({ name: 'passing_percent', type: 'int', nullable: true })
   public passingPercent?: number;
 
+  /**
+   * The learner who created the course; null for admin courses. An id rather
+   * than a relation, so a course response can never drag the user row along.
+   */
+  @Column({ name: 'owner_user_id', type: 'int', nullable: true })
+  public ownerUserId?: number | null;
+
+  /**
+   * When an admin last looked at a learner course. Null means it changed since
+   * (or was never reviewed); the admin is warned about those.
+   */
+  @Column({ name: 'reviewed_at', type: 'timestamp', nullable: true })
+  public reviewedAt?: Date | null;
+
   @CreateDateColumn({ name: 'created_at' })
   public createdAt!: Date;
 
