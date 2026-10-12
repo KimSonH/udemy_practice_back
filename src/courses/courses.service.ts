@@ -3,6 +3,7 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { Course } from './entities/courses.entity';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -897,21 +898,22 @@ export class CoursesService {
   }
 
   async findOneWithStatus(id: number) {
+    let course: Course | null;
     try {
-      const course = await this.coursesRepository.findOne({
+      course = await this.coursesRepository.findOne({
         where: { id, status: 'active' },
         relations: this.relations,
       });
-
-      if (!course) {
-        throw new BadRequestException('Course not found');
-      }
-
-      return course;
     } catch (error) {
       this.logger.error(`Error getting course by id: ${error.message}`);
       throw new BadRequestException('Error getting course by id');
     }
+
+    // Outside the try: the catch would turn this 404 into a 400.
+    if (!course) {
+      throw new NotFoundException('Course not found');
+    }
+    return course;
   }
 
   async getGroupCategoryName(): Promise<

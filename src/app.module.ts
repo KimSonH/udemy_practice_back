@@ -24,6 +24,7 @@ import { PaymentsPremiumModule } from './payments-premium/payments-premium.modul
 import { CourseResourcesModule } from './course-resources/course-resources.module';
 import { TestAttemptsModule } from './test-attempts/test-attempts.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { GumroadModule } from './gumroad/gumroad.module';
 
 @Module({
   imports: [
@@ -75,6 +76,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
     CourseResourcesModule,
     TestAttemptsModule,
     DashboardModule,
+    GumroadModule,
   ],
   controllers: [],
   providers: [
