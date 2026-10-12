@@ -1,3 +1,4 @@
+import { Not } from 'typeorm';
 import { BadRequestException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
@@ -560,6 +561,34 @@ describe('CoursesService', () => {
         expect(spy.orderBy).toEqual([['course.createdAt', 'DESC']]);
         expect(spy.thenBy).toEqual([['course.id', 'DESC']]);
       });
+    });
+  });
+
+  describe('generateSlug', () => {
+    const slugOf = (title: string, exceptId?: number) =>
+      (
+        service as unknown as {
+          generateSlug: (t: string, id?: number) => Promise<string>;
+        }
+      ).generateSlug(title, exceptId);
+
+    it('counts soft-deleted courses as taken, since the unique index does', async () => {
+      repository.findOne.mockImplementation(async (options) =>
+        (options as { withDeleted?: boolean }).withDeleted &&
+        (options.where as { slug: string }).slug === 'intro'
+          ? ({ id: 1 } as Course)
+          : null,
+      );
+      await expect(slugOf('Intro')).resolves.toBe('intro-1');
+    });
+
+    it('does not treat the course being saved as a clash with itself', async () => {
+      repository.findOne.mockResolvedValue(null);
+      await slugOf('Intro', 5);
+      const where = repository.findOne.mock.calls[0][0].where as {
+        id: unknown;
+      };
+      expect(where.id).toEqual(Not(5));
     });
   });
 

@@ -12,6 +12,7 @@ import {
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { extname } from 'path';
 import JwtAdminAuthenticationGuard from 'src/authentication/guard/jwt-admin-authentication.guard';
+import JwtAuthenticationGuard from 'src/authentication/guard/jwt-authentication.guard';
 import LocalFilesInterceptor from 'src/interceptors/localFiles.interceptor';
 import { GumroadService } from './gumroad.service';
 
@@ -40,8 +41,16 @@ export class GumroadController {
     return this.gumroadService.issueTicket();
   }
 
-  // Called by the admin browser directly (not through the admin's Next server,
-  // whose host caps request bodies far below a video's size).
+  // Learners creating their own video courses upload the same way.
+  @ApiBearerAuth()
+  @Post('me/gumroad/upload-ticket')
+  @UseGuards(JwtAuthenticationGuard)
+  learnerUploadTicket() {
+    return this.gumroadService.issueTicket();
+  }
+
+  // Called by the browser directly (not through the admin's or the front's
+  // Next server, whose host caps request bodies far below a video's size).
   @Post('gumroad/upload')
   @UseGuards(UploadTicketGuard)
   @UseInterceptors(

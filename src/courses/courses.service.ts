@@ -7,7 +7,14 @@ import {
 } from '@nestjs/common';
 import { Course } from './entities/courses.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, QueryRunner, In, Brackets } from 'typeorm';
+import {
+  Repository,
+  DataSource,
+  QueryRunner,
+  In,
+  Brackets,
+  Not,
+} from 'typeorm';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { UdemyQuestionBanksService } from 'src/udemy-question-banks/udemy-question-banks.service';
@@ -289,11 +296,18 @@ export class CoursesService {
     }
   }
 
-  private async generateSlug(title: string) {
+  /**
+   * `exceptId` is the course being saved: its own slug is not a clash, or every
+   * edit flips it between "name" and "name-1". `withDeleted` because the
+   * unique index covers soft-deleted rows too; reusing a deleted course's
+   * slug failed the save with a 500.
+   */
+  private async generateSlug(title: string, exceptId?: number) {
     try {
       const slug = await generateUniqueSlug(title, async (slug) => {
         const course = await this.coursesRepository.findOne({
-          where: { slug },
+          where: { slug, ...(exceptId ? { id: Not(exceptId) } : {}) },
+          withDeleted: true,
         });
         return !!course;
       });
@@ -341,7 +355,7 @@ export class CoursesService {
     course.type = type;
     course.categoryName = categoryName;
     course.content = content;
-    course.slug = await this.generateSlug(name);
+    course.slug = await this.generateSlug(name, course.id);
     course.thumbnailImageUrl = thumbnailImageUrl;
     course.creationMode = creationMode;
     course.durationMinutes = durationMinutes;
@@ -993,7 +1007,7 @@ export class CoursesService {
     course.status = status;
     course.type = type;
     course.content = content;
-    course.slug = await this.generateSlug(name);
+    course.slug = await this.generateSlug(name, course.id);
     course.thumbnailImageUrl = thumbnailImageUrl;
     if (hasDuration) course.durationMinutes = updateCourse.durationMinutes;
     if (hasPassingPercent) course.passingPercent = updateCourse.passingPercent;
@@ -1121,7 +1135,7 @@ export class CoursesService {
     course.type = type;
     course.categoryName = '';
     course.content = content;
-    course.slug = await this.generateSlug(name);
+    course.slug = await this.generateSlug(name, course.id);
     course.thumbnailImageUrl = thumbnailImageUrl;
     try {
       if (course.courseSessions?.length > 0) {
@@ -1214,6 +1228,17 @@ export class CoursesService {
       where: { id: courseId, ownerUserId: userId },
     });
     if (!owned) throw new NotFoundException('Course not found');
+  }
+
+  /** Same check, for a course set: owned through its course. */
+  /** Returns the id of the course the set belongs to. */
+  async assertSetOwnedBy(courseSetId: number, userId: number) {
+    const course = await this.coursesRepository.findOne({
+      select: { id: true },
+      where: { ownerUserId: userId, courseSets: { id: courseSetId } },
+    });
+    if (!course) throw new NotFoundException('Course set not found');
+    return course.id;
   }
 
   /** A learner edit: the admin has to look at the course again. */

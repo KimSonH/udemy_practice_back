@@ -15,11 +15,17 @@ function setup(owned = true) {
     createVideoCourse: jest.fn(async () => ({ id: 2 })),
     deleteCourse: jest.fn(),
     markUnreviewed: jest.fn(),
+    assertSetOwnedBy: jest.fn(async () => {
+      if (!owned) throw new NotFoundException('Course set not found');
+      return 3;
+    }),
   };
+  const sets = { remove: jest.fn(async () => ({})) };
   const controller = new CoursesMeController(
     service as unknown as CoursesService,
+    sets as never,
   );
-  return { service, controller };
+  return { service, sets, controller };
 }
 
 describe('CoursesMeController', () => {
@@ -57,5 +63,19 @@ describe('CoursesMeController', () => {
     await controller.update(req, 1, { name: 'y' });
     expect(service.assertOwnedBy).toHaveBeenCalledWith(1, 7);
     expect(service.markUnreviewed).toHaveBeenCalledWith(1);
+  });
+
+  it('guards course sets by their course, and re-queues that course', async () => {
+    const denied = setup(false);
+    await expect(denied.controller.removeSet(req, 9)).rejects.toThrow(
+      NotFoundException,
+    );
+    expect(denied.sets.remove).not.toHaveBeenCalled();
+
+    const { service, sets, controller } = setup();
+    await controller.removeSet(req, 9);
+    expect(service.assertSetOwnedBy).toHaveBeenCalledWith(9, 7);
+    expect(sets.remove).toHaveBeenCalledWith(9);
+    expect(service.markUnreviewed).toHaveBeenCalledWith(3);
   });
 });
