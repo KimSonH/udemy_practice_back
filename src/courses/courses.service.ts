@@ -1250,6 +1250,8 @@ export class CoursesService {
   async findReviewQueue() {
     const courses = await this.coursesRepository.find({
       where: { ownerUserId: Not(IsNull()), reviewedAt: IsNull() },
+      // Sessions tell a video course from a practice one.
+      relations: ['courseSessions'],
       order: { updatedAt: 'ASC' },
     });
     const ownerIds = [...new Set(courses.map((c) => c.ownerUserId))];
