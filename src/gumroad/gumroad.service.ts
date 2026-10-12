@@ -83,7 +83,9 @@ export class GumroadService {
         maxBodyLength: Infinity,
       });
 
-      return { url: `${PUBLIC_FILES_URL}/${blob.key}` };
+      const url = `${PUBLIC_FILES_URL}/${blob.key}`;
+      await this.assertPlayable(url, file.size);
+      return { url };
     } catch (error) {
       if (!axios.isAxiosError(error)) throw error;
       const detail = error.response?.data?.message ?? error.message;
@@ -92,6 +94,26 @@ export class GumroadService {
     } finally {
       await fs.rm(file.path, { force: true });
     }
+  }
+
+  /**
+   * Only hand back a URL the player can actually open: the upload succeeding
+   * does not prove the public link serves it. Retried briefly, since the CDN
+   * in front of the bucket may not see a brand-new object at once.
+   */
+  private async assertPlayable(url: string, size: number, attempts = 3) {
+    let last = '';
+    for (let i = 0; i < attempts; i++) {
+      if (i) await new Promise((r) => setTimeout(r, 1000 * i));
+      const res = await axios.head(url, { validateStatus: () => true });
+      const length = Number(res.headers['content-length']);
+      if (res.status === 200 && length === size) return;
+      last = `HTTP ${res.status}, ${length} of ${size} bytes`;
+    }
+    this.logger.error(`Uploaded video is not reachable at ${url}: ${last}`);
+    throw new BadGatewayException(
+      `Uploaded, but the video URL does not work yet (${last}). Try again.`,
+    );
   }
 }
 

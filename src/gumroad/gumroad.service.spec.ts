@@ -47,6 +47,10 @@ describe('GumroadService', () => {
       },
     });
     mockedAxios.put.mockResolvedValue({});
+    mockedAxios.head.mockResolvedValue({
+      status: 200,
+      headers: { 'content-length': '11' },
+    });
 
     const result = await service.upload({
       path,
@@ -70,6 +74,27 @@ describe('GumroadService', () => {
       headers: { Authorization: 'Bearer gumroad-token' },
     });
     expect(mockedAxios.put.mock.calls[0][0]).toBe('https://s3/put');
+    expect(mockedAxios.head.mock.calls[0][0]).toBe(
+      'https://public-files.gumroad.com/abc123',
+    );
     expect(existsSync(path)).toBe(false);
   });
+
+  it('refuses to return a URL that does not serve the whole video', async () => {
+    const path = join(mkdtempSync(join(tmpdir(), 'gumroad-')), 'v.mp4');
+    writeFileSync(path, 'video bytes');
+    mockedAxios.head.mockReset();
+    mockedAxios.head.mockResolvedValue({ status: 403, headers: {} });
+
+    await expect(
+      service.upload({
+        path,
+        size: 11,
+        originalname: 'v.mp4',
+        mimetype: 'video/mp4',
+      } as Express.Multer.File),
+    ).rejects.toThrow('the video URL does not work yet');
+    expect(mockedAxios.head).toHaveBeenCalledTimes(3);
+    expect(existsSync(path)).toBe(false);
+  }, 10_000);
 });
