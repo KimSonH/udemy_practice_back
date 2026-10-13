@@ -1,5 +1,5 @@
 import { Controller, Get, Query, Param } from '@nestjs/common';
-import { CoursesService } from './courses.service';
+import { CoursesService, toPublicCourse } from './courses.service';
 import { PaginationParams } from 'src/common/pagination.type';
 import {
   ApiTags,
@@ -165,7 +165,8 @@ export class CoursesController {
   @ApiResponse({ status: 404, description: 'Course not found' })
   @ApiParam({ name: 'id', type: 'number' })
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.coursesService.findOneWithStatus(+id);
+  async findOne(@Param('id') id: string) {
+    // Public: buyers read the full course through their user-course endpoint.
+    return toPublicCourse(await this.coursesService.findOneWithStatus(+id));
   }
 }
