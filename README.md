@@ -97,3 +97,24 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+
+## Database migrations
+
+Generate or create migrations **on a development machine only**, commit the
+file, and let servers just apply them:
+
+```bash
+# Diff the entities against your local database into a new migration file
+npm run migration:generate -- ./src/migrations/AddSomething
+
+# Or start an empty one
+npm run migration:create -- ./src/migrations/AddSomething
+
+# Apply pending migrations (this is the only one to run on a server)
+npm run migration:run
+```
+
+The path is passed as an argument so the same command works in bash and
+PowerShell. Never run `migration:generate` on a server: its file is easily
+lost, and the database then holds a change the repository does not.
+
