@@ -931,6 +931,14 @@ export class CoursesService {
     if (!course) {
       throw new NotFoundException('Course not found');
     }
+    if (course.ownerUserId) {
+      const [owner] = await this.dataSource.query(
+        `SELECT concat_ws(' ', first_name, last_name) AS name
+         FROM "user" WHERE id = $1 AND deleted_at IS NULL`,
+        [course.ownerUserId],
+      );
+      course.creatorName = owner?.name?.trim() || null;
+    }
     return course;
   }
 
