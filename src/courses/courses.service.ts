@@ -7,7 +7,15 @@ import {
 } from '@nestjs/common';
 import { Course } from './entities/courses.entity';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, DataSource, QueryRunner, In, Brackets } from 'typeorm';
+import {
+  Repository,
+  DataSource,
+  QueryRunner,
+  In,
+  Brackets,
+  Not,
+  IsNull,
+} from 'typeorm';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { UdemyQuestionBanksService } from 'src/udemy-question-banks/udemy-question-banks.service';
@@ -289,11 +297,18 @@ export class CoursesService {
     }
   }
 
-  private async generateSlug(title: string) {
+  /**
+   * `exceptId` is the course being saved: its own slug is not a clash, or every
+   * edit flips it between "name" and "name-1". `withDeleted` because the
+   * unique index covers soft-deleted rows too; reusing a deleted course's
+   * slug failed the save with a 500.
+   */
+  private async generateSlug(title: string, exceptId?: number) {
     try {
       const slug = await generateUniqueSlug(title, async (slug) => {
         const course = await this.coursesRepository.findOne({
-          where: { slug },
+          where: { slug, ...(exceptId ? { id: Not(exceptId) } : {}) },
+          withDeleted: true,
         });
         return !!course;
       });
@@ -304,7 +319,7 @@ export class CoursesService {
     }
   }
 
-  async createCourse(createCourse: CreateCourseDto) {
+  async createCourse(createCourse: CreateCourseDto, ownerUserId?: number) {
     const {
       categoryName,
       content,
@@ -341,21 +356,24 @@ export class CoursesService {
     course.type = type;
     course.categoryName = categoryName;
     course.content = content;
-    course.slug = await this.generateSlug(name);
+    course.slug = await this.generateSlug(name, course.id);
     course.thumbnailImageUrl = thumbnailImageUrl;
     course.creationMode = creationMode;
     course.durationMinutes = durationMinutes;
     course.passingPercent = passingPercent;
+    course.ownerUserId = ownerUserId ?? null;
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
-      course.organization = await queryRunner.manager
-        .getRepository(Organization)
-        .findOne({
-          where: { id: Number(organizationId) },
-        });
+      // Learner courses have no organization; Number(undefined) is NaN,
+      // which Postgres rejects as an id.
+      course.organization = organizationId
+        ? await queryRunner.manager
+            .getRepository(Organization)
+            .findOne({ where: { id: Number(organizationId) } })
+        : null;
 
       const courseSets: CourseSet[] = [];
       for (let i = 0; i < totalSets; i++) {
@@ -990,7 +1008,7 @@ export class CoursesService {
     course.status = status;
     course.type = type;
     course.content = content;
-    course.slug = await this.generateSlug(name);
+    course.slug = await this.generateSlug(name, course.id);
     course.thumbnailImageUrl = thumbnailImageUrl;
     if (hasDuration) course.durationMinutes = updateCourse.durationMinutes;
     if (hasPassingPercent) course.passingPercent = updateCourse.passingPercent;
@@ -998,11 +1016,13 @@ export class CoursesService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
     try {
-      course.organization = await queryRunner.manager
-        .getRepository(Organization)
-        .findOne({
-          where: { id: Number(organizationId) },
-        });
+      // Learner courses have no organization; Number(undefined) is NaN,
+      // which Postgres rejects as an id.
+      course.organization = organizationId
+        ? await queryRunner.manager
+            .getRepository(Organization)
+            .findOne({ where: { id: Number(organizationId) } })
+        : null;
       if (
         course.creationMode === 'auto' &&
         (course.categoryName !== categoryName ||
@@ -1116,7 +1136,7 @@ export class CoursesService {
     course.type = type;
     course.categoryName = '';
     course.content = content;
-    course.slug = await this.generateSlug(name);
+    course.slug = await this.generateSlug(name, course.id);
     course.thumbnailImageUrl = thumbnailImageUrl;
     try {
       if (course.courseSessions?.length > 0) {
@@ -1180,8 +1200,9 @@ export class CoursesService {
     }
   }
 
-  async createVideoCourse(createCourse: VideoCourseDto) {
+  async createVideoCourse(createCourse: VideoCourseDto, ownerUserId?: number) {
     const courseEntity = new Course();
+    courseEntity.ownerUserId = ownerUserId ?? null;
     const course = await this.batchInsertVideoCourse(
       courseEntity,
       createCourse,
@@ -1197,6 +1218,82 @@ export class CoursesService {
       updateCourse,
     );
     return course;
+  }
+
+  /**
+   * The one ownership check for learner-facing endpoints. 404 rather than 403,
+   * so probing ids does not reveal which courses exist.
+   */
+  async assertOwnedBy(courseId: number, userId: number) {
+    const owned = await this.coursesRepository.exists({
+      where: { id: courseId, ownerUserId: userId },
+    });
+    if (!owned) throw new NotFoundException('Course not found');
+  }
+
+  /** Same check, for a course set: owned through its course. */
+  /** Returns the id of the course the set belongs to. */
+  async assertSetOwnedBy(courseSetId: number, userId: number) {
+    const course = await this.coursesRepository.findOne({
+      select: { id: true },
+      where: { ownerUserId: userId, courseSets: { id: courseSetId } },
+    });
+    if (!course) throw new NotFoundException('Course set not found');
+    return course.id;
+  }
+
+  /**
+   * Learner courses changed since an admin last looked at them, oldest change
+   * first. Each comes with its creator's name and email, which the course row
+   * itself never carries.
+   */
+  async findReviewQueue() {
+    const courses = await this.coursesRepository.find({
+      where: { ownerUserId: Not(IsNull()), reviewedAt: IsNull() },
+      // Sessions tell a video course from a practice one.
+      relations: ['courseSessions'],
+      order: { updatedAt: 'ASC' },
+    });
+    const ownerIds = [...new Set(courses.map((c) => c.ownerUserId))];
+    const owners: { id: number; email: string; name: string }[] =
+      ownerIds.length
+        ? await this.dataSource.query(
+            `SELECT id, email, concat_ws(' ', first_name, last_name) AS name
+             FROM "user" WHERE id = ANY($1)`,
+            [ownerIds],
+          )
+        : [];
+    const byId = new Map(owners.map((o) => [o.id, o]));
+    return courses.map((course) => ({
+      ...course,
+      owner: byId.get(course.ownerUserId) ?? null,
+    }));
+  }
+
+  async markReviewed(courseId: number) {
+    const result = await this.coursesRepository.update(
+      { id: courseId, ownerUserId: Not(IsNull()) },
+      { reviewedAt: new Date() },
+    );
+    if (!result.affected) {
+      throw new NotFoundException('Learner course not found');
+    }
+  }
+
+  /** A learner edit: the admin has to look at the course again. */
+  async markUnreviewed(courseId: number) {
+    await this.coursesRepository.update(courseId, { reviewedAt: null });
+  }
+
+  /** With per-set question counts, so the list can flag empty tests. */
+  async findAllByOwner(userId: number) {
+    const courses = await this.coursesRepository.find({
+      where: { ownerUserId: userId },
+      relations: ['courseSessions.courseContents', 'courseSets'],
+      order: { createdAt: 'DESC' },
+    });
+    await this.attachQuestionCounts(courses);
+    return courses;
   }
 
   async updateManyStatus(ids: string[], status: string) {

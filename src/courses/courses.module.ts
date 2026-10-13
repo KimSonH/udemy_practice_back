@@ -1,3 +1,4 @@
+import { CoursesMeController } from './courses.me.controller';
 import { Module } from '@nestjs/common';
 import { CoursesService } from './courses.service';
 import { CoursesAdminController } from './courses.admin.controller';
@@ -16,7 +17,7 @@ import { OrganizationsModule } from 'src/organizations/organizations.module';
     ConfigModule,
     OrganizationsModule,
   ],
-  controllers: [CoursesAdminController, CoursesController],
+  controllers: [CoursesAdminController, CoursesController, CoursesMeController],
   providers: [CoursesService],
   exports: [CoursesService],
 })
