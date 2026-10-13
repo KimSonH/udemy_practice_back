@@ -9,13 +9,17 @@ import {
   OneToMany,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { CourseSet } from 'src/course-sets/entities/course-set.entity';
 import { Organization } from 'src/organizations/entities/organization.entity';
 import { UserCourse } from 'src/user-courses/entities/user-course.entity';
 import { CourseSession } from 'src/course-sessions/entities/course-session.entity';
 import { CourseResource } from 'src/course-resources/entities/course-resource.entity';
+import { User } from 'src/users/entities/user.entity';
 @Entity()
+// Name matches the AddOwnerAndReviewToCourse migration.
+@Index('IDX_course_owner_user_id', ['ownerUserId'])
 export class Course {
   @PrimaryGeneratedColumn()
   public id: number;
@@ -111,4 +115,17 @@ export class Course {
 
   @OneToMany(() => CourseResource, (courseResource) => courseResource.course)
   public courseResources: CourseResource[];
+
+  /**
+   * Declares the owner foreign key; code reads ownerUserId. Excluded so a user
+   * row (email, password hash) can never reach a course response, even if a
+   * query loads it by mistake.
+   */
+  @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({
+    name: 'owner_user_id',
+    foreignKeyConstraintName: 'FK_course_owner_user',
+  })
+  @Exclude()
+  public owner?: User | null;
 }

@@ -26,7 +26,10 @@ import { DomainScore } from '../grading';
  * whether anyone is improving.
  */
 @Entity()
-@Index(['user', 'course', 'startedAt'])
+// Names match the CreateTestAttempt / AddPrunedAtToTestAttempt migrations, so
+// migration:generate leaves them alone. finished_at serves the pruning job.
+@Index('IDX_test_attempt_user_course_started', ['user', 'course', 'startedAt'])
+@Index('IDX_test_attempt_finished_at', ['finishedAt'])
 export class TestAttempt {
   @PrimaryGeneratedColumn()
   public id: number;
@@ -57,15 +60,20 @@ export class TestAttempt {
   @Column({ name: 'option_order', type: 'jsonb', nullable: true })
   public optionOrder?: Record<string, string[]>;
 
-  /** questionId -> the option indexes picked, e.g. { "40220": ["4"] } */
-  @Column({ name: 'answers', type: 'jsonb', default: () => "'{}'::jsonb" })
+  /**
+   * questionId -> the option indexes picked, e.g. { "40220": ["4"] }.
+   * Defaults without a ::jsonb cast: Postgres applies it from the column type,
+   * and TypeORM reads the default back without it, so writing it here made
+   * migration:generate want to reset all three defaults every time.
+   */
+  @Column({ name: 'answers', type: 'jsonb', default: () => "'{}'" })
   public answers: Record<string, string[]>;
 
-  @Column({ name: 'flagged', type: 'jsonb', default: () => "'[]'::jsonb" })
+  @Column({ name: 'flagged', type: 'jsonb', default: () => "'[]'" })
   public flagged: string[];
 
   /** Practice mode: questions whose answer has already been revealed. */
-  @Column({ name: 'revealed', type: 'jsonb', default: () => "'[]'::jsonb" })
+  @Column({ name: 'revealed', type: 'jsonb', default: () => "'[]'" })
   public revealed: string[];
 
   /**
@@ -121,15 +129,24 @@ export class TestAttempt {
   public deletedAt?: Date;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE', nullable: false })
-  @JoinColumn({ name: 'user_id' })
+  @JoinColumn({
+    name: 'user_id',
+    foreignKeyConstraintName: 'FK_test_attempt_user',
+  })
   public user: User;
 
   @ManyToOne(() => Course, { onDelete: 'CASCADE', nullable: false })
-  @JoinColumn({ name: 'course_id' })
+  @JoinColumn({
+    name: 'course_id',
+    foreignKeyConstraintName: 'FK_test_attempt_course',
+  })
   public course: Course;
 
   /** Null means the missed-question drill, which belongs to no single set. */
   @ManyToOne(() => CourseSet, { onDelete: 'CASCADE', nullable: true })
-  @JoinColumn({ name: 'course_set_id' })
+  @JoinColumn({
+    name: 'course_set_id',
+    foreignKeyConstraintName: 'FK_test_attempt_course_set',
+  })
   public courseSet?: CourseSet;
 }
