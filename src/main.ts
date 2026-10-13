@@ -30,12 +30,7 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'https://udemy-practice-front.vercel.app',
-      'https://udemy-practice-admin.vercel.app',
-    ],
+    origin: corsOrigins(),
     allowedHeaders: 'Origin, X-Requested-With, Content-Type, Accept',
     credentials: true,
   });
@@ -65,3 +60,25 @@ async function bootstrap() {
   await app.listen(process.env.PORT ?? 3333);
 }
 bootstrap();
+
+/**
+ * Sites allowed to call the API from a browser. The front and the admin upload
+ * videos straight to /gumroad/upload, so their production domains must be
+ * listed or the browser hides the response and the upload looks failed.
+ * CORS_ORIGINS is a comma-separated list; exact origins, no trailing slash.
+ */
+function corsOrigins(): string[] {
+  const fromEnv = (process.env.CORS_ORIGINS ?? '')
+    .split(',')
+    .map((origin) => origin.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+  return fromEnv.length
+    ? fromEnv
+    : [
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'https://courses.udemygrowth.asia',
+        'https://udemy-practice-front.vercel.app',
+        'https://udemy-practice-admin.vercel.app',
+      ];
+}

@@ -1,11 +1,14 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { GumroadUpload } from './gumroad-upload.entity';
 import { GumroadController } from './gumroad.controller';
 import { GumroadService } from './gumroad.service';
 
 @Module({
-  imports: [JwtModule],
+  imports: [JwtModule, TypeOrmModule.forFeature([GumroadUpload])],
   controllers: [GumroadController],
   providers: [GumroadService],
+  exports: [GumroadService],
 })
 export class GumroadModule {}

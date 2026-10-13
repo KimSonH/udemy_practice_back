@@ -5,6 +5,7 @@ import {
   ExecutionContext,
   Injectable,
   Post,
+  Req,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -14,7 +15,8 @@ import { extname } from 'path';
 import JwtAdminAuthenticationGuard from 'src/authentication/guard/jwt-admin-authentication.guard';
 import JwtAuthenticationGuard from 'src/authentication/guard/jwt-authentication.guard';
 import LocalFilesInterceptor from 'src/interceptors/localFiles.interceptor';
-import { GumroadService } from './gumroad.service';
+import { RequestWithUser } from 'src/authentication/requestWithUser.interface';
+import { GumroadService, UploadTicket } from './gumroad.service';
 
 // A guard, not a check in the handler: guards run before the interceptor, so
 // a request without a valid ticket is refused before anything is written.
@@ -22,9 +24,16 @@ import { GumroadService } from './gumroad.service';
 class UploadTicketGuard implements CanActivate {
   constructor(private readonly gumroadService: GumroadService) {}
 
-  canActivate(context: ExecutionContext) {
+  async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest();
-    this.gumroadService.verifyTicket(request.query.ticket);
+    const ticket = this.gumroadService.verifyTicket(request.query.ticket);
+    if (ticket.userId) {
+      await this.gumroadService.assertLearnerMayUpload(
+        ticket.userId,
+        Number(request.headers['content-length'] ?? 0),
+      );
+    }
+    request.uploadTicket = ticket;
     return true;
   }
 }
@@ -45,8 +54,8 @@ export class GumroadController {
   @ApiBearerAuth()
   @Post('me/gumroad/upload-ticket')
   @UseGuards(JwtAuthenticationGuard)
-  learnerUploadTicket() {
-    return this.gumroadService.issueTicket();
+  learnerUploadTicket(@Req() req: RequestWithUser) {
+    return this.gumroadService.issueTicket(req.user.id);
   }
 
   // Called by the browser directly (not through the admin's or the front's
@@ -69,8 +78,11 @@ export class GumroadController {
         callback(null, `${Date.now()}${extname(file.originalname)}`),
     }),
   )
-  upload(@UploadedFile() file: Express.Multer.File) {
+  upload(
+    @Req() req: { uploadTicket: UploadTicket },
+    @UploadedFile() file: Express.Multer.File,
+  ) {
     if (!file) throw new BadRequestException('Provide a video');
-    return this.gumroadService.upload(file);
+    return this.gumroadService.upload(file, req.uploadTicket);
   }
 }

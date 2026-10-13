@@ -15,7 +15,12 @@ const env: Record<string, string> = {
 };
 const config = { get: (key: string) => env[key] } as ConfigService;
 const jwt = new JwtService();
-const service = new GumroadService(config, jwt);
+const uploads = {
+  count: jest.fn(async () => 0),
+  find: jest.fn(async () => [] as { url: string }[]),
+  insert: jest.fn(async () => ({})),
+};
+const service = new GumroadService(config, jwt, uploads as never);
 
 describe('GumroadService', () => {
   it('accepts its own ticket and rejects anything else', () => {
@@ -97,4 +102,65 @@ describe('GumroadService', () => {
     expect(mockedAxios.head).toHaveBeenCalledTimes(3);
     expect(existsSync(path)).toBe(false);
   }, 10_000);
+
+  it('carries the learner on their ticket, and none on an admin one', () => {
+    expect(service.verifyTicket(service.issueTicket(5).ticket)).toEqual({
+      userId: 5,
+    });
+    expect(service.verifyTicket(service.issueTicket().ticket)).toEqual({});
+  });
+
+  it('caps learner uploads by size and by count per day', async () => {
+    await expect(
+      service.assertLearnerMayUpload(5, 3 * 1024 ** 3),
+    ).rejects.toThrow('at most 2 GB');
+    uploads.count.mockResolvedValueOnce(30);
+    await expect(service.assertLearnerMayUpload(5, 1000)).rejects.toThrow(
+      'At most 30 video uploads a day',
+    );
+    uploads.count.mockResolvedValueOnce(29);
+    await expect(
+      service.assertLearnerMayUpload(5, 1000),
+    ).resolves.toBeUndefined();
+  });
+
+  it("lets a learner course use only its owner's uploads, or what it already had", async () => {
+    const mine = 'https://public-files.gumroad.com/mine';
+    const theirs = 'https://public-files.gumroad.com/theirs';
+    uploads.find.mockResolvedValue([{ url: mine }]);
+
+    await expect(
+      service.assertUploadsOwnedBy(5, [mine]),
+    ).resolves.toBeUndefined();
+    await expect(
+      service.assertUploadsOwnedBy(5, [mine, theirs]),
+    ).rejects.toThrow();
+    await expect(
+      service.assertUploadsOwnedBy(5, [mine, theirs], [theirs]),
+    ).resolves.toBeUndefined();
+  });
+
+  it('records who uploaded each video', async () => {
+    const path = join(mkdtempSync(join(tmpdir(), 'gumroad-')), 'v.mp4');
+    writeFileSync(path, 'video bytes');
+    uploads.insert.mockClear();
+    mockedAxios.head.mockResolvedValue({
+      status: 200,
+      headers: { 'content-length': '11' },
+    });
+    await service.upload(
+      {
+        path,
+        size: 11,
+        originalname: 'v.mp4',
+        mimetype: 'video/mp4',
+      } as Express.Multer.File,
+      { userId: 5 },
+    );
+    expect(uploads.insert).toHaveBeenCalledWith({
+      userId: 5,
+      url: 'https://public-files.gumroad.com/abc123',
+      size: '11',
+    });
+  });
 });
