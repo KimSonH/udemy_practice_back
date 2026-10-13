@@ -46,4 +46,13 @@ export class DashboardController {
   getEnrollmentTrend(@Query('days') days?: string) {
     return this.dashboardService.getEnrollmentTrend(days ? +days : 30);
   }
+
+  @ApiOperation({
+    summary:
+      'Paid sales of learner-created courses per creator between two dates (YYYY-MM-DD, inclusive; default this month). Revenue is estimated at current list prices.',
+  })
+  @Get('creator-revenue')
+  getCreatorRevenue(@Query('from') from?: string, @Query('to') to?: string) {
+    return this.dashboardService.getCreatorRevenue(from, to);
+  }
 }
