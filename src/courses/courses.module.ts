@@ -1,3 +1,4 @@
+import { GumroadModule } from 'src/gumroad/gumroad.module';
 import { CoursesMeController } from './courses.me.controller';
 import { Module } from '@nestjs/common';
 import { CoursesService } from './courses.service';
@@ -16,6 +17,7 @@ import { OrganizationsModule } from 'src/organizations/organizations.module';
     UdemyQuestionBanksModule,
     ConfigModule,
     OrganizationsModule,
+    GumroadModule,
   ],
   controllers: [CoursesAdminController, CoursesController, CoursesMeController],
   providers: [CoursesService],

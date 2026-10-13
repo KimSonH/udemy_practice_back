@@ -24,7 +24,7 @@ import { CourseSetsService } from 'src/course-sets/course-sets.service';
 import { CreateCourseSetForCourseDto } from 'src/course-sets/dto/create-course-set-for-course.dto';
 import { UpdateCourseSetDto } from 'src/course-sets/dto/update-course-set.dto';
 import LocalFilesInterceptor from 'src/interceptors/localFiles.interceptor';
-import { PUBLIC_FILES_URL } from 'src/gumroad/gumroad.service';
+import { GumroadService, PUBLIC_FILES_URL } from 'src/gumroad/gumroad.service';
 import { CoursesService } from './courses.service';
 import {
   CreateMyCourseDto,
@@ -50,6 +50,7 @@ export class CoursesMeController {
   constructor(
     private readonly coursesService: CoursesService,
     private readonly courseSetsService: CourseSetsService,
+    private readonly gumroadService: GumroadService,
   ) {}
 
   /**
@@ -88,7 +89,12 @@ export class CoursesMeController {
     @Req() req: RequestWithUser,
     @Body() dto: MyVideoCourseDto,
   ) {
-    return this.coursesService.createVideoCourse(video(dto), req.user.id);
+    const data = video(dto);
+    await this.gumroadService.assertUploadsOwnedBy(
+      req.user.id,
+      lessonUrls(data),
+    );
+    return this.coursesService.createVideoCourse(data, req.user.id);
   }
 
   @Put('courses/video/:id')
@@ -98,10 +104,16 @@ export class CoursesMeController {
     @Body() dto: MyVideoCourseDto,
   ) {
     await this.coursesService.assertOwnedBy(id, req.user.id);
-    return this.changed(
-      id,
-      this.coursesService.updateVideoCourse(id, video(dto)),
+    const data = video(dto);
+    // Videos the course already has stay allowed, so courses saved before
+    // uploads were recorded can still be edited.
+    const current = await this.coursesService.getCourseById(id);
+    await this.gumroadService.assertUploadsOwnedBy(
+      req.user.id,
+      lessonUrls(data),
+      lessonUrls(current),
     );
+    return this.changed(id, this.coursesService.updateVideoCourse(id, data));
   }
 
   @Put('courses/:id')
@@ -278,4 +290,14 @@ function video(dto: MyVideoCourseDto) {
   assertUploadedThumbnail(dto.thumbnailImageUrl);
   assertUploadedVideos(dto);
   return { ...dto, organizationId: undefined, id: undefined } as VideoCourseDto;
+}
+
+function lessonUrls(course: {
+  courseSessions?: { courseContents?: { uploadUrl?: string }[] }[];
+}) {
+  return (course.courseSessions ?? []).flatMap((session) =>
+    (session.courseContents ?? [])
+      .map((content) => content.uploadUrl)
+      .filter((url): url is string => !!url),
+  );
 }
