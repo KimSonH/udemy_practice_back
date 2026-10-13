@@ -73,6 +73,30 @@ function resolveCourseTypeFilter(type: string | undefined): string | undefined {
   return normalized;
 }
 
+/**
+ * For responses anyone can read: drops what only buyers may see. First, the
+ * video URL of every lesson that is not a free preview. Gumroad public-files URLs need no auth, so a URL that
+ * reaches the page source is the paid video, free. Buyers get the URLs from
+ * their own user-course endpoint.
+ */
+export function toPublicCourse(course: Course): Course {
+  // Same for a paid practice course's questions: they carry the answers.
+  // The count stays for the page; the free test page still needs them all.
+  if (course.type === 'paid') {
+    for (const set of course.courseSets ?? []) {
+      set.questionCount = set.udemyQuestionBanks?.length ?? 0;
+      set.udemyQuestionBanks = [];
+    }
+  }
+  for (const session of course.courseSessions ?? []) {
+    session.uploadUrl = undefined;
+    for (const content of session.courseContents ?? []) {
+      if (!content.isShown) content.uploadUrl = undefined;
+    }
+  }
+  return course;
+}
+
 @Injectable()
 export class CoursesService {
   private logger = new Logger(CoursesService.name);
@@ -859,6 +883,7 @@ export class CoursesService {
         order: { createdAt: 'DESC' },
         relations: this.randomVideoRelations,
       });
+      items.forEach(toPublicCourse);
 
       return {
         items,
