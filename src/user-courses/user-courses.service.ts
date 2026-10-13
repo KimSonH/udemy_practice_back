@@ -198,7 +198,13 @@ export class UserCoursesService {
   ) {
     const userCourse = await this.userCourseRepository.findOne({
       where: { courseId, userId, status },
-      relations: this.relations,
+      // A video course is its lessons: without them a buyer got the practice
+      // page and no way to watch anything.
+      relations: [
+        ...this.relations,
+        'course.courseSessions',
+        'course.courseSessions.courseContents',
+      ],
     });
     if (!userCourse) {
       throw new BadRequestException('User course not found');
