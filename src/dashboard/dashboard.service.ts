@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Course } from 'src/courses/entities/courses.entity';
@@ -12,6 +12,29 @@ export interface DashboardStats {
   totalOrganizations: number;
   totalCompletedEnrollments: number;
 }
+
+export interface CreatorCourseRevenue {
+  courseId: number;
+  name: string;
+  /** Current list price; see getCreatorRevenue on why that is the basis. */
+  price: number;
+  sales: number;
+  revenue: number;
+  deleted: boolean;
+}
+
+export interface CreatorRevenue {
+  userId: number;
+  name: string;
+  email: string;
+  sales: number;
+  revenue: number;
+  courses: CreatorCourseRevenue[];
+}
+
+/** Gateways that take money. Anything else (an admin grant) is not a sale. */
+const PAID_GATEWAYS = ['paypal', 'sepay', 'vietqr'];
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
 export interface TrendPoint {
   date: string;
@@ -69,6 +92,95 @@ export class DashboardService {
       condition: 'e.status = :status',
       params: { status: 'completed' },
     });
+  }
+
+  /**
+   * Paid sales of learner-created courses per creator, between two dates
+   * (inclusive, by when the purchase was last updated, i.e. completed).
+   *
+   * Revenue is an estimate at each course's current list price: PayPal and
+   * VietQR orders do not store the amount paid, so there is no recorded figure
+   * to add up. A price changed mid-period shifts the estimate accordingly.
+   * Soft-deleted courses still count; their sales happened.
+   */
+  async getCreatorRevenue(from?: string, to?: string) {
+    const today = new Date().toISOString().slice(0, 10);
+    const start = from || `${today.slice(0, 8)}01`;
+    const end = to || today;
+    if (!DATE_ONLY.test(start) || !DATE_ONLY.test(end) || start > end) {
+      throw new BadRequestException(
+        '"from" and "to" must be YYYY-MM-DD dates, "from" not after "to"',
+      );
+    }
+
+    const rows: {
+      user_id: number;
+      user_name: string;
+      email: string;
+      course_id: number;
+      course_name: string;
+      price: string;
+      deleted: boolean;
+      sales: string;
+    }[] = await this.userCourseRepository.query(
+      `SELECT u.id AS user_id,
+              concat_ws(' ', u.first_name, u.last_name) AS user_name,
+              u.email,
+              c.id AS course_id,
+              c.name AS course_name,
+              c.price,
+              c.deleted_at IS NOT NULL AS deleted,
+              count(uc.id) AS sales
+       FROM user_course uc
+       JOIN course c ON c.id = uc.course_id
+       JOIN "user" u ON u.id = c.owner_user_id
+       WHERE uc.status = 'completed'
+         AND uc.order_by = ANY($1)
+         AND uc.updated_at >= $2::date
+         AND uc.updated_at < $3::date + 1
+       GROUP BY u.id, c.id
+       ORDER BY u.id, c.id`,
+      [PAID_GATEWAYS, start, end],
+    );
+
+    const creators = new Map<number, CreatorRevenue>();
+    for (const row of rows) {
+      const price = Number(row.price);
+      const sales = Number(row.sales);
+      const course: CreatorCourseRevenue = {
+        courseId: row.course_id,
+        name: row.course_name,
+        price,
+        sales,
+        // Rounded to cents so sums of prices like 4.9 stay exact.
+        revenue: Math.round(price * sales * 100) / 100,
+        deleted: row.deleted,
+      };
+      const creator = creators.get(row.user_id) ?? {
+        userId: row.user_id,
+        name: row.user_name,
+        email: row.email,
+        sales: 0,
+        revenue: 0,
+        courses: [],
+      };
+      creator.sales += course.sales;
+      creator.revenue =
+        Math.round((creator.revenue + course.revenue) * 100) / 100;
+      creator.courses.push(course);
+      creators.set(row.user_id, creator);
+    }
+
+    const list = [...creators.values()].sort((a, b) => b.revenue - a.revenue);
+    return {
+      from: start,
+      to: end,
+      currency: 'USD',
+      creators: list,
+      totalSales: list.reduce((sum, c) => sum + c.sales, 0),
+      totalRevenue:
+        Math.round(list.reduce((sum, c) => sum + c.revenue, 0) * 100) / 100,
+    };
   }
 
   /**
