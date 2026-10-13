@@ -14,7 +14,13 @@ import {
 import { CourseResourceAccessLevel } from '../course-resource.constants';
 
 @Entity()
-@Index(['course', 'slug'], { unique: true, where: '"deleted_at" IS NULL' })
+// Names match the CreateCourseResource migration, so migration:generate sees
+// these as already in place instead of dropping and recreating them.
+@Index('UQ_course_resource_course_slug', ['course', 'slug'], {
+  unique: true,
+  where: '"deleted_at" IS NULL',
+})
+@Index('IDX_course_resource_course_id', ['course'])
 export class CourseResource {
   @PrimaryGeneratedColumn()
   public id: number;
@@ -50,6 +56,9 @@ export class CourseResource {
   @ManyToOne(() => Course, (course) => course.courseResources, {
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'course_id' })
+  @JoinColumn({
+    name: 'course_id',
+    foreignKeyConstraintName: 'FK_course_resource_course',
+  })
   public course: Course;
 }
