@@ -13,7 +13,7 @@ import { createReadStream, promises as fs } from 'fs';
 
 const GUMROAD_API = 'https://api.gumroad.com/v2';
 // Where Gumroad serves public blobs; the existing course videos live here too.
-const PUBLIC_FILES_URL = 'https://public-files.gumroad.com';
+export const PUBLIC_FILES_URL = 'https://public-files.gumroad.com';
 const TICKET_SCOPE = 'gumroad-upload';
 
 @Injectable()

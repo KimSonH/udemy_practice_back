@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { CoursesMeController } from './courses.me.controller';
 import { CoursesService } from './courses.service';
 import { RequestWithUser } from 'src/authentication/requestWithUser.interface';
@@ -77,5 +77,37 @@ describe('CoursesMeController', () => {
     expect(service.assertSetOwnedBy).toHaveBeenCalledWith(9, 7);
     expect(sets.remove).toHaveBeenCalledWith(9);
     expect(service.markUnreviewed).toHaveBeenCalledWith(3);
+  });
+
+  it('only takes uploaded media from a learner, never a link', async () => {
+    const { service, controller } = setup();
+    await expect(
+      controller.create(req, {
+        name: 'x',
+        thumbnailImageUrl: 'https://example.com/cat.png',
+      } as never),
+    ).rejects.toThrow(BadRequestException);
+
+    const lesson = (uploadUrl: string) =>
+      ({
+        name: 'v',
+        courseSessions: [
+          { name: 's', courseContents: [{ name: 'l', uploadUrl }] },
+        ],
+      }) as never;
+    await expect(
+      controller.createVideo(req, lesson('https://example.com/v.mp4')),
+    ).rejects.toThrow(BadRequestException);
+    expect(service.createVideoCourse).not.toHaveBeenCalled();
+
+    await controller.create(req, {
+      name: 'x',
+      thumbnailImageUrl: '1791817868524-568910902.png',
+    } as never);
+    await controller.createVideo(
+      req,
+      lesson('https://public-files.gumroad.com/o0h34q8hr62ol1v4fsxpea606fig'),
+    );
+    expect(service.createVideoCourse).toHaveBeenCalled();
   });
 });

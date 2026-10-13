@@ -1285,12 +1285,15 @@ export class CoursesService {
     await this.coursesRepository.update(courseId, { reviewedAt: null });
   }
 
+  /** With per-set question counts, so the list can flag empty tests. */
   async findAllByOwner(userId: number) {
-    return this.coursesRepository.find({
+    const courses = await this.coursesRepository.find({
       where: { ownerUserId: userId },
-      relations: ['courseSessions'],
+      relations: ['courseSessions.courseContents', 'courseSets'],
       order: { createdAt: 'DESC' },
     });
+    await this.attachQuestionCounts(courses);
+    return courses;
   }
 
   async updateManyStatus(ids: string[], status: string) {

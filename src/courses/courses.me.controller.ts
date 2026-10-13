@@ -24,6 +24,7 @@ import { CourseSetsService } from 'src/course-sets/course-sets.service';
 import { CreateCourseSetForCourseDto } from 'src/course-sets/dto/create-course-set-for-course.dto';
 import { UpdateCourseSetDto } from 'src/course-sets/dto/update-course-set.dto';
 import LocalFilesInterceptor from 'src/interceptors/localFiles.interceptor';
+import { PUBLIC_FILES_URL } from 'src/gumroad/gumroad.service';
 import { CoursesService } from './courses.service';
 import {
   CreateMyCourseDto,
@@ -78,12 +79,15 @@ export class CoursesMeController {
   }
 
   @Post('courses')
-  create(@Req() req: RequestWithUser, @Body() dto: CreateMyCourseDto) {
+  async create(@Req() req: RequestWithUser, @Body() dto: CreateMyCourseDto) {
     return this.coursesService.createCourse(practice(dto), req.user.id);
   }
 
   @Post('courses/video')
-  createVideo(@Req() req: RequestWithUser, @Body() dto: MyVideoCourseDto) {
+  async createVideo(
+    @Req() req: RequestWithUser,
+    @Body() dto: MyVideoCourseDto,
+  ) {
     return this.coursesService.createVideoCourse(video(dto), req.user.id);
   }
 
@@ -226,7 +230,42 @@ export class CoursesMeController {
   }
 }
 
+/**
+ * Learners upload, they do not link: a thumbnail must be the bare file name
+ * our upload endpoint returned, and a lesson video must come from the storage
+ * our Gumroad uploader writes to. Otherwise a course could point at any image
+ * or video on the internet. (The admin endpoints accept any URL.)
+ */
+const UPLOADED_FILE_NAME = /^[A-Za-z0-9._-]+$/;
+
+function assertUploadedThumbnail(value?: string) {
+  if (value && !UPLOADED_FILE_NAME.test(value)) {
+    throw new BadRequestException([
+      {
+        field: 'thumbnailImageUrl',
+        message: 'Upload the thumbnail instead of linking to it',
+      },
+    ]);
+  }
+}
+
+function assertUploadedVideos(dto: MyVideoCourseDto) {
+  for (const session of dto.courseSessions ?? []) {
+    for (const content of session.courseContents ?? []) {
+      if (!content.uploadUrl?.startsWith(`${PUBLIC_FILES_URL}/`)) {
+        throw new BadRequestException([
+          {
+            field: 'courseSessions',
+            message: `Upload the video for "${content.name}" instead of linking to it`,
+          },
+        ]);
+      }
+    }
+  }
+}
+
 function practice(dto: CreateMyCourseDto | UpdateMyCourseDto) {
+  assertUploadedThumbnail(dto.thumbnailImageUrl);
   return {
     ...dto,
     creationMode: 'manual',
@@ -236,5 +275,7 @@ function practice(dto: CreateMyCourseDto | UpdateMyCourseDto) {
 }
 
 function video(dto: MyVideoCourseDto) {
+  assertUploadedThumbnail(dto.thumbnailImageUrl);
+  assertUploadedVideos(dto);
   return { ...dto, organizationId: undefined, id: undefined } as VideoCourseDto;
 }
