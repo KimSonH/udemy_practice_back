@@ -90,6 +90,12 @@ export class Course {
   @Column({ name: 'reviewed_at', type: 'timestamp', nullable: true })
   public reviewedAt?: Date | null;
 
+  /**
+   * The creator's display name, filled in only on the public course page. Not
+   * a column; the owner relation stays excluded so no email can leak.
+   */
+  public creatorName?: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   public createdAt!: Date;
 
