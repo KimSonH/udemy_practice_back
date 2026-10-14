@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   Req,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { UserCoursesService } from './user-courses.service';
 import { CreateUserCourseDto } from './dto/create-user-course.dto';
@@ -120,6 +121,19 @@ export class UserCoursesController {
   @UseGuards(JwtAuthenticationGuard)
   findAll(@Req() req: RequestWithUser, @Query() query: PaginationParams) {
     return this.userCoursesService.findAll(query, 'completed', req.user.id);
+  }
+
+  @ApiOperation({ summary: 'Whether the caller has bought a course' })
+  @ApiParam({ name: 'courseId', type: 'number' })
+  @Get(':courseId/owned')
+  @UseGuards(JwtAuthenticationGuard)
+  async owned(
+    @Req() req: RequestWithUser,
+    @Param('courseId', ParseIntPipe) courseId: number,
+  ) {
+    return {
+      owned: await this.userCoursesService.owns(req.user.id, courseId),
+    };
   }
 
   @ApiOperation({ summary: 'Get user course by ID' })
