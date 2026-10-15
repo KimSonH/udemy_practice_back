@@ -191,6 +191,13 @@ export class UserCoursesService {
     }
   }
 
+  /** A completed purchase (or grant) of the course; no course data loaded. */
+  owns(userId: number, courseId: number) {
+    return this.userCourseRepository.exists({
+      where: { userId, courseId, status: 'completed' },
+    });
+  }
+
   async findOneByCourseId(
     courseId: number,
     userId: number,
