@@ -96,6 +96,9 @@ export class Course {
    */
   public creatorName?: string | null;
 
+  /** Lessons of a video course, filled in only by list endpoints. */
+  public lessonCount?: number;
+
   @CreateDateColumn({ name: 'created_at' })
   public createdAt!: Date;
 

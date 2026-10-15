@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   CanActivate,
   Controller,
   ExecutionContext,
@@ -52,6 +53,15 @@ export class GumroadController {
 
   // Learners creating their own video courses upload the same way.
   @ApiBearerAuth()
+  @Post('admin/gumroad/check-links')
+  @UseGuards(JwtAdminAuthenticationGuard)
+  checkLinks(@Body('urls') urls: unknown) {
+    if (!Array.isArray(urls) || urls.some((u) => typeof u !== 'string')) {
+      throw new BadRequestException('urls must be a list of strings');
+    }
+    return this.gumroadService.checkLinks(urls);
+  }
+
   @Post('me/gumroad/upload-ticket')
   @UseGuards(JwtAuthenticationGuard)
   learnerUploadTicket(@Req() req: RequestWithUser) {

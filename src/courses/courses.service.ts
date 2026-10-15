@@ -640,6 +640,26 @@ export class CoursesService {
   }
 
   /** Fills `questionCount` on every set of the given courses, in one query. */
+  /** Fills `lessonCount` on video courses (0 on practice ones), one query. */
+  async attachLessonCounts(courses: Course[]): Promise<void> {
+    const ids = courses.map((course) => course.id);
+    if (ids.length === 0) return;
+    const rows: { course_id: number; count: string }[] =
+      await this.dataSource.query(
+        `SELECT s.course_id, count(c.id) AS count
+         FROM course_session s
+         JOIN course_content c ON c.course_session_id = s.id
+         WHERE s.course_id = ANY($1)
+           AND s.deleted_at IS NULL AND c.deleted_at IS NULL
+         GROUP BY s.course_id`,
+        [ids],
+      );
+    const byCourse = new Map(rows.map((row) => [row.course_id, +row.count]));
+    for (const course of courses) {
+      course.lessonCount = byCourse.get(course.id) ?? 0;
+    }
+  }
+
   async attachQuestionCounts(courses: Course[]): Promise<void> {
     const setIds = courses.flatMap((course) =>
       (course.courseSets ?? []).map((set) => set.id),
