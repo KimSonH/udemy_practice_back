@@ -123,6 +123,17 @@ export class UserCoursesController {
     return this.userCoursesService.findAll(query, 'completed', req.user.id);
   }
 
+  @ApiOperation({ summary: 'Enroll the caller in a free course' })
+  @ApiParam({ name: 'courseId', type: 'number' })
+  @Post(':courseId/enroll')
+  @UseGuards(JwtAuthenticationGuard)
+  enroll(
+    @Req() req: RequestWithUser,
+    @Param('courseId', ParseIntPipe) courseId: number,
+  ) {
+    return this.userCoursesService.enrollFree(req.user.id, courseId);
+  }
+
   @ApiOperation({ summary: 'Whether the caller has bought a course' })
   @ApiParam({ name: 'courseId', type: 'number' })
   @Get(':courseId/owned')
