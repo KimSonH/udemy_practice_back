@@ -162,6 +162,7 @@ export class UserCoursesService {
       const items = await queryBuilder.getMany();
       const courses = items.map((item) => item.course);
       await this.coursesService.attachQuestionCounts(courses);
+      await this.coursesService.attachLessonCounts(courses);
 
       return {
         items: courses,

@@ -163,4 +163,31 @@ describe('GumroadService', () => {
       size: '11',
     });
   });
+
+  it('checks only Gumroad links and reports the broken ones', async () => {
+    mockedAxios.head.mockReset();
+    mockedAxios.head
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: { 'content-type': 'video/mp4' },
+      })
+      .mockResolvedValueOnce({
+        status: 403,
+        headers: { 'content-type': 'application/xml' },
+      });
+
+    const results = await service.checkLinks([
+      'https://public-files.gumroad.com/good',
+      'https://public-files.gumroad.com/gone',
+      'http://169.254.169.254/latest/meta-data',
+    ]);
+
+    expect(results).toEqual([
+      { url: 'https://public-files.gumroad.com/good', ok: true, status: 200 },
+      { url: 'https://public-files.gumroad.com/gone', ok: false, status: 403 },
+      { url: 'http://169.254.169.254/latest/meta-data', ok: null },
+    ]);
+    // The non-Gumroad URL was never fetched.
+    expect(mockedAxios.head).toHaveBeenCalledTimes(2);
+  });
 });

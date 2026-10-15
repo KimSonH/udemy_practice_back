@@ -178,6 +178,33 @@ export class GumroadService {
   }
 
   /**
+   * Which of a course's video URLs still play. Only Gumroad public files are
+   * fetched, so the endpoint cannot be pointed at arbitrary hosts; anything
+   * else comes back unchecked (ok: null).
+   */
+  async checkLinks(urls: string[]) {
+    const unique = [...new Set(urls)].slice(0, 500);
+    const results: { url: string; ok: boolean | null; status?: number }[] = [];
+    // ponytail: 8 at a time keeps a 500-lesson course under a minute.
+    for (let i = 0; i < unique.length; i += 8) {
+      const batch = unique.slice(i, i + 8).map(async (url) => {
+        if (!url.startsWith(`${PUBLIC_FILES_URL}/`)) return { url, ok: null };
+        const res = await axios
+          .head(url, { validateStatus: () => true, timeout: 15000 })
+          .catch(() => null);
+        const status = res?.status;
+        return {
+          url,
+          ok: status === 200 && /^video\//.test(res.headers['content-type']),
+          status,
+        };
+      });
+      results.push(...(await Promise.all(batch)));
+    }
+    return results;
+  }
+
+  /**
    * Only hand back a URL the player can actually open: the upload succeeding
    * does not prove the public link serves it. Retried briefly, since the CDN
    * in front of the bucket may not see a brand-new object at once.
