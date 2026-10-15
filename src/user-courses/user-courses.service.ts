@@ -111,11 +111,9 @@ export class UserCoursesService {
         .createQueryBuilder('userCourse')
         .leftJoinAndSelect('userCourse.user', 'user')
         .leftJoinAndSelect('userCourse.course', 'course')
+        // No questions: the cards show a count, and joining every question
+        // of every course made this page take seconds. Counted below.
         .leftJoinAndSelect('course.courseSets', 'courseSets')
-        .leftJoinAndSelect(
-          'courseSets.udemyQuestionBanks',
-          'udemyQuestionBanks',
-        )
         .leftJoinAndSelect('course.organization', 'organization')
         .where('userCourse.userId = :userId', { userId })
         .andWhere('course.status = :courseStatus', { courseStatus: 'active' })
@@ -160,9 +158,11 @@ export class UserCoursesService {
       }
 
       const items = await queryBuilder.getMany();
+      const courses = items.map((item) => item.course);
+      await this.coursesService.attachQuestionCounts(courses);
 
       return {
-        items: items.map((item) => item.course),
+        items: courses,
         total,
         page,
         limit,
