@@ -640,7 +640,7 @@ export class CoursesService {
   }
 
   /** Fills `questionCount` on every set of the given courses, in one query. */
-  private async attachQuestionCounts(courses: Course[]): Promise<void> {
+  async attachQuestionCounts(courses: Course[]): Promise<void> {
     const setIds = courses.flatMap((course) =>
       (course.courseSets ?? []).map((set) => set.id),
     );
