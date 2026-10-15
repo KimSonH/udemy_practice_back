@@ -3,6 +3,7 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { CreateUserCourseDto } from './dto/create-user-course.dto';
 import { UpdateUserCourseDto } from './dto/update-user-course.dto';
@@ -11,6 +12,7 @@ import { ILike, Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PaginationParams } from 'src/common/pagination.type';
 import { CoursesService } from 'src/courses/courses.service';
+import { Course } from 'src/courses/entities/courses.entity';
 
 @Injectable()
 export class UserCoursesService {
@@ -189,6 +191,36 @@ export class UserCoursesService {
       this.logger.error(`Error getting user course: ${error.message}`);
       throw new BadRequestException('Error getting user course');
     }
+  }
+
+  /**
+   * Gives a signed-in learner a free course, the way a purchase would, so it
+   * shows in their courses and opens the learning page. Idempotent.
+   * `order_by: 'free'` keeps it out of the revenue report, which counts only
+   * the payment gateways.
+   */
+  async enrollFree(userId: number, courseId: number) {
+    const course = await this.userCourseRepository.manager.findOne(Course, {
+      where: { id: courseId, status: 'active' },
+      select: { id: true, type: true },
+    });
+    if (!course) {
+      throw new NotFoundException('Course not found');
+    }
+    if (course.type !== 'free') {
+      throw new BadRequestException('Only free courses can be enrolled in');
+    }
+    if (!(await this.owns(userId, courseId))) {
+      await this.userCourseRepository.save(
+        this.userCourseRepository.create({
+          userId,
+          courseId,
+          orderBy: 'free',
+          status: 'completed',
+        }),
+      );
+    }
+    return { owned: true };
   }
 
   /** A completed purchase (or grant) of the course; no course data loaded. */
