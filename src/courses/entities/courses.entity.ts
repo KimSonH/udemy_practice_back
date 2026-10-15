@@ -99,6 +99,9 @@ export class Course {
   /** Lessons of a video course, filled in only by list endpoints. */
   public lessonCount?: number;
 
+  /** The viewer's finished lessons, filled in only on their own course list. */
+  public lessonsCompleted?: number;
+
   @CreateDateColumn({ name: 'created_at' })
   public createdAt!: Date;
 

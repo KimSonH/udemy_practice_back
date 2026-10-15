@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { UserCoursesService } from '../user-courses.service';
 import { UserCourse } from '../entities/user-course.entity';
+import { LessonProgress } from '../entities/lesson-progress.entity';
 import { CoursesService } from 'src/courses/courses.service';
 import { createMockRepository } from 'src/common/test/mocks';
 
@@ -15,6 +16,10 @@ describe('UserCoursesService', () => {
         {
           provide: getRepositoryToken(UserCourse),
           useValue: createMockRepository<UserCourse>(),
+        },
+        {
+          provide: getRepositoryToken(LessonProgress),
+          useValue: createMockRepository<LessonProgress>(),
         },
         { provide: CoursesService, useValue: {} },
       ],

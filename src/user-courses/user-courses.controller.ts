@@ -10,9 +10,11 @@ import {
   UseGuards,
   Req,
   ParseIntPipe,
+  Put,
 } from '@nestjs/common';
 import { UserCoursesService } from './user-courses.service';
 import { CreateUserCourseDto } from './dto/create-user-course.dto';
+import { SaveLessonProgressDto } from './dto/save-lesson-progress.dto';
 import { UpdateUserCourseDto } from './dto/update-user-course.dto';
 import { PaginationParams } from 'src/common/pagination.type';
 import JwtAuthenticationGuard from 'src/authentication/guard/jwt-authentication.guard';
@@ -121,6 +123,34 @@ export class UserCoursesController {
   @UseGuards(JwtAuthenticationGuard)
   findAll(@Req() req: RequestWithUser, @Query() query: PaginationParams) {
     return this.userCoursesService.findAll(query, 'completed', req.user.id);
+  }
+
+  @ApiOperation({ summary: "The caller's progress in a video course" })
+  @ApiParam({ name: 'courseId', type: 'number' })
+  @Get(':courseId/progress')
+  @UseGuards(JwtAuthenticationGuard)
+  getProgress(
+    @Req() req: RequestWithUser,
+    @Param('courseId', ParseIntPipe) courseId: number,
+  ) {
+    return this.userCoursesService.getProgress(req.user.id, courseId);
+  }
+
+  @ApiOperation({ summary: 'Record that a lesson was opened or finished' })
+  @ApiParam({ name: 'courseId', type: 'number' })
+  @Put(':courseId/progress')
+  @UseGuards(JwtAuthenticationGuard)
+  saveProgress(
+    @Req() req: RequestWithUser,
+    @Param('courseId', ParseIntPipe) courseId: number,
+    @Body() body: SaveLessonProgressDto,
+  ) {
+    return this.userCoursesService.saveProgress(
+      req.user.id,
+      courseId,
+      body.url,
+      body.completed,
+    );
   }
 
   @ApiOperation({ summary: 'Enroll the caller in a free course' })
