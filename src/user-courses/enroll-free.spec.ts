@@ -8,7 +8,11 @@ function setup(course: { type: string } | null, owned = false) {
     create: jest.fn((row) => row),
     save: jest.fn(async (row) => row),
   };
-  const service = new UserCoursesService(repo as never, {} as never);
+  const service = new UserCoursesService(
+    repo as never,
+    {} as never,
+    {} as never,
+  );
   return { service, repo };
 }
 
