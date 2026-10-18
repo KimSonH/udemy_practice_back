@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Course } from './entities/courses.entity';
+import { AdminCourseQuery } from './dto/admin-course-query.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   Repository,
@@ -561,7 +562,7 @@ export class CoursesService {
     }
   }
 
-  async findAllByAdmin(query: PaginationParams) {
+  async findAllByAdmin(query: AdminCourseQuery) {
     const {
       page,
       limit,
@@ -570,6 +571,9 @@ export class CoursesService {
       type,
       organizationId,
       organizationSlug,
+      status,
+      kind,
+      creator,
     } = query;
     const offset = (page - 1) * limit;
     const order = {
@@ -614,6 +618,21 @@ export class CoursesService {
               qb.andWhere('organization.slug = :organizationSlug', {
                 organizationSlug,
               });
+            }
+            if (status) {
+              qb.andWhere('course.status = :status', { status });
+            }
+            if (kind) {
+              // EXISTS rather than the joined rows, which also hold deleted
+              // sections and would multiply under skip/take.
+              qb.andWhere(
+                `${kind === 'video' ? '' : 'NOT '}EXISTS (SELECT 1 FROM course_session cs WHERE cs.course_id = course.id AND cs.deleted_at IS NULL)`,
+              );
+            }
+            if (creator) {
+              qb.andWhere(
+                `course.ownerUserId IS ${creator === 'learner' ? 'NOT ' : ''}NULL`,
+              );
             }
           }),
         )

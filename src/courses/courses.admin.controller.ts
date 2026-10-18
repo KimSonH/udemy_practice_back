@@ -14,7 +14,7 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { CoursesService } from './courses.service';
-import { PaginationParams } from 'src/common/pagination.type';
+import { AdminCourseQuery } from './dto/admin-course-query.dto';
 import JwtAdminAuthenticationGuard from 'src/authentication/guard/jwt-admin-authentication.guard';
 import {
   ApiTags,
@@ -208,7 +208,7 @@ export class CoursesAdminController {
   @ApiQuery({ name: 'page', required: false, type: 'number' })
   @ApiQuery({ name: 'limit', required: false, type: 'number' })
   @Get()
-  getCourses(@Query() query: PaginationParams) {
+  getCourses(@Query() query: AdminCourseQuery) {
     return this.coursesService.findAllByAdmin(query);
   }
 
