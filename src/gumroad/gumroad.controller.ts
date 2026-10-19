@@ -4,8 +4,10 @@ import {
   CanActivate,
   Controller,
   ExecutionContext,
+  Get,
   Injectable,
   Post,
+  Query,
   Req,
   UploadedFile,
   UseGuards,
@@ -18,6 +20,7 @@ import JwtAuthenticationGuard from 'src/authentication/guard/jwt-authentication.
 import LocalFilesInterceptor from 'src/interceptors/localFiles.interceptor';
 import { RequestWithUser } from 'src/authentication/requestWithUser.interface';
 import { GumroadService, UploadTicket } from './gumroad.service';
+import { GumroadVideoQuery } from './dto/gumroad-video-query.dto';
 
 // A guard, not a check in the handler: guards run before the interceptor, so
 // a request without a valid ticket is refused before anything is written.
@@ -53,6 +56,12 @@ export class GumroadController {
 
   // Learners creating their own video courses upload the same way.
   @ApiBearerAuth()
+  @Get('admin/gumroad/videos')
+  @UseGuards(JwtAdminAuthenticationGuard)
+  listVideos(@Query() query: GumroadVideoQuery) {
+    return this.gumroadService.listVideos(query);
+  }
+
   @Post('admin/gumroad/check-links')
   @UseGuards(JwtAdminAuthenticationGuard)
   checkLinks(@Body('urls') urls: unknown) {

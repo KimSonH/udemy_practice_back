@@ -12,6 +12,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, MoreThan, Repository } from 'typeorm';
 import { GumroadUpload } from './gumroad-upload.entity';
+import { GumroadVideoQuery } from './dto/gumroad-video-query.dto';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import axios from 'axios';
@@ -175,6 +176,102 @@ export class GumroadService {
     } finally {
       await fs.rm(file.path, { force: true });
     }
+  }
+
+  /**
+   * Every Gumroad video the site knows about, for the admin to manage: the
+   * ones uploaded through this API (with who uploaded them) and the ones only
+   * pasted into lessons. Each comes with the live lessons that use it, or the
+   * last lesson that did, so an unused video can be traced before it goes.
+   */
+  async listVideos(query: GumroadVideoQuery) {
+    const { search, usage, source } = query;
+    // The global ValidationPipe validates but does not transform: numbers
+    // arrive as strings, and defaults are not applied.
+    const page = Math.max(1, Number(query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
+    const where: string[] = [];
+    const params: unknown[] = [`${PUBLIC_FILES_URL}/%`];
+    if (search) {
+      params.push(`%${search}%`);
+      where.push(
+        `(v.url ILIKE $${params.length} OR v.used_in::text ILIKE $${params.length})`,
+      );
+    }
+    if (usage) where.push(`v.used_in IS ${usage === 'used' ? 'NOT ' : ''}NULL`);
+    if (source === 'untracked') where.push('v.upload_id IS NULL');
+    if (source === 'admin') {
+      where.push('v.upload_id IS NOT NULL AND v.user_id IS NULL');
+    }
+    if (source === 'learner') where.push('v.user_id IS NOT NULL');
+
+    // A lesson counts as live only when it, its section and its course are
+    // all undeleted: saving a video course soft-deletes every old lesson.
+    const lessonsOf = (live: boolean) => `
+      SELECT json_build_object('courseId', c.id, 'courseName', c.name,
+               'lessonName', cc.name, 'kind', 'video') AS item,
+             cc.created_at
+      FROM course_content cc
+      JOIN course_session s ON s.id = cc.course_session_id
+      JOIN course c ON c.id = s.course_id
+      WHERE cc.upload_url = u.url AND ${
+        live
+          ? 'cc.deleted_at IS NULL AND s.deleted_at IS NULL AND c.deleted_at IS NULL'
+          : '(cc.deleted_at IS NOT NULL OR s.deleted_at IS NOT NULL OR c.deleted_at IS NOT NULL)'
+      }`;
+    const base = `
+      WITH urls AS (
+        SELECT url FROM gumroad_upload
+        UNION
+        SELECT upload_url FROM course_content WHERE upload_url LIKE $1
+      ),
+      v AS (
+        SELECT u.url, g.id AS upload_id, g.user_id, g.size, g.created_at,
+               concat_ws(' ', usr.first_name, usr.last_name) AS uploader_name,
+               usr.email AS uploader_email,
+               (SELECT json_agg(l.item ORDER BY l.created_at)
+                  FROM (${lessonsOf(true)}) l) AS used_in,
+               (SELECT l.item FROM (${lessonsOf(false)}) l
+                  ORDER BY l.created_at DESC LIMIT 1) AS last_used_in
+        FROM urls u
+        LEFT JOIN gumroad_upload g ON g.url = u.url
+        LEFT JOIN "user" usr ON usr.id = g.user_id
+      )
+      SELECT * FROM v ${where.length ? `WHERE ${where.join(' AND ')}` : ''}`;
+
+    const [{ total }] = await this.uploads.query(
+      `SELECT count(*)::int AS total FROM (${base}) t`,
+      params,
+    );
+    const rows = await this.uploads.query(
+      `${base} ORDER BY v.created_at DESC NULLS LAST, v.url
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, limit, (page - 1) * limit],
+    );
+    return {
+      items: rows.map((row) => ({
+        url: row.url,
+        tracked: row.upload_id !== null,
+        size: row.size === null ? null : Number(row.size),
+        uploadedAt: row.created_at,
+        uploader:
+          row.upload_id === null
+            ? null
+            : row.user_id === null
+              ? { kind: 'admin' }
+              : {
+                  kind: 'learner',
+                  userId: row.user_id,
+                  name: row.uploader_name,
+                  email: row.uploader_email,
+                },
+        usedIn: row.used_in ?? [],
+        lastUsedIn: row.last_used_in,
+      })),
+      total,
+      page,
+      limit,
+    };
   }
 
   /**
