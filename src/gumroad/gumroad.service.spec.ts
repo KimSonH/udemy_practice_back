@@ -16,6 +16,7 @@ const env: Record<string, string> = {
 const config = { get: (key: string) => env[key] } as ConfigService;
 const jwt = new JwtService();
 const uploads = {
+  query: jest.fn<Promise<unknown[]>, [string, unknown[]]>(async () => []),
   count: jest.fn(async () => 0),
   find: jest.fn(async () => [] as { url: string }[]),
   insert: jest.fn(async () => ({})),
@@ -189,5 +190,55 @@ describe('GumroadService', () => {
     ]);
     // The non-Gumroad URL was never fetched.
     expect(mockedAxios.head).toHaveBeenCalledTimes(2);
+  });
+
+  it('lists videos with who uploaded them and where they are used', async () => {
+    uploads.query.mockResolvedValueOnce([{ total: 2 }]).mockResolvedValueOnce([
+      {
+        url: 'https://public-files.gumroad.com/a',
+        upload_id: 1,
+        user_id: 5,
+        size: '100',
+        created_at: 'd',
+        uploader_name: 'Creator A',
+        uploader_email: 'a@x',
+        used_in: [{ courseId: 66 }],
+        last_used_in: null,
+      },
+      {
+        url: 'https://public-files.gumroad.com/b',
+        upload_id: null,
+        user_id: null,
+        size: null,
+        created_at: null,
+        used_in: null,
+        last_used_in: { courseId: 60 },
+      },
+    ]);
+
+    const result = await service.listVideos({
+      page: '2' as never,
+      usage: 'unused',
+      source: 'learner',
+    });
+
+    expect(result.total).toBe(2);
+    expect(result.items[0]).toMatchObject({
+      tracked: true,
+      size: 100,
+      uploader: { kind: 'learner', userId: 5, name: 'Creator A' },
+      usedIn: [{ courseId: 66 }],
+    });
+    expect(result.items[1]).toMatchObject({
+      tracked: false,
+      uploader: null,
+      usedIn: [],
+      lastUsedIn: { courseId: 60 },
+    });
+    const [sql, params] = uploads.query.mock.calls[1];
+    expect(sql).toContain('v.used_in IS NULL');
+    expect(sql).toContain('v.user_id IS NOT NULL');
+    // Page 2 of 20: the strings a query string carries are coerced.
+    expect(params.slice(-2)).toEqual([20, 20]);
   });
 });
