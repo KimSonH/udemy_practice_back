@@ -21,7 +21,10 @@ function setup(owned = true) {
     }),
   };
   const sets = { remove: jest.fn(async () => ({})) };
-  const gumroad = { assertUploadsOwnedBy: jest.fn(async () => undefined) };
+  const gumroad = {
+    assertUploadsOwnedBy: jest.fn(async () => undefined),
+    assertNotRetired: jest.fn(async () => undefined),
+  };
   const controller = new CoursesMeController(
     service as unknown as CoursesService,
     sets as never,

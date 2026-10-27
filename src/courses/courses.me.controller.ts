@@ -24,7 +24,11 @@ import { CourseSetsService } from 'src/course-sets/course-sets.service';
 import { CreateCourseSetForCourseDto } from 'src/course-sets/dto/create-course-set-for-course.dto';
 import { UpdateCourseSetDto } from 'src/course-sets/dto/update-course-set.dto';
 import LocalFilesInterceptor from 'src/interceptors/localFiles.interceptor';
-import { GumroadService, PUBLIC_FILES_URL } from 'src/gumroad/gumroad.service';
+import {
+  GumroadService,
+  lessonUrls,
+  PUBLIC_FILES_URL,
+} from 'src/gumroad/gumroad.service';
 import { CoursesService } from './courses.service';
 import {
   CreateMyCourseDto,
@@ -94,6 +98,7 @@ export class CoursesMeController {
       req.user.id,
       lessonUrls(data),
     );
+    await this.gumroadService.assertNotRetired(lessonUrls(data));
     return this.coursesService.createVideoCourse(data, req.user.id);
   }
 
@@ -113,6 +118,7 @@ export class CoursesMeController {
       lessonUrls(data),
       lessonUrls(current),
     );
+    await this.gumroadService.assertNotRetired(lessonUrls(data));
     return this.changed(id, this.coursesService.updateVideoCourse(id, data));
   }
 
@@ -290,14 +296,4 @@ function video(dto: MyVideoCourseDto) {
   assertUploadedThumbnail(dto.thumbnailImageUrl);
   assertUploadedVideos(dto);
   return { ...dto, organizationId: undefined, id: undefined } as VideoCourseDto;
-}
-
-function lessonUrls(course: {
-  courseSessions?: { courseContents?: { uploadUrl?: string }[] }[];
-}) {
-  return (course.courseSessions ?? []).flatMap((session) =>
-    (session.courseContents ?? [])
-      .map((content) => content.uploadUrl)
-      .filter((url): url is string => !!url),
-  );
 }

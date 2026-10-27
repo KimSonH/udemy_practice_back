@@ -5,6 +5,7 @@ import { CoursesService } from '../courses.service';
 import { CourseSetsService } from 'src/course-sets/course-sets.service';
 import JwtAdminAuthenticationGuard from 'src/authentication/guard/jwt-admin-authentication.guard';
 import { allowAllGuard } from 'src/common/test/mocks';
+import { GumroadService } from 'src/gumroad/gumroad.service';
 
 describe('CoursesAdminController', () => {
   let controller: CoursesAdminController;
@@ -15,6 +16,7 @@ describe('CoursesAdminController', () => {
       providers: [
         { provide: CoursesService, useValue: {} },
         { provide: CourseSetsService, useValue: {} },
+        { provide: GumroadService, useValue: {} },
         {
           // This controller decorates two routes with LocalFilesInterceptor,
           // which is a mixin whose class injects ConfigService. A mixin is a

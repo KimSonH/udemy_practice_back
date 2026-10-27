@@ -26,12 +26,19 @@ export class GumroadVideoQuery {
   @IsString()
   search?: string;
 
-  /** used: in a live lesson now; unused: in none. */
+  /** used: in a live lesson now; unused: in none, not retired; retired. */
   @emptyToUndefined
   @IsOptional()
-  @IsIn(['used', 'unused'])
-  @ApiPropertyOptional({ enum: ['used', 'unused'] })
-  usage?: 'used' | 'unused';
+  @IsIn(['used', 'unused', 'retired'])
+  @ApiPropertyOptional({ enum: ['used', 'unused', 'retired'] })
+  usage?: 'used' | 'unused' | 'retired';
+
+  /** From the last "Check all links": broken, or never checked. */
+  @emptyToUndefined
+  @IsOptional()
+  @IsIn(['broken', 'unchecked'])
+  @ApiPropertyOptional({ enum: ['broken', 'unchecked'] })
+  health?: 'broken' | 'unchecked';
 
   /** admin / learner: who uploaded it; untracked: pasted, never uploaded here. */
   @emptyToUndefined

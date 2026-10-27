@@ -32,6 +32,7 @@ import { UpdateCourseDto } from './dto/update-course.dto';
 import LocalFilesInterceptor from 'src/interceptors/localFiles.interceptor';
 import { Course } from './entities/courses.entity';
 import { VideoCourseDto } from './dto/create-video-course.dto';
+import { GumroadService, lessonUrls } from 'src/gumroad/gumroad.service';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { CourseSetsService } from 'src/course-sets/course-sets.service';
 import { CreateCourseSetForCourseDto } from 'src/course-sets/dto/create-course-set-for-course.dto';
@@ -45,6 +46,7 @@ export class CoursesAdminController {
   constructor(
     private readonly coursesService: CoursesService,
     private readonly courseSetsService: CourseSetsService,
+    private readonly gumroadService: GumroadService,
   ) {}
 
   @ApiOperation({
@@ -87,7 +89,8 @@ export class CoursesAdminController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiBody({ type: VideoCourseDto })
   @Post('video')
-  createVideoCourse(@Body() course: VideoCourseDto) {
+  async createVideoCourse(@Body() course: VideoCourseDto) {
+    await this.gumroadService.assertNotRetired(lessonUrls(course));
     return this.coursesService.createVideoCourse(course);
   }
 
@@ -277,7 +280,11 @@ export class CoursesAdminController {
   @ApiParam({ name: 'id', type: 'number' })
   @ApiBody({ type: VideoCourseDto })
   @Put('video/:id')
-  updateVideoCourse(@Param('id') id: number, @Body() course: VideoCourseDto) {
+  async updateVideoCourse(
+    @Param('id') id: number,
+    @Body() course: VideoCourseDto,
+  ) {
+    await this.gumroadService.assertNotRetired(lessonUrls(course));
     return this.coursesService.updateVideoCourse(id, course);
   }
 

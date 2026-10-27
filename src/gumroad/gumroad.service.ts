@@ -1,17 +1,20 @@
 import {
   BadGatewayException,
   BadRequestException,
+  ConflictException,
   HttpException,
   HttpStatus,
   Injectable,
   InternalServerErrorException,
   Logger,
+  NotFoundException,
   PayloadTooLargeException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, MoreThan, Repository } from 'typeorm';
+import { In, IsNull, MoreThan, Not, Repository } from 'typeorm';
 import { GumroadUpload } from './gumroad-upload.entity';
+import { GumroadVideoStatus } from './gumroad-video-status.entity';
 import { GumroadVideoQuery } from './dto/gumroad-video-query.dto';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -22,6 +25,17 @@ import { createReadStream, promises as fs } from 'fs';
 const GUMROAD_API = 'https://api.gumroad.com/v2';
 // Where Gumroad serves public blobs; the existing course videos live here too.
 export const PUBLIC_FILES_URL = 'https://public-files.gumroad.com';
+
+/** Every lesson video URL of a video course payload. */
+export function lessonUrls(course: {
+  courseSessions?: { courseContents?: { uploadUrl?: string }[] }[];
+}) {
+  return (course.courseSessions ?? []).flatMap((session) =>
+    (session.courseContents ?? [])
+      .map((content) => content.uploadUrl)
+      .filter((url): url is string => !!url),
+  );
+}
 const TICKET_SCOPE = 'gumroad-upload';
 
 /**
@@ -44,6 +58,8 @@ export class GumroadService {
     private readonly jwtService: JwtService,
     @InjectRepository(GumroadUpload)
     private readonly uploads: Repository<GumroadUpload>,
+    @InjectRepository(GumroadVideoStatus)
+    private readonly statuses: Repository<GumroadVideoStatus>,
   ) {}
 
   /**
@@ -198,7 +214,14 @@ export class GumroadService {
         `(v.url ILIKE $${params.length} OR v.used_in::text ILIKE $${params.length})`,
       );
     }
-    if (usage) where.push(`v.used_in IS ${usage === 'used' ? 'NOT ' : ''}NULL`);
+    if (usage === 'used') where.push('v.used_in IS NOT NULL');
+    // Unused means waiting for a decision: retired ones are listed apart.
+    if (usage === 'unused') {
+      where.push('v.used_in IS NULL AND v.retired_at IS NULL');
+    }
+    if (usage === 'retired') where.push('v.retired_at IS NOT NULL');
+    if (query.health === 'broken') where.push('v.check_ok = false');
+    if (query.health === 'unchecked') where.push('v.checked_at IS NULL');
     if (source === 'untracked') where.push('v.upload_id IS NULL');
     if (source === 'admin') {
       where.push('v.upload_id IS NOT NULL AND v.user_id IS NULL');
@@ -232,9 +255,11 @@ export class GumroadService {
                (SELECT json_agg(l.item ORDER BY l.created_at)
                   FROM (${lessonsOf(true)}) l) AS used_in,
                (SELECT l.item FROM (${lessonsOf(false)}) l
-                  ORDER BY l.created_at DESC LIMIT 1) AS last_used_in
+                  ORDER BY l.created_at DESC LIMIT 1) AS last_used_in,
+               st.retired_at, st.checked_at, st.check_ok, st.check_status
         FROM urls u
         LEFT JOIN gumroad_upload g ON g.url = u.url
+        LEFT JOIN gumroad_video_status st ON st.url = u.url
         LEFT JOIN "user" usr ON usr.id = g.user_id
       )
       SELECT * FROM v ${where.length ? `WHERE ${where.join(' AND ')}` : ''}`;
@@ -267,11 +292,99 @@ export class GumroadService {
                 },
         usedIn: row.used_in ?? [],
         lastUsedIn: row.last_used_in,
+        retiredAt: row.retired_at,
+        check:
+          row.checked_at === null
+            ? null
+            : {
+                ok: row.check_ok,
+                status: row.check_status,
+                checkedAt: row.checked_at,
+              },
       })),
       total,
       page,
       limit,
     };
+  }
+
+  /** Every Gumroad URL the site knows: uploaded here or pasted in a lesson. */
+  private async knownUrls(): Promise<string[]> {
+    const rows: { url: string }[] = await this.uploads.query(
+      `SELECT url FROM gumroad_upload
+       UNION SELECT upload_url FROM course_content WHERE upload_url LIKE $1`,
+      [`${PUBLIC_FILES_URL}/%`],
+    );
+    return rows.map((row) => row.url);
+  }
+
+  /**
+   * Marks an unused video as retired, so no lesson can use it again. Gumroad's
+   * API has no way to delete an uploaded file; this is the part we control.
+   */
+  async retire(url: string) {
+    if (!(await this.knownUrls()).includes(url)) {
+      throw new NotFoundException('Video not found');
+    }
+    const [{ count }] = await this.uploads.query(
+      `SELECT count(*)::int AS count
+       FROM course_content cc
+       JOIN course_session s ON s.id = cc.course_session_id
+       JOIN course c ON c.id = s.course_id
+       WHERE cc.upload_url = $1 AND cc.deleted_at IS NULL
+         AND s.deleted_at IS NULL AND c.deleted_at IS NULL`,
+      [url],
+    );
+    if (count > 0) {
+      throw new ConflictException(
+        `Still used in ${count} lesson${count === 1 ? '' : 's'}; replace it there first`,
+      );
+    }
+    await this.upsertStatus(url, { retiredAt: new Date() });
+    return { url, retired: true };
+  }
+
+  async restore(url: string) {
+    await this.statuses.update({ url }, { retiredAt: null });
+    return { url, retired: false };
+  }
+
+  /** Checks every known video and keeps the result for the Videos page. */
+  async checkAllLinks() {
+    const results = await this.checkLinks(await this.knownUrls());
+    const checkedAt = new Date();
+    for (const result of results) {
+      await this.upsertStatus(result.url, {
+        checkedAt,
+        checkOk: result.ok,
+        checkStatus: result.status ?? null,
+      });
+    }
+    return {
+      checked: results.length,
+      broken: results.filter((result) => result.ok === false).length,
+    };
+  }
+
+  /** Refuses a course save that would put a retired video back in a lesson. */
+  async assertNotRetired(urls: string[]) {
+    if (urls.length === 0) return;
+    const retired = await this.statuses.find({
+      where: { url: In(urls), retiredAt: Not(IsNull()) },
+      select: { url: true },
+    });
+    if (retired.length) {
+      throw new BadRequestException([
+        {
+          field: 'courseSessions',
+          message: `This video was retired and cannot be used again: ${retired[0].url}`,
+        },
+      ]);
+    }
+  }
+
+  private async upsertStatus(url: string, fields: Partial<GumroadVideoStatus>) {
+    await this.statuses.upsert({ url, ...fields }, ['url']);
   }
 
   /**
