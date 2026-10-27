@@ -56,6 +56,24 @@ export class GumroadController {
 
   // Learners creating their own video courses upload the same way.
   @ApiBearerAuth()
+  @Post('admin/gumroad/videos/retire')
+  @UseGuards(JwtAdminAuthenticationGuard)
+  retire(@Body('url') url: unknown) {
+    return this.gumroadService.retire(requireUrl(url));
+  }
+
+  @Post('admin/gumroad/videos/restore')
+  @UseGuards(JwtAdminAuthenticationGuard)
+  restore(@Body('url') url: unknown) {
+    return this.gumroadService.restore(requireUrl(url));
+  }
+
+  @Post('admin/gumroad/videos/check')
+  @UseGuards(JwtAdminAuthenticationGuard)
+  checkAll() {
+    return this.gumroadService.checkAllLinks();
+  }
+
   @Get('admin/gumroad/videos')
   @UseGuards(JwtAdminAuthenticationGuard)
   listVideos(@Query() query: GumroadVideoQuery) {
@@ -104,4 +122,11 @@ export class GumroadController {
     if (!file) throw new BadRequestException('Provide a video');
     return this.gumroadService.upload(file, req.uploadTicket);
   }
+}
+
+function requireUrl(url: unknown): string {
+  if (typeof url !== 'string' || !url) {
+    throw new BadRequestException('url is required');
+  }
+  return url;
 }

@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import axios from 'axios';
@@ -21,7 +22,17 @@ const uploads = {
   find: jest.fn(async () => [] as { url: string }[]),
   insert: jest.fn(async () => ({})),
 };
-const service = new GumroadService(config, jwt, uploads as never);
+const statuses = {
+  find: jest.fn(async () => [] as { url: string }[]),
+  upsert: jest.fn(async () => ({})),
+  update: jest.fn(async () => ({})),
+};
+const service = new GumroadService(
+  config,
+  jwt,
+  uploads as never,
+  statuses as never,
+);
 
 describe('GumroadService', () => {
   it('accepts its own ticket and rejects anything else', () => {
@@ -240,5 +251,41 @@ describe('GumroadService', () => {
     expect(sql).toContain('v.user_id IS NOT NULL');
     // Page 2 of 20: the strings a query string carries are coerced.
     expect(params.slice(-2)).toEqual([20, 20]);
+  });
+
+  it('retires only an unused video, and only a known one', async () => {
+    const url = 'https://public-files.gumroad.com/a';
+    uploads.query.mockReset();
+    // knownUrls, then the lesson count.
+    uploads.query
+      .mockResolvedValueOnce([{ url }])
+      .mockResolvedValueOnce([{ count: 2 }]);
+    await expect(service.retire(url)).rejects.toThrow(
+      'Still used in 2 lessons',
+    );
+
+    uploads.query
+      .mockResolvedValueOnce([{ url }])
+      .mockResolvedValueOnce([{ count: 0 }]);
+    await expect(service.retire(url)).resolves.toEqual({ url, retired: true });
+    expect(statuses.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ url, retiredAt: expect.any(Date) }),
+      ['url'],
+    );
+
+    uploads.query.mockResolvedValueOnce([]);
+    await expect(service.retire('https://elsewhere/x')).rejects.toThrow(
+      'Video not found',
+    );
+  });
+
+  it('refuses a course save that reuses a retired video', async () => {
+    statuses.find.mockResolvedValueOnce([
+      { url: 'https://public-files.gumroad.com/old' },
+    ]);
+    await expect(
+      service.assertNotRetired(['https://public-files.gumroad.com/old']),
+    ).rejects.toThrow(BadRequestException);
+    await expect(service.assertNotRetired([])).resolves.toBeUndefined();
   });
 });
