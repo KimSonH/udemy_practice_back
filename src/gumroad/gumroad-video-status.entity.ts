@@ -36,6 +36,9 @@ export class GumroadVideoStatus {
   @Column({ name: 'check_status', type: 'int', nullable: true })
   public checkStatus: number | null;
 
+  @Column({ name: 'check_content_type', type: 'varchar', nullable: true })
+  public checkContentType: string | null;
+
   @UpdateDateColumn({ name: 'updated_at' })
   public updatedAt: Date;
 }
