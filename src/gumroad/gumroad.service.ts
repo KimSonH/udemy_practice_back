@@ -256,7 +256,8 @@ export class GumroadService {
                   FROM (${lessonsOf(true)}) l) AS used_in,
                (SELECT l.item FROM (${lessonsOf(false)}) l
                   ORDER BY l.created_at DESC LIMIT 1) AS last_used_in,
-               st.retired_at, st.checked_at, st.check_ok, st.check_status
+               st.retired_at, st.checked_at, st.check_ok, st.check_status,
+               st.check_content_type
         FROM urls u
         LEFT JOIN gumroad_upload g ON g.url = u.url
         LEFT JOIN gumroad_video_status st ON st.url = u.url
@@ -299,6 +300,7 @@ export class GumroadService {
             : {
                 ok: row.check_ok,
                 status: row.check_status,
+                contentType: row.check_content_type,
                 checkedAt: row.checked_at,
               },
       })),
@@ -358,6 +360,7 @@ export class GumroadService {
         checkedAt,
         checkOk: result.ok,
         checkStatus: result.status ?? null,
+        checkContentType: result.contentType ?? null,
       });
     }
     return {
@@ -394,7 +397,12 @@ export class GumroadService {
    */
   async checkLinks(urls: string[]) {
     const unique = [...new Set(urls)].slice(0, 500);
-    const results: { url: string; ok: boolean | null; status?: number }[] = [];
+    const results: {
+      url: string;
+      ok: boolean | null;
+      status?: number;
+      contentType?: string;
+    }[] = [];
     // ponytail: 8 at a time keeps a 500-lesson course under a minute.
     for (let i = 0; i < unique.length; i += 8) {
       const batch = unique.slice(i, i + 8).map(async (url) => {
@@ -403,10 +411,12 @@ export class GumroadService {
           .head(url, { validateStatus: () => true, timeout: 15000 })
           .catch(() => null);
         const status = res?.status;
+        const contentType = res?.headers['content-type'];
         return {
           url,
-          ok: status === 200 && /^video\//.test(res.headers['content-type']),
+          ok: status === 200 && /^video\//.test(contentType),
           status,
+          contentType,
         };
       });
       results.push(...(await Promise.all(batch)));

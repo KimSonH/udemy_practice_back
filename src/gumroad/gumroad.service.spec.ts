@@ -186,21 +186,43 @@ describe('GumroadService', () => {
       .mockResolvedValueOnce({
         status: 403,
         headers: { 'content-type': 'application/xml' },
+      })
+      .mockResolvedValueOnce({
+        status: 200,
+        headers: { 'content-type': 'image/jpeg' },
       });
 
     const results = await service.checkLinks([
       'https://public-files.gumroad.com/good',
       'https://public-files.gumroad.com/gone',
+      'https://public-files.gumroad.com/image',
       'http://169.254.169.254/latest/meta-data',
     ]);
 
     expect(results).toEqual([
-      { url: 'https://public-files.gumroad.com/good', ok: true, status: 200 },
-      { url: 'https://public-files.gumroad.com/gone', ok: false, status: 403 },
+      {
+        url: 'https://public-files.gumroad.com/good',
+        ok: true,
+        status: 200,
+        contentType: 'video/mp4',
+      },
+      {
+        url: 'https://public-files.gumroad.com/gone',
+        ok: false,
+        status: 403,
+        contentType: 'application/xml',
+      },
+      // Answers, but with an image: not a video, so not playable.
+      {
+        url: 'https://public-files.gumroad.com/image',
+        ok: false,
+        status: 200,
+        contentType: 'image/jpeg',
+      },
       { url: 'http://169.254.169.254/latest/meta-data', ok: null },
     ]);
     // The non-Gumroad URL was never fetched.
-    expect(mockedAxios.head).toHaveBeenCalledTimes(2);
+    expect(mockedAxios.head).toHaveBeenCalledTimes(3);
   });
 
   it('lists videos with who uploaded them and where they are used', async () => {
