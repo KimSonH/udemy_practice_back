@@ -1357,6 +1357,18 @@ export class CoursesService {
     await this.coursesRepository.update(courseId, { reviewedAt: null });
   }
 
+  /** An instructor's public page: their courses on sale, list-shaped. */
+  async findActiveByOwner(userId: number) {
+    const items = await this.coursesRepository.find({
+      relations: this.listRelations,
+      select: this.listSelect,
+      where: { ownerUserId: userId, status: 'active' },
+      order: { createdAt: 'DESC' },
+    });
+    await this.attachQuestionCounts(items);
+    return items;
+  }
+
   /** With per-set question counts, so the list can flag empty tests. */
   async findAllByOwner(userId: number) {
     const courses = await this.coursesRepository.find({

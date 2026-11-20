@@ -12,6 +12,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { UserCourse } from 'src/user-courses/entities/user-course.entity';
 import { UserPremium } from 'src/user-premium/entities/user-premium.entity';
 import { USER_STATUS_ACTIVE, UserStatus } from '../user-status';
+import type { ProfileLinks } from 'src/instructors/profile-links';
 
 @Entity()
 export class User {
@@ -40,6 +41,21 @@ export class User {
   })
   @Column({ name: 'status', default: USER_STATUS_ACTIVE })
   public status: UserStatus;
+
+  /** Shown on the public instructor page, under the name. */
+  @Column({ name: 'headline', type: 'varchar', length: 120, nullable: true })
+  public headline?: string | null;
+
+  /** Plain text; blank lines separate paragraphs. */
+  @Column({ name: 'bio', type: 'text', nullable: true })
+  public bio?: string | null;
+
+  /** An uploaded file name under /uploads/avatars. */
+  @Column({ name: 'avatar_url', type: 'varchar', nullable: true })
+  public avatarUrl?: string | null;
+
+  @Column({ name: 'profile_links', type: 'jsonb', nullable: true })
+  public profileLinks?: ProfileLinks | null;
 
   @Column({
     name: 'current_hashed_refresh_token',

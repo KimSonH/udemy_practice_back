@@ -33,8 +33,21 @@ export interface CreatorRevenue {
 }
 
 /** Gateways that take money. Anything else (an admin grant) is not a sale. */
-const PAID_GATEWAYS = ['paypal', 'sepay', 'vietqr'];
+export const PAID_GATEWAYS = ['paypal', 'sepay', 'vietqr'];
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** YYYY-MM-DD bounds, inclusive; this month to date when left out. */
+export function dateRange(from?: string, to?: string) {
+  const today = new Date().toISOString().slice(0, 10);
+  const start = from || `${today.slice(0, 8)}01`;
+  const end = to || today;
+  if (!DATE_ONLY.test(start) || !DATE_ONLY.test(end) || start > end) {
+    throw new BadRequestException(
+      '"from" and "to" must be YYYY-MM-DD dates, "from" not after "to"',
+    );
+  }
+  return { start, end };
+}
 
 export interface TrendPoint {
   date: string;
@@ -104,14 +117,7 @@ export class DashboardService {
    * Soft-deleted courses still count; their sales happened.
    */
   async getCreatorRevenue(from?: string, to?: string) {
-    const today = new Date().toISOString().slice(0, 10);
-    const start = from || `${today.slice(0, 8)}01`;
-    const end = to || today;
-    if (!DATE_ONLY.test(start) || !DATE_ONLY.test(end) || start > end) {
-      throw new BadRequestException(
-        '"from" and "to" must be YYYY-MM-DD dates, "from" not after "to"',
-      );
-    }
+    const { start, end } = dateRange(from, to);
 
     const rows: {
       user_id: number;
