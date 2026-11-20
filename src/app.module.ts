@@ -25,6 +25,7 @@ import { CourseResourcesModule } from './course-resources/course-resources.modul
 import { TestAttemptsModule } from './test-attempts/test-attempts.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { GumroadModule } from './gumroad/gumroad.module';
+import { InstructorsModule } from './instructors/instructors.module';
 
 @Module({
   imports: [
@@ -77,6 +78,7 @@ import { GumroadModule } from './gumroad/gumroad.module';
     TestAttemptsModule,
     DashboardModule,
     GumroadModule,
+    InstructorsModule,
   ],
   controllers: [],
   providers: [
